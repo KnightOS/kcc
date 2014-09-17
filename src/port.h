@@ -10,50 +10,33 @@
 #include "SDCCpeeph.h"
 #include "dbuf.h"
 
-#define TARGET_ID_MCS51    1
-#define TARGET_ID_GBZ80    2
-#define TARGET_ID_Z80      3
-#define TARGET_ID_AVR      4
-#define TARGET_ID_DS390    5
-#define TARGET_ID_PIC14    6
-#define TARGET_ID_PIC16    7
-#define TARGET_ID_XA51     9
-#define TARGET_ID_DS400    10
-#define TARGET_ID_HC08     11
-#define TARGET_ID_Z180     12
-#define TARGET_ID_R2K      13
-#define TARGET_ID_R3KA     14
-#define TARGET_ID_S08      15
-#define TARGET_ID_STM8     16
-#define TARGET_ID_TLCS90   17
-
 /* Macro to test the target we are compiling for.
    Can only be used after SDCCmain has defined the port
  */
-#define TARGET_IS_MCS51    (port->id == TARGET_ID_MCS51)
-#define TARGET_IS_AVR      (port->id == TARGET_ID_AVR)
-#define TARGET_IS_DS390    (port->id == TARGET_ID_DS390)
-#define TARGET_IS_DS400    (port->id == TARGET_ID_DS400)
-#define TARGET_IS_PIC14    (port->id == TARGET_ID_PIC14)
-#define TARGET_IS_PIC16    (port->id == TARGET_ID_PIC16)
-#define TARGET_IS_XA51     (port->id == TARGET_ID_XA51)
-#define TARGET_IS_Z80      (port->id == TARGET_ID_Z80)
-#define TARGET_IS_Z180     (port->id == TARGET_ID_Z180)
-#define TARGET_IS_R2K      (port->id == TARGET_ID_R2K)
-#define TARGET_IS_R3KA     (port->id == TARGET_ID_R3KA)
-#define TARGET_IS_GBZ80    (port->id == TARGET_ID_GBZ80)
-#define TARGET_IS_TLCS90   (port->id == TARGET_ID_TLCS90)
-#define TARGET_IS_HC08     (port->id == TARGET_ID_HC08)
-#define TARGET_IS_S08      (port->id == TARGET_ID_S08)
-#define TARGET_IS_STM8     (port->id == TARGET_ID_STM8)
+#define TARGET_IS_MCS51    (gcc, please raise an error here)
+#define TARGET_IS_AVR      (gcc, please raise an error here)
+#define TARGET_IS_DS390    (gcc, please raise an error here)
+#define TARGET_IS_DS400    (gcc, please raise an error here)
+#define TARGET_IS_PIC14    (gcc, please raise an error here)
+#define TARGET_IS_PIC16    (gcc, please raise an error here)
+#define TARGET_IS_XA51     (gcc, please raise an error here)
+#define TARGET_IS_Z80      (gcc, please raise an error here)
+#define TARGET_IS_Z180     (gcc, please raise an error here)
+#define TARGET_IS_R2K      (gcc, please raise an error here)
+#define TARGET_IS_R3KA     (gcc, please raise an error here)
+#define TARGET_IS_GBZ80    (gcc, please raise an error here)
+#define TARGET_IS_TLCS90   (gcc, please raise an error here)
+#define TARGET_IS_HC08     (gcc, please raise an error here)
+#define TARGET_IS_S08      (gcc, please raise an error here)
+#define TARGET_IS_STM8     (gcc, please raise an error here)
 
-#define TARGET_MCS51_LIKE  (TARGET_IS_MCS51 || TARGET_IS_DS390 || TARGET_IS_DS400)
-#define TARGET_Z80_LIKE    (TARGET_IS_Z80 || TARGET_IS_Z180 || TARGET_IS_GBZ80 || TARGET_IS_R2K || TARGET_IS_R3KA || TARGET_IS_TLCS90)
-#define TARGET_IS_RABBIT   (TARGET_IS_R2K || TARGET_IS_R3KA)
-#define TARGET_HC08_LIKE   (TARGET_IS_HC08 || TARGET_IS_S08)
-#define TARGET_PIC_LIKE    (TARGET_IS_PIC14 || TARGET_IS_PIC16)
+#define TARGET_MCS51_LIKE  (gcc, please raise an error here)
+#define TARGET_Z80_LIKE    (gcc, please raise an error here)
+#define TARGET_IS_RABBIT   (gcc, please raise an error here)
+#define TARGET_HC08_LIKE   (gcc, please raise an error here)
+#define TARGET_PIC_LIKE    (gcc, please raise an error here)
 /* is using sdas / sdld assembler / linker */
-#define IS_SDASLD          (TARGET_Z80_LIKE || TARGET_MCS51_LIKE || TARGET_HC08_LIKE)
+#define IS_SDASLD          (gcc, please raise an error here)
 
 #define MAX_BUILTIN_ARGS        16
 /* definition of builtin functions */
@@ -404,56 +387,6 @@ PORT;
 
 extern PORT *port;
 
-#if !OPT_DISABLE_MCS51
-extern PORT mcs51_port;
-#endif
-#if !OPT_DISABLE_Z80
 extern PORT z80_port;
-#endif
-#if !OPT_DISABLE_Z180
-extern PORT z180_port;
-#endif
-#if !OPT_DISABLE_R2K
-extern PORT r2k_port;  /* Rabbit 2000/3000 */
-#endif
-#if !OPT_DISABLE_R3KA
-extern PORT r3ka_port; /* Rabbit 3000A */
-#endif
-#if !OPT_DISABLE_GBZ80
-extern PORT gbz80_port;
-#endif
-#if !OPT_DISABLE_TLCS90
-extern PORT tlcs90_port;
-#endif
-#if !OPT_DISABLE_AVR
-extern PORT avr_port;
-#endif
-#if !OPT_DISABLE_DS390
-extern PORT ds390_port;
-#endif
-#if !OPT_DISABLE_PIC14
-extern PORT pic_port;
-#endif
-#if !OPT_DISABLE_PIC16
-extern PORT pic16_port;
-#endif
-#if !OPT_DISABLE_TININative
-extern PORT tininative_port;
-#endif
-#if !OPT_DISABLE_XA51
-extern PORT xa51_port;
-#endif
-#if !OPT_DISABLE_DS400
-extern PORT ds400_port;
-#endif
-#if !OPT_DISABLE_HC08
-extern PORT hc08_port;
-#endif
-#if !OPT_DISABLE_S08
-extern PORT s08_port;
-#endif
-#if !OPT_DISABLE_STM8
-extern PORT stm8_port;
-#endif
 
 #endif /* PORT_INCLUDE */
