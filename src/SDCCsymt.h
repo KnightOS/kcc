@@ -444,8 +444,7 @@ extern sym_link *validateLink (sym_link * l,
 #define IFFUNC_ISSMALLC(x) (IS_FUNC(x) && FUNC_ISSMALLC(x))
 
 #define BANKED_FUNCTIONS        ( options.model == MODEL_HUGE || \
-                                  ( (options.model == MODEL_LARGE || options.model == MODEL_MEDIUM) && \
-                                    TARGET_Z80_LIKE ) )
+                                  ( (options.model == MODEL_LARGE || options.model == MODEL_MEDIUM) ) )
 #define IFFUNC_ISBANKEDCALL(x)  ( IS_FUNC(x) && \
                                   ( FUNC_BANKED(x) || ( BANKED_FUNCTIONS && !FUNC_NONBANKED(x) ) ) )
 

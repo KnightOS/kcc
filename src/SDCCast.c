@@ -1457,20 +1457,6 @@ gatherAutoInit (symbol * autoChain)
       if (sym->ival)
         resolveIvalSym (sym->ival, sym->type);
 
-#if 1
-      /* if we are PIC16 port,
-       * and this is a static,
-       * and have initial value,
-       * and not S_CODE, don't emit in gs segment,
-       * but allow glue.c:pic16emitRegularMap to put symbol
-       * in idata section */
-      if (TARGET_IS_PIC16 && IS_STATIC (sym->etype) && sym->ival && SPEC_SCLS (sym->etype) != S_CODE)
-        {
-          SPEC_SCLS (sym->etype) = S_DATA;
-          continue;
-        }
-#endif
-
       /* if this is a static variable & has an */
       /* initial value the code needs to be lifted */
       /* here to the main portion since they can be */
@@ -2865,7 +2851,7 @@ checkPtrCast (sym_link * newType, sym_link * orgType, bool implicit)
           else if (IS_GENPTR (orgType) && IS_VOID (orgType->next))
             {                   // cast from void* is always allowed
             }
-          else if (GPTRSIZE > FPTRSIZE /*!TARGET_IS_Z80 && !TARGET_IS_GBZ80 */ )
+          else if (GPTRSIZE > FPTRSIZE)
             {
               // if not a pointer to a function
               if (!(IS_CODEPTR (newType) && IS_FUNC (newType->next) && IS_FUNC (orgType)))
@@ -3343,7 +3329,7 @@ decorateType (ast * tree, RESULT_TYPE resultType)
         }
 
       /* if bit field then error */
-      if (IS_BITFIELD (tree->left->etype) || (IS_BITVAR (tree->left->etype) && TARGET_MCS51_LIKE))
+      if (IS_BITFIELD (tree->left->etype) || (IS_BITVAR (tree->left->etype)))
         {
           werrorfl (tree->filename, tree->lineno, E_ILLEGAL_ADDR, "address of bit variable");
           goto errorTreeReturn;
@@ -3570,46 +3556,6 @@ decorateType (ast * tree, RESULT_TYPE resultType)
       LRVAL (tree) = RRVAL (tree) = 1;
 
       TETYPE (tree) = getSpec (TTYPE (tree) = computeType (LTYPE (tree), RTYPE (tree), resultType, tree->opval.op));
-
-      /* if right is a literal and */
-      /* left is also a division by a literal then */
-      /* rearrange the tree */
-#if 0
-      /* This converts (a/b)/c into a/(b*c)/1, where b and c are literals. */
-      /* Algebraically, this is fine, but may fail as an optimization if  */
-      /* b*c overflows or causes the expression to have a different resultant */
-      /* type. I don't think it's worth the effort to sort out the cases of */
-      /* when this is safe or not safe, so I am just going to leave this */
-      /* disabled. -- EEP -- 15 Nov 2012 */
-      if (IS_LITERAL (RTYPE (tree))
-          /* avoid infinite loop */
-          && (TYPE_TARGET_ULONG) ulFromVal (tree->right->opval.val) != 1)
-        {
-          ast *parent;
-          ast *litTree = searchLitOp (tree, &parent, "/");
-          if (litTree)
-            {
-              if (IS_LITERAL (RTYPE (litTree)))
-                {
-                  /* foo_div */
-                  DEBUG_CF ("div r") litTree->right = newNode ('*', litTree->right, copyAst (tree->right));
-                  litTree->right->filename = tree->filename;
-                  litTree->right->lineno = tree->lineno;
-
-                  tree->right->opval.val = constCharVal (1);
-                  decorateType (parent, resultType);
-                }
-              else
-                {
-                  /* litTree->left is literal: no gcse possible.
-                     We can't call decorateType(parent, RESULT_TYPE_NONE), because
-                     this would cause an infinit loop. */
-                  parent->decorated = 1;
-                  decorateType (litTree, resultType);
-                }
-            }
-        }
-#endif
 
       return tree;
 
@@ -4259,139 +4205,9 @@ decorateType (ast * tree, RESULT_TYPE resultType)
       /* implicitly point to constants -- make this explicit       */
       CodePtrPointsToConst (LTYPE (tree));
 
-#if 0
       /* if the right is a literal replace the tree */
       if (IS_LITERAL (RETYPE (tree)))
         {
-          if (!IS_PTR (LTYPE (tree)))
-            {
-              tree->type = EX_VALUE;
-              tree->opval.val = valCastLiteral (LTYPE (tree), floatFromVal (valFromType (RETYPE (tree))));
-              tree->left = NULL;
-              tree->right = NULL;
-              TTYPE (tree) = tree->opval.val->type;
-              tree->values.cast.literalFromCast = 1;
-            }
-          else if (IS_GENPTR (LTYPE (tree)) && !IS_PTR (RTYPE (tree)) && ((int) ulFromVal (valFromType (RETYPE (tree)))) != 0)  /* special case of NULL */
-            {
-              sym_link *rest = LTYPE (tree)->next;
-              werrorfl (tree->filename, tree->lineno, W_LITERAL_GENERIC);
-              TTYPE (tree) = newLink (DECLARATOR);
-              DCL_TYPE (TTYPE (tree)) = FPOINTER;
-              TTYPE (tree)->next = rest;
-              tree->left->opval.lnk = TTYPE (tree);
-              LRVAL (tree) = 1;
-            }
-          else
-            {
-              TTYPE (tree) = LTYPE (tree);
-              LRVAL (tree) = 1;
-            }
-        }
-      else
-        {
-          TTYPE (tree) = LTYPE (tree);
-          LRVAL (tree) = 1;
-        }
-#else
-#if 0                           // this is already checked, now this could be explicit
-      /* if pointer to struct then check names */
-      if (IS_PTR (LTYPE (tree)) && IS_STRUCT (LTYPE (tree)->next) &&
-          IS_PTR (RTYPE (tree)) && IS_STRUCT (RTYPE (tree)->next) &&
-          strcmp (SPEC_STRUCT (LETYPE (tree))->tag, SPEC_STRUCT (RETYPE (tree))->tag))
-        {
-          werrorfl (tree->filename, tree->lineno, W_CAST_STRUCT_PTR, SPEC_STRUCT (RETYPE (tree))->tag,
-                    SPEC_STRUCT (LETYPE (tree))->tag);
-        }
-#endif
-#if 0                           // disabled to fix bug 2941749
-      if (IS_ADDRESS_OF_OP (tree->right)
-          && IS_AST_SYM_VALUE (tree->right->left) && SPEC_ABSA (AST_SYMBOL (tree->right->left)->etype))
-        {
-          symbol *sym = AST_SYMBOL (tree->right->left);
-          unsigned int gptype = 0;
-          unsigned int addr = SPEC_ADDR (sym->etype);
-
-          if (IS_GENPTR (LTYPE (tree)) && ((GPTRSIZE > FPTRSIZE) || TARGET_IS_PIC16))
-            {
-              switch (SPEC_SCLS (sym->etype))
-                {
-                case S_CODE:
-                  gptype = GPTYPE_CODE;
-                  break;
-                case S_XDATA:
-                  gptype = GPTYPE_FAR;
-                  break;
-                case S_DATA:
-                case S_IDATA:
-                  gptype = GPTYPE_NEAR;
-                  break;
-                case S_PDATA:
-                  gptype = GPTYPE_XSTACK;
-                  break;
-                default:
-                  gptype = 0;
-                  if (TARGET_IS_PIC16 && (SPEC_SCLS (sym->etype) == S_FIXED))
-                    gptype = GPTYPE_NEAR;
-                }
-              addr |= gptype << (8 * (GPTRSIZE - 1));
-            }
-
-          tree->type = EX_VALUE;
-          tree->opval.val = valCastLiteral (LTYPE (tree), addr);
-          TTYPE (tree) = tree->opval.val->type;
-          TETYPE (tree) = getSpec (TTYPE (tree));
-          tree->left = NULL;
-          tree->right = NULL;
-          tree->values.cast.literalFromCast = 1;
-          return tree;
-        }
-#endif
-
-      /* if the right is a literal replace the tree */
-      if (IS_LITERAL (RETYPE (tree)))
-        {
-#if 0
-          if (IS_PTR (LTYPE (tree)) && !IS_GENPTR (LTYPE (tree)))
-            {
-              /* rewrite      (type *)litaddr
-                 as           &temp
-                 and define   type at litaddr temp
-                 (but only if type's storage class is not generic)
-               */
-              ast *newTree = newNode ('&', NULL, NULL);
-              symbol *sym;
-
-              TTYPE (newTree) = LTYPE (tree);
-              TETYPE (newTree) = getSpec (LTYPE (tree));
-
-              /* define a global symbol at the casted address */
-              sym = newSymbol (genSymName (0), 0);
-              sym->type = LTYPE (tree)->next;
-              if (!sym->type)
-                sym->type = newLink (V_VOID);
-              sym->etype = getSpec (sym->type);
-              SPEC_SCLS (sym->etype) = sclsFromPtr (LTYPE (tree));
-              sym->lineDef = tree->lineno;
-              sym->cdef = 1;
-              sym->isref = 1;
-              SPEC_STAT (sym->etype) = 1;
-              SPEC_ADDR (sym->etype) = floatFromVal (valFromType (RTYPE (tree)));
-              SPEC_ABSA (sym->etype) = 1;
-              addSym (SymbolTab, sym, sym->name, 0, 0, 0);
-              allocGlobal (sym);
-
-              newTree->left = newAst_VALUE (symbolVal (sym));
-              newTree->left->filename = tree->filename;
-              newTree->left->lineno = tree->lineno;
-              LTYPE (newTree) = sym->type;
-              LETYPE (newTree) = sym->etype;
-              LLVAL (newTree) = 1;
-              LRVAL (newTree) = 0;
-              TLVAL (newTree) = 1;
-              return newTree;
-            }
-#endif
           if (!IS_PTR (LTYPE (tree)))
             {
               tree->type = EX_VALUE;
@@ -4447,7 +4263,6 @@ decorateType (ast * tree, RESULT_TYPE resultType)
       TTYPE (tree) = LTYPE (tree);
       LRVAL (tree) = 1;
 
-#endif
       TETYPE (tree) = getSpec (TTYPE (tree));
 
       return tree;

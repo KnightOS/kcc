@@ -238,21 +238,6 @@ cnvToFcall (iCode * ic, eBBlock * ebp)
   if (currFunc)
     FUNC_HASFCALL (currFunc->type) = 1;
 
-  if (TARGET_PIC_LIKE)
-    {
-      /* normally these functions aren't marked external, so we can use their
-       * _extern field to mark as already added to symbol table */
-
-      if (!SPEC_EXTR(func->etype))
-        {
-          memmap *seg = SPEC_OCLS(OP_SYMBOL(IC_LEFT(newic))->etype);
-
-          SPEC_EXTR(func->etype) = 1;
-          seg = SPEC_OCLS( func->etype );
-          addSet(&seg->syms, func);
-        }
-    }
-
   addiCodeToeBBlock (ebp, newic, ip);
 }
 
@@ -348,21 +333,6 @@ found:
   if (currFunc)
     FUNC_HASFCALL (currFunc->type) = 1;
 
-  if (TARGET_PIC_LIKE)
-    {
-      /* normally these functions aren't marked external, so we can use their
-       * _extern field to marked as already added to symbol table */
-
-      if (!SPEC_EXTR(func->etype))
-        {
-          memmap *seg = SPEC_OCLS(OP_SYMBOL(IC_LEFT(newic))->etype);
-
-          SPEC_EXTR(func->etype) = 1;
-          seg = SPEC_OCLS( func->etype );
-          addSet(&seg->syms, func);
-        }
-    }
-
   addiCodeToeBBlock (ebp, newic, ip);
   newic->filename = filename;
   newic->lineno = linenno;
@@ -454,21 +424,6 @@ found:
   ebp->hasFcall = 1;
   if (currFunc)
     FUNC_HASFCALL (currFunc->type) = 1;
-
-  if (TARGET_PIC_LIKE)
-    {
-      /* normally these functions aren't marked external, so we can use their
-       * _extern field to marked as already added to symbol table */
-
-      if (!SPEC_EXTR(func->etype))
-        {
-          memmap *seg = SPEC_OCLS(OP_SYMBOL(IC_LEFT(newic))->etype);
-
-          SPEC_EXTR(func->etype) = 1;
-          seg = SPEC_OCLS( func->etype );
-          addSet(&seg->syms, func);
-        }
-    }
 
   addiCodeToeBBlock (ebp, newic, ip);
   newic->filename = filename;
@@ -562,21 +517,6 @@ found:
   ebp->hasFcall = 1;
   if (currFunc)
     FUNC_HASFCALL (currFunc->type) = 1;
-
-  if (TARGET_PIC_LIKE)
-    {
-      /* normally these functions aren't marked external, so we can use their
-       * _extern field to marked as already added to symbol table */
-
-      if (!SPEC_EXTR(func->etype))
-        {
-          memmap *seg = SPEC_OCLS(OP_SYMBOL(IC_LEFT(newic))->etype);
-
-          SPEC_EXTR(func->etype) = 1;
-          seg = SPEC_OCLS( func->etype );
-          addSet(&seg->syms, func);
-        }
-    }
 
   addiCodeToeBBlock (ebp, newic, ip);
   newic->filename = filename;
@@ -677,21 +617,6 @@ found:
   ebp->hasFcall = 1;
   if (currFunc)
     FUNC_HASFCALL (currFunc->type) = 1;
-
-  if (TARGET_PIC_LIKE)
-    {
-      /* normally these functions aren't marked external, so we can use their
-       * _extern field to marked as already added to symbol table */
-
-      if (!SPEC_EXTR(func->etype))
-        {
-          memmap *seg = SPEC_OCLS(OP_SYMBOL(IC_LEFT(newic))->etype);
-
-          SPEC_EXTR(func->etype) = 1;
-          seg = SPEC_OCLS( func->etype );
-          addSet(&seg->syms, func);
-        }
-    }
 
   addiCodeToeBBlock (ebp, newic, ip);
   newic->filename = filename;
@@ -885,21 +810,6 @@ found:
   if (currFunc)
     FUNC_HASFCALL (currFunc->type) = 1;
 
-  if (TARGET_PIC_LIKE)
-    {
-      /* normally these functions aren't marked external, so we can use their
-       * _extern field to marked as already added to symbol table */
-
-      if (!SPEC_EXTR(func->etype))
-        {
-          memmap *seg = SPEC_OCLS(OP_SYMBOL(IC_LEFT(newic))->etype);
-
-          SPEC_EXTR(func->etype) = 1;
-          seg = SPEC_OCLS( func->etype );
-          addSet(&seg->syms, func);
-        }
-    }
-
   addiCodeToeBBlock (ebp, newic, ip);
 }
 
@@ -945,7 +855,7 @@ convbuiltin (iCode *const ic, eBBlock *ebp)
       goto convert;
     }
 
-  if ((TARGET_IS_Z80 || TARGET_IS_Z180 || TARGET_IS_RABBIT) && (!strcmp (bif->name, "__builtin_memcpy") || !strcmp (bif->name, "__builtin_strncpy") || !strcmp (bif->name, "__builtin_memset")))
+  if (!strcmp (bif->name, "__builtin_memcpy") || !strcmp (bif->name, "__builtin_strncpy") || !strcmp (bif->name, "__builtin_memset"))
     {
       /* Replace iff return value is used or last parameter is not an integer constant. */
       if (bitVectIsZero (OP_USES (IC_RESULT (icc))) && IS_OP_LITERAL (IC_LEFT (lastparam)))
@@ -2040,9 +1950,6 @@ offsetFoldGet (eBBlock **ebbs, int count)
   iCode *ic;
   iCode *uic;
 
-  if (!TARGET_Z80_LIKE && !TARGET_IS_STM8)
-    return;
-  
   for (i = 0; i < count; i++)
     {
       for (ic = ebbs[i]->sch; ic; ic = ic->next)
@@ -2092,9 +1999,6 @@ offsetFoldUse (eBBlock **ebbs, int count)
   iCode *ic;
   iCode *uic;
 
-  if (!TARGET_IS_Z80 && !TARGET_IS_Z180 && !TARGET_IS_RABBIT && !TARGET_IS_STM8)
-    return;
-  
   for (i = 0; i < count; i++)
     {
       for (ic = ebbs[i]->sch; ic; ic = ic->next)
@@ -2264,7 +2168,7 @@ eBBlockFromiCode (iCode * ic)
   computeLiveRanges (ebbi->bbOrder, ebbi->count, FALSE);
   adjustIChain (ebbi->bbOrder, ebbi->count);
   ic = iCodeLabelOptimize (iCodeFromeBBlock (ebbi->bbOrder, ebbi->count));
-  if (optimize.lospre && (TARGET_Z80_LIKE || TARGET_HC08_LIKE || TARGET_IS_STM8)) /* Todo: enable for other ports. */
+  if (optimize.lospre) /* Todo: enable for other ports. */
     {
       lospre (ic, ebbi);
       if (options.dump_i_code)

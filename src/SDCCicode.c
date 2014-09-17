@@ -1605,7 +1605,7 @@ operandFromSymbol (symbol * sym)
   /* under the following conditions create a
      register equivalent for a local symbol */
   if (sym->level && sym->etype && SPEC_OCLS (sym->etype) &&
-      (IN_FARSPACE (SPEC_OCLS (sym->etype)) && !TARGET_HC08_LIKE && (!(options.model == MODEL_FLAT24))) && options.stackAuto == 0)
+      (IN_FARSPACE (SPEC_OCLS (sym->etype)) && (!(options.model == MODEL_FLAT24))) && options.stackAuto == 0)
     {
       ok = 0;
     }
@@ -1618,7 +1618,7 @@ operandFromSymbol (symbol * sym)
       !sym->reqv &&                     /* does not already have a reg equivalence */
       !IS_VOLATILE (sym->etype) &&      /* not declared as volatile */
       !sym->islbl &&                    /* not a label */
-      !(TARGET_HC08_LIKE && (getSize (sym->type) > 2)) && /* will fit in regs */
+      !(getSize (sym->type) > 2) &&     /* will fit in regs */
       ok                                /* farspace check */
     )
     {
@@ -1903,7 +1903,7 @@ geniCodeRValue (operand * op, bool force)
     return op;
 
   /* if this is not a temp symbol then */
-  if (!IS_ITEMP (op) && !force && !(IN_FARSPACE (SPEC_OCLS (etype)) && !TARGET_HC08_LIKE))
+  if (!IS_ITEMP (op) && !force && !(IN_FARSPACE (SPEC_OCLS (etype))))
     {
       op = operandFromOperand (op);
       op->isaddr = 0;
@@ -1911,7 +1911,7 @@ geniCodeRValue (operand * op, bool force)
     }
 
   if (IS_SPEC (type) &&
-      IS_TRUE_SYMOP (op) && (!(IN_FARSPACE (SPEC_OCLS (etype)) && !TARGET_HC08_LIKE) || (options.model == MODEL_FLAT24)))
+      IS_TRUE_SYMOP (op) && (!(IN_FARSPACE (SPEC_OCLS (etype))) || (options.model == MODEL_FLAT24)))
     {
       op = operandFromOperand (op);
       op->isaddr = 0;
@@ -1944,12 +1944,6 @@ checkPtrQualifiers (sym_link * ltype, sym_link * rtype)
     {
       if (!IS_CONSTANT (ltype->next) && IS_CONSTANT (rtype->next))
         werror (W_TARGET_LOST_QUALIFIER, "const");
-#if 0
-      // disabled because SDCC will make all union fields volatile
-      // but your ptr to it need not be
-      if (!IS_VOLATILE (ltype->next) && IS_VOLATILE (rtype->next))
-        werror (W_TARGET_LOST_QUALIFIER, "volatile");
-#endif
       if (!IS_RESTRICT (ltype->next) && IS_RESTRICT (rtype->next))
         werror (W_TARGET_LOST_QUALIFIER, "restrict");
     }
@@ -2058,8 +2052,7 @@ geniCodeMultiply (operand * left, operand * right, RESULT_TYPE resultType)
      efficient in most cases than 2 bytes result = 2 bytes << literal
      if port has 1 byte muldiv */
   if ((p2 > 0) && !IS_FLOAT (letype) && !IS_FIXED (letype) &&
-      !((resultType == RESULT_TYPE_INT) && (getSize (resType) != getSize (ltype)) && (port->support.muldiv == 1)) &&
-      !TARGET_PIC_LIKE)      /* don't shift for pic */
+      !((resultType == RESULT_TYPE_INT) && (getSize (resType) != getSize (ltype)) && (port->support.muldiv == 1)))
     {
       if ((resultType == RESULT_TYPE_INT) && (getSize (resType) != getSize (ltype)))
         {
@@ -2117,8 +2110,7 @@ geniCodeDivision (operand *left, operand *right, RESULT_TYPE resultType)
      followed by right shift */
   if (IS_LITERAL (retype) &&
       !IS_FLOAT (letype) &&
-      !IS_FIXED (letype) && !IS_UNSIGNED (letype) && ((p2 = powof2 ((TYPE_TARGET_ULONG) ulFromVal (OP_VALUE (right)))) > 0) &&
-      (TARGET_Z80_LIKE || TARGET_HC08_LIKE))
+      !IS_FIXED (letype) && !IS_UNSIGNED (letype) && ((p2 = powof2 ((TYPE_TARGET_ULONG) ulFromVal (OP_VALUE (right)))) > 0))
     {
       operand *tmp;
       symbol *label = newiTempLabel (NULL);
@@ -3457,7 +3449,7 @@ geniCodeReceive (value * args, operand * func)
           if (!sym->addrtaken && !IS_VOLATILE (sym->etype))
             {
 
-              if ((IN_FARSPACE (SPEC_OCLS (sym->etype)) && !TARGET_HC08_LIKE) &&
+              if ((IN_FARSPACE (SPEC_OCLS (sym->etype))) &&
                   options.stackAuto == 0 && (!(options.model == MODEL_FLAT24)))
                 {
                 }
@@ -3956,7 +3948,7 @@ geniCodeCritical (ast * tree, int lvl)
   operand *op = NULL;
   sym_link *type;
 
-  if (!options.stackAuto && !TARGET_HC08_LIKE)
+  if (!options.stackAuto)
     {
       type = newLink (SPECIFIER);
       SPEC_VOLATILE (type) = 1;

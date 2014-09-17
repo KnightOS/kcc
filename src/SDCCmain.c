@@ -297,84 +297,7 @@ static const char *_baseValues[] = {
 
 static const char *_preCmd = "{cpp} -nostdinc -Wall {cppstd}{cppextraopts} {fullsrcfilename} {cppoutfilename}";
 
-PORT *port;
-
-static PORT *_ports[] = {
-#if !OPT_DISABLE_MCS51
-  &mcs51_port,
-#endif
-#if !OPT_DISABLE_Z80
-  &z80_port,
-#endif
-#if !OPT_DISABLE_Z180
-  &z180_port,
-#endif
-#if !OPT_DISABLE_R2K
-  &r2k_port,
-#endif
-#if !OPT_DISABLE_R3KA
-  &r3ka_port,
-#endif
-#if !OPT_DISABLE_GBZ80
-  &gbz80_port,
-#endif
-#if !OPT_DISABLE_TLCS90
-  &tlcs90_port,
-#endif
-#if !OPT_DISABLE_AVR
-  &avr_port,
-#endif
-#if !OPT_DISABLE_DS390
-  &ds390_port,
-#endif
-#if !OPT_DISABLE_PIC16
-  &pic16_port,
-#endif
-#if !OPT_DISABLE_PIC14
-  &pic_port,
-#endif
-#if !OPT_DISABLE_TININative
-  &tininative_port,
-#endif
-#if !OPT_DISABLE_XA51
-  &xa51_port,
-#endif
-#if !OPT_DISABLE_DS400
-  &ds400_port,
-#endif
-#if !OPT_DISABLE_HC08
-  &hc08_port,
-#endif
-#if !OPT_DISABLE_S08
-  &s08_port,
-#endif
-#if !OPT_DISABLE_STM8
-  &stm8_port,
-#endif
-};
-
-#define NUM_PORTS (sizeof(_ports)/sizeof(_ports[0]))
-
-/** Sets the port to the one given by the command line option.
-    @param    The name minus the option (eg 'mcs51')
-    @return     0 on success.
-*/
-static void
-_setPort (const char *name)
-{
-  int i;
-  for (i = 0; i < NUM_PORTS; i++)
-    {
-      if (!strcmp (_ports[i]->target, name))
-        {
-          port = _ports[i];
-          return;
-        }
-    }
-  /* Error - didnt find */
-  werror (E_UNKNOWN_TARGET, name);
-  exit (EXIT_FAILURE);
-}
+PORT *port = &z80_port;
 
 /* Override the default processor with the one specified
  * on the command line */
@@ -383,24 +306,6 @@ _setProcessor (char *_processor)
 {
   port->processor = _processor;
 }
-
-static void
-_validatePorts (void)
-{
-  int i;
-  for (i = 0; i < NUM_PORTS; i++)
-    {
-      if (_ports[i]->magic != PORT_MAGIC)
-        {
-          /* Uncomment this line to debug which port is causing the problem
-           * (the target name is close to the beginning of the port struct
-           * and probably can be accessed just fine). */
-          fprintf (stderr, "%s :", _ports[i]->target);
-          wassertl (0, "Port definition structure is incomplete");
-        }
-    }
-}
-
 
 static char *
 program_name (const char *path)
@@ -419,63 +324,6 @@ program_name (const char *path)
 #endif
 }
 
-/* search through the command line for the port */
-static void
-_findPort (int argc, char **argv)
-{
-  char *programName = program_name (*argv);
-  int found = 0;
-  int i;
-
-  _validatePorts ();
-
-  /* try to assign port by command line option */
-  while (argc-- && !found)
-    {
-      if (!strncmp (*argv, "-m", 2))
-        {
-          _setPort (*argv + 2);
-          found = 1;
-        }
-      argv++;
-    }
-
-  /* try to assign port by the name of the executable */
-  for (i = 0; i < NUM_PORTS && !found; i++)
-    {
-      if (strstr (programName, _ports[i]->target))
-        {
-          _setPort (_ports[i]->target);
-          found = 1;
-        }
-    }
-
-  if (!found)
-    {
-      /* Use the first in the list as default */
-      port = _ports[0];
-    }
-
-  Safe_free (programName);
-}
-
-/* search through the command line options for the processor */
-static void
-_findProcessor (int argc, char **argv)
-{
-  while (argc--)
-    {
-      if (!strncmp (*argv, "-p", 2))
-        {
-          _setProcessor (*argv + 2);
-          return;
-        }
-      argv++;
-    }
-
-  /* no error if processor was not specified. */
-}
-
 /*-----------------------------------------------------------------*/
 /* printVersionInfo - prints the version info        */
 /*-----------------------------------------------------------------*/
@@ -485,8 +333,6 @@ printVersionInfo (FILE * stream)
   int i;
 
   fprintf (stream, "SDCC : ");
-  for (i = 0; i < NUM_PORTS; i++)
-    fprintf (stream, "%s%s", i == 0 ? "" : "/", _ports[i]->target);
 
   fprintf (stream, " " SDCC_VERSION_STR
 #ifdef SDCC_SUB_VERSION_STR
@@ -533,14 +379,7 @@ printUsage (void)
 
   printOptions (optionsTable, stream);
 
-  for (i = 0; i < NUM_PORTS; i++)
-    {
-      if (_ports[i]->poptions != NULL)
-        {
-          fprintf (stream, "\nSpecial options for the %s port:\n", _ports[i]->target);
-          printOptions (_ports[i]->poptions, stream);
-        }
-    }
+  printOptions (port->poptions, stream);
 }
 
 /*-----------------------------------------------------------------*/
@@ -1567,39 +1406,7 @@ linkEdit (char **envp)
           exit (EXIT_FAILURE);
         }
 
-      if (TARGET_Z80_LIKE)
-        {
-          fprintf (lnkfile, "-mjwx\n-%c %s\n", out_fmt, dbuf_c_str (&binFileName));
-        }
-      else                      /* For all the other ports which need linker script */
-        {
-          fprintf (lnkfile, "-muwx\n-%c %s\n", out_fmt, dbuf_c_str (&binFileName));
-          if (TARGET_MCS51_LIKE)
-            fprintf (lnkfile, "-M\n");
-          if (!options.no_pack_iram)
-            fprintf (lnkfile, "-Y\n");
-          else
-            werror (W_DEPRECATED_OPTION, "--no-pack-iram");
-        }
-
-      if (!TARGET_Z80_LIKE)   /* Not for the z80, gbz80 */
-        {
-          /* if iram size specified */
-          if (options.iram_size)
-            fprintf (lnkfile, "-I 0x%04x\n", options.iram_size);
-
-          /* if stack size specified */
-          if (options.stack_size)
-            fprintf (lnkfile, "-S 0x%02x\n", options.stack_size);
-
-          /* if xram size specified */
-          if (options.xram_size_set)
-            fprintf (lnkfile, "-X 0x%04x\n", options.xram_size);
-
-          /* if code size specified */
-          if (options.code_size)
-            fprintf (lnkfile, "-C 0x%04x\n", options.code_size);
-        }
+      fprintf (lnkfile, "-mjwx\n-%c %s\n", out_fmt, dbuf_c_str (&binFileName));
 
       if (options.debug)
         fprintf (lnkfile, "-y\n");
@@ -1614,53 +1421,8 @@ linkEdit (char **envp)
     if (segName) { Safe_free (segName); } \
   }
 
-      if (!TARGET_Z80_LIKE)   /* Not for the z80, z180, gbz80 */
-        {
-
-          /* code segment start */
-          WRITE_SEG_LOC (HOME_NAME, options.code_loc);
-
-          /* data segment start. If zero, the linker chooses
-             the best place for data */
-          if (options.data_loc)
-            {
-              WRITE_SEG_LOC (DATA_NAME, options.data_loc);
-            }
-
-          /* xdata segment start. If zero, the linker chooses
-             the best place for xdata */
-          if (options.xdata_loc)
-            {
-              WRITE_SEG_LOC (XDATA_NAME, options.xdata_loc);
-            }
-
-          /* pdata/xstack segment start. If zero, the linker
-             chooses the best place for them */
-          if (options.xstack_loc)
-            {
-              WRITE_SEG_LOC (PDATA_NAME, options.xstack_loc);
-            }
-
-          /* indirect data */
-          if (IDATA_NAME)
-            {
-              WRITE_SEG_LOC (IDATA_NAME, options.idata_loc);
-            }
-
-          /* bit segment start */
-          WRITE_SEG_LOC (BIT_NAME, 0);
-
-          /* stack start */
-          if ((options.stack_loc) && (options.stack_loc < 0x100) && !TARGET_HC08_LIKE)
-            {
-              WRITE_SEG_LOC ("SSEG", options.stack_loc);
-            }
-        }
-      else                      /* For the z80, z180, gbz80 */
-        {
-          WRITE_SEG_LOC ("_CODE", options.code_loc);
-          WRITE_SEG_LOC ("_DATA", options.data_loc);
-        }
+      WRITE_SEG_LOC ("_CODE", options.code_loc);
+      WRITE_SEG_LOC ("_DATA", options.data_loc);
 
       /* If the port has any special linker area declarations, get 'em */
       if (port->extraAreas.genExtraAreaLinkOptions)
@@ -1898,7 +1660,7 @@ assemble (char **envp)
         }
       Safe_free (buf);
 
-      if (options.cc_only && fullDstFileName && TARGET_PIC_LIKE)
+      if (options.cc_only && fullDstFileName)
         {
           /* gpasm assembler doesn't properly handle the -o option:
              the file extension is replaced with .o,
@@ -2442,12 +2204,6 @@ main (int argc, char **argv, char **envp)
 {
   /* turn all optimizations off by default */
   memset (&optimize, 0, sizeof (struct optimize));
-
-  if (NUM_PORTS == 0)
-    {
-      fprintf (stderr, "Build error: no ports are enabled.\n");
-      exit (EXIT_FAILURE);
-    }
 
   /* install signal handler;
      it's only purpose is to call exit() to remove temp files */
