@@ -7,3 +7,5 @@ install_manifest.txt
 *.swp
 *.o
 *.1
+SDCCy.c
+SDCCy.h
