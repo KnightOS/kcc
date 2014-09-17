@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 2.8.5)
 project(kcc C)
-set(CMAKE_CXX_FLAGS "-g -Wno-parenthesis")
+set(CMAKE_C_FLAGS "-g")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "bin/")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/modules/")
-add_definitions("-Wall")
+add_definitions("-Wall -Wno-parentheses")
 find_package(BISON)
 
 set(LIBS ${LIBS})
