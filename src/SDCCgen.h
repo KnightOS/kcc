@@ -52,10 +52,6 @@ lineElem_t;
 
 typedef struct lineNode_s
 {
-#ifdef UNNAMED_STRUCT_TAG
-  struct lineElem_s;
-#else
-  /* exactly the same members as of struct lineElem_s */
   char *line;
   iCode *ic;
   unsigned int isInline:1;
@@ -64,7 +60,6 @@ typedef struct lineNode_s
   unsigned int isLabel:1;
   unsigned int visited:1;
   asmLineNodeBase *aln;
-#endif
   struct lineNode_s *prev;
   struct lineNode_s *next;
 }
