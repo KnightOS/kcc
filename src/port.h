@@ -10,34 +10,6 @@
 #include "SDCCpeeph.h"
 #include "dbuf.h"
 
-/* Macro to test the target we are compiling for.
-   Can only be used after SDCCmain has defined the port
- */
-#define TARGET_IS_MCS51    (gcc, please raise an error here)
-#define TARGET_IS_AVR      (gcc, please raise an error here)
-#define TARGET_IS_DS390    (gcc, please raise an error here)
-#define TARGET_IS_DS400    (gcc, please raise an error here)
-#define TARGET_IS_PIC14    (gcc, please raise an error here)
-#define TARGET_IS_PIC16    (gcc, please raise an error here)
-#define TARGET_IS_XA51     (gcc, please raise an error here)
-#define TARGET_IS_Z80      (gcc, please raise an error here)
-#define TARGET_IS_Z180     (gcc, please raise an error here)
-#define TARGET_IS_R2K      (gcc, please raise an error here)
-#define TARGET_IS_R3KA     (gcc, please raise an error here)
-#define TARGET_IS_GBZ80    (gcc, please raise an error here)
-#define TARGET_IS_TLCS90   (gcc, please raise an error here)
-#define TARGET_IS_HC08     (gcc, please raise an error here)
-#define TARGET_IS_S08      (gcc, please raise an error here)
-#define TARGET_IS_STM8     (gcc, please raise an error here)
-
-#define TARGET_MCS51_LIKE  (gcc, please raise an error here)
-#define TARGET_Z80_LIKE    (gcc, please raise an error here)
-#define TARGET_IS_RABBIT   (gcc, please raise an error here)
-#define TARGET_HC08_LIKE   (gcc, please raise an error here)
-#define TARGET_PIC_LIKE    (gcc, please raise an error here)
-/* is using sdas / sdld assembler / linker */
-#define IS_SDASLD          (gcc, please raise an error here)
-
 #define MAX_BUILTIN_ARGS        16
 /* definition of builtin functions */
 typedef struct builtins
