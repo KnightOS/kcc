@@ -1165,7 +1165,7 @@ getBuiltinParms (iCode * fic, int *pcount, operand ** parms)
   /* make sure this is a builtin function call */
   assert (IS_SYMOP (IC_LEFT (ic)));
   ftype = operandType (IC_LEFT (ic));
-  assert (IFFUNC_ISBUILTIN (ftype));
+  wassert (IFFUNC_ISBUILTIN (ftype));
   return ic;
 }
 

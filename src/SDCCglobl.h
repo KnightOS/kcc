@@ -393,8 +393,10 @@ void setParseWithComma (set **, const char *);
 /** An assert() macro that will go out through sdcc's error
     system.
 */
-#define wassertl(a,s)   ((a) ? 0 : \
-        (werror (E_INTERNAL_ERROR, __FILE__, __LINE__, s), 0))
+#define wassertl(a,s) \
+  if (!(a)) {\
+    werror (E_INTERNAL_ERROR, __FILE__, __LINE__, s);\
+  }
 
 #define wassert(a)    wassertl(a,"code generator internal error")
 

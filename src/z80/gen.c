@@ -3664,7 +3664,9 @@ restoreRegs (bool iy, bool de, bool bc, bool hl, const operand *result)
   if (de)
     {
       if (dInRet && eInRet)
-        wassertl (0, "Shouldn't push DE if it's wiped out by the return");
+        {
+          wassertl (0, "Shouldn't push DE if it's wiped out by the return");
+        }
       else if (dInRet)
         {
           /* Only restore E */
@@ -3688,7 +3690,9 @@ restoreRegs (bool iy, bool de, bool bc, bool hl, const operand *result)
   if (bc)
     {
       if (bInRet && cInRet)
-        wassertl (0, "Shouldn't push BC if it's wiped out by the return");
+        {
+          wassertl (0, "Shouldn't push BC if it's wiped out by the return");
+        }
       else if (bInRet)
         {
           /* Only restore C */
@@ -3712,7 +3716,9 @@ restoreRegs (bool iy, bool de, bool bc, bool hl, const operand *result)
   if (hl)
     {
       if (hInRet && lInRet)
-        wassertl (0, "Shouldn't push HL if it's wiped out by the return");
+        {
+          wassertl (0, "Shouldn't push HL if it's wiped out by the return");
+        }
       else if (hInRet)
         {
           /* Only restore E */

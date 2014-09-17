@@ -80,13 +80,6 @@ static const char *dstPath = "";          /* path for the output files; */
 static const char *moduleNameBase = NULL; /* module name base is source file without path and extension */
                                           /* can be NULL while linking without compiling */
 
-/* uncomment JAMIN_DS390 to always override and use ds390 port
-  for mcs51 work.  This is temporary, for compatibility testing. */
-/* #define JAMIN_DS390 */
-#ifdef JAMIN_DS390
-static int ds390_jammed = 0;
-#endif
-
 /* Globally accessible scratch buffer for file names.
    TODO: replace them with local buffers */
 char buffer[PATH_MAX * 2];
@@ -299,39 +292,12 @@ static const char *_preCmd = "{cpp} -nostdinc -Wall {cppstd}{cppextraopts} {full
 
 PORT *port = &z80_port;
 
-/* Override the default processor with the one specified
- * on the command line */
-static void
-_setProcessor (char *_processor)
-{
-  port->processor = _processor;
-}
-
-static char *
-program_name (const char *path)
-{
-#ifdef _WIN32
-  char fname[_MAX_FNAME];
-
-  _splitpath (path, NULL, NULL, fname, NULL);
-  return Safe_strdup (fname);
-#else
-  char *tmpPath = Safe_strdup (path);
-  char *res = Safe_strdup (basename (tmpPath));
-
-  Safe_free (tmpPath);
-  return res;
-#endif
-}
-
 /*-----------------------------------------------------------------*/
 /* printVersionInfo - prints the version info        */
 /*-----------------------------------------------------------------*/
 void
 printVersionInfo (FILE * stream)
 {
-  int i;
-
   fprintf (stream, "SDCC : ");
 
   fprintf (stream, " " SDCC_VERSION_STR
@@ -369,7 +335,6 @@ printOptions (const OPTION * optionsTable, FILE * stream)
 static void
 printUsage (void)
 {
-  int i;
   FILE *stream = stderr;
 
   printVersionInfo (stream);
@@ -2215,37 +2180,11 @@ main (int argc, char **argv, char **envp)
       signal (SIGSEGV, sig_handler);
     }
 
-  /* Before parsing the command line options, do a
-   * search for the port and processor and initialize
-   * them if they're found. (We can't gurantee that these
-   * will be the first options specified).
-   */
-
-  _findPort (argc, argv);
-
-#ifdef JAMIN_DS390
-  if (strcmp (port->target, "mcs51") == 0)
-    {
-      printf ("DS390 jammed in A\n");
-      _setPort ("ds390");
-      ds390_jammed = 1;
-    }
-#endif
-
-  _findProcessor (argc, argv);
-
   /* Initalise the port. */
   if (port->init)
     port->init ();
 
   setDefaultOptions ();
-#ifdef JAMIN_DS390
-  if (ds390_jammed)
-    {
-      options.model = MODEL_SMALL;
-      options.stack10bit = 0;
-    }
-#endif
 
   parseCmdLine (argc, argv);
 
