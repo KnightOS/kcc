@@ -278,7 +278,7 @@ static const UNSUPPORTEDOPT unsupportedOptTable[] = {
 /** List of all default constant macros.
  */
 static const char *_baseValues[] = {
-  "cpp", "sdcpp",
+  "cpp", "cpp",
   "cppextraopts", "",
   /* Path seperator character */
   "sep", DIR_SEPARATOR_STRING,
@@ -1660,15 +1660,6 @@ preProcess (char **envp)
       set *inclList = NULL;
       char *buf;
 
-      if (NULL != port->linker.rel_ext)
-        {
-          struct dbuf_s dbuf;
-
-          dbuf_init (&dbuf, 256);
-          dbuf_printf (&dbuf, "-obj-ext=%s", port->linker.rel_ext);
-          addSet (&preArgvSet, dbuf_detach_c_str (&dbuf));
-        }
-
       /* if using dollar signs in identifiers */
       if (options.dollars_in_ident)
         addSet (&preArgvSet, Safe_strdup ("-fdollars-in-identifiers"));
@@ -1843,6 +1834,7 @@ preProcess (char **envp)
         {
           /* Piping: set cppoutfilename to NULL, to avoid empty quotes */
           setMainValue ("cppoutfilename", NULL);
+          addSet (&preArgvSet, Safe_strdup ("-")); /* Compatability with other implementations of cpp */
         }
 
       if (options.verbose)
