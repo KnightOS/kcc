@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.5)
-project(kcc CXX)
-set(CMAKE_C_FLAGS "-g")
+project(kcc C CXX)
+set(CMAKE_CXX_FLAGS "-g")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "bin/")
 add_definitions("-Wall -Wno-parentheses")
 find_package(BISON REQUIRED)
@@ -17,6 +17,7 @@ include_directories(
 FILE(GLOB sdcc src/*.c)
 FILE(GLOB sdcc_cxx src/*.cc)
 FILE(GLOB z80 src/z80/*.c)
+FILE(GLOB z80_cxx src/z80/*.cc)
 FILE(GLOB support support/util/*.c)
 FILE(GLOB peep_defs src/z80/*.def)
 FILE(GLOB peep_rules src/z80/*.rul)
@@ -43,6 +44,7 @@ add_executable(kcc
     ${sdcc}
     ${sdcc_cxx}
     ${z80}
+    ${z80_cxx}
     ${peep_rules}
     ${support}
 )

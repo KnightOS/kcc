@@ -668,10 +668,6 @@ static bool HLinst_ok(const assignment &a, unsigned short int i, const G_t &G, c
 {
   const iCode *ic = G[i].ic;
 
-  // HL always unused on gbz80.
-  if(TARGET_IS_GBZ80)
-    return(true);
-
   bool exstk = (should_omit_frame_ptr || (currFunc && currFunc->stack > 127) || IS_GB);
 
   const i_assignment_t &ia = a.i_assignment;
@@ -882,10 +878,6 @@ template <class G_t, class I_t>
 static bool IYinst_ok(const assignment &a, unsigned short int i, const G_t &G, const I_t &I)
 {
   const iCode *ic = G[i].ic;
-
-  // IY always unused on gbz80.
-  if(TARGET_IS_GBZ80)
-    return(true);
 
   const i_assignment_t &ia = a.i_assignment;
 
@@ -1172,8 +1164,6 @@ static float instruction_cost(const assignment &a, unsigned short int i, const G
 {
   iCode *ic = G[i].ic;
   float c;
-
-  wassert (TARGET_Z80_LIKE);
 
   if(!inst_sane(a, i, G, I))
     return(std::numeric_limits<float>::infinity());
