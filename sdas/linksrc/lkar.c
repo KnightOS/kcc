@@ -45,16 +45,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 # define min(a,b) ((a) < (b) ? (a) : (b))
 #endif
 
-
-char *
-strndup (const char *str, size_t len)
-{
-  char *s = (char *) malloc (len + 1);
-  memcpy (s, str, len);
-  s[len] = '\0';
-  return s;
-}
-
 static int
 is_ar (FILE * libfp)
 {
