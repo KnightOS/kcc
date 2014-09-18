@@ -15,9 +15,11 @@ kcc depends on flex/bison.
 ## Differences from SDCC
 
 * KnightOS support
+* kcc includes man pages
 * Switched from autotools to cmake
 * Dropped all targets but z80
 * Removed unneccessary subsystems (like simulators)
+* Remove boost dependency
 * General clean up
 
 ## Why a fork?
