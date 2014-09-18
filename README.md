@@ -6,7 +6,7 @@ Yes, we know it doesn't compile. Still working on gutting all the sdcc cruft.
 
 ## Compiling
 
-kcc depends on flex/bison.
+kcc depends on flex/bison and boost.
 
     cmake .
     make
