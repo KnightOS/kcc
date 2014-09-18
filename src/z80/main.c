@@ -51,24 +51,12 @@ Z80_OPTS z80_opts;
 
 static OPTION _z80_options[] = {
   {0, OPTION_CALLEE_SAVES_BC, &z80_opts.calleeSavesBC, "Force a called function to always save BC"},
-  {0, OPTION_PORTMODE,        NULL, "Determine PORT I/O mode (z80/z180)"},
-  {0, OPTION_ASM,             NULL, "Define assembler name (rgbds/asxxxx/isas/z80asm)"},
   {0, OPTION_CODE_SEG,        &options.code_seg, "<name> use this name for the code segment", CLAT_STRING},
   {0, OPTION_CONST_SEG,       &options.const_seg, "<name> use this name for the const segment", CLAT_STRING},
-  {0, OPTION_NO_STD_CRT0,     &options.no_std_crt0, "For the z80/gbz80 do not link default crt0.rel"},
+  {0, OPTION_NO_STD_CRT0,     &options.no_std_crt0, "For the z80 do not link default crt0.rel"},
   {0, OPTION_RESERVE_IY,      &z80_opts.reserveIY, "Do not use IY (incompatible with --fomit-frame-pointer)"},
   {0, OPTION_OLDRALLOC,       &options.oldralloc, "Use old register allocator"},
   {0, OPTION_FRAMEPOINTER,    &z80_opts.noOmitFramePtr, "Do not omit frame pointer"},
-  {0, NULL}
-};
-
-static OPTION _gbz80_options[] = {
-  {0, OPTION_BO,              NULL, "<num> use code bank <num>"},
-  {0, OPTION_BA,              NULL, "<num> use data bank <num>"},
-  {0, OPTION_CALLEE_SAVES_BC, &z80_opts.calleeSavesBC, "Force a called function to always save BC"},
-  {0, OPTION_CODE_SEG,        &options.code_seg, "<name> use this name for the code segment", CLAT_STRING},
-  {0, OPTION_CONST_SEG,       &options.const_seg, "<name> use this name for the const segment", CLAT_STRING},
-  {0, OPTION_NO_STD_CRT0,     &options.no_std_crt0, "For the z80/gbz80 do not link default crt0.rel"},
   {0, NULL}
 };
 
@@ -120,40 +108,6 @@ static void
 _z80_init (void)
 {
   z80_opts.sub = SUB_Z80;
-  asm_addTree (&_asxxxx_z80);
-}
-
-static void
-_z180_init (void)
-{
-  z80_opts.sub = SUB_Z180;
-  asm_addTree (&_asxxxx_z80);
-}
-
-static void
-_r2k_init (void)
-{
-  z80_opts.sub = SUB_R2K;
-  asm_addTree (&_asxxxx_r2k);
-}
-
-static void
-_r3ka_init (void)
-{
-  z80_opts.sub = SUB_R3KA;
-  asm_addTree (&_asxxxx_r2k);
-}
-
-static void
-_gbz80_init (void)
-{
-  z80_opts.sub = SUB_GBZ80;
-}
-
-static void
-_tlcs90_init (void)
-{
-  z80_opts.sub = SUB_TLCS90;
   asm_addTree (&_asxxxx_z80);
 }
 
@@ -259,10 +213,6 @@ do_pragma (int id, const char *name, const char *cp)
           }
 
         dbuf_c_str (&buffer);
-        /* ugly, see comment in src/port.h (borutr) */
-        gbz80_port.mem.code_name = dbuf_detach (&buffer);
-        code->sname = gbz80_port.mem.code_name;
-        options.code_seg = (char *) gbz80_port.mem.code_name;
       }
       break;
 
@@ -290,18 +240,6 @@ do_pragma (int id, const char *name, const char *cp)
         if (!strcmp (str, "z80"))
           {
             z80_opts.port_mode = 80;
-          }
-        else if (!strcmp (str, "z180"))
-          {
-            z80_opts.port_mode = 180;
-          }
-        else if (!strcmp (str, "save"))
-          {
-            z80_opts.port_back = z80_opts.port_mode;
-          }
-        else if (!strcmp (str, "restore"))
-          {
-            z80_opts.port_mode = z80_opts.port_back;
           }
         else
           err = 1;
@@ -373,145 +311,11 @@ _process_pragma (const char *s)
   return process_pragma_tbl (pragma_tbl, s);
 }
 
-static const char *_gbz80_rgbasmCmd[] = {
-  "rgbasm", "-o$1.rel", "$1.asm", NULL
-};
-
-static const char *_gbz80_rgblinkCmd[] = {
-  "xlink", "-tg", "-n$1.sym", "-m$1.map", "-zFF", "$1.lnk", NULL
-};
-
-static void
-_gbz80_rgblink (void)
-{
-  FILE *lnkfile;
-  struct dbuf_s lnkFileName;
-  char *buffer;
-
-  dbuf_init (&lnkFileName, PATH_MAX);
-
-  /* first we need to create the <filename>.lnk file */
-  dbuf_append_str (&lnkFileName, dstFileName);
-  dbuf_append_str (&lnkFileName, ".lk");
-  if (!(lnkfile = fopen (dbuf_c_str (&lnkFileName), "w")))
-    {
-      werror (E_FILE_OPEN_ERR, dbuf_c_str (&lnkFileName));
-      dbuf_destroy (&lnkFileName);
-      exit (1);
-    }
-  dbuf_destroy (&lnkFileName);
-
-  fprintf (lnkfile, "[Objects]\n");
-
-  fprintf (lnkfile, "%s.rel\n", dstFileName);
-
-  fputStrSet (lnkfile, relFilesSet);
-
-  fprintf (lnkfile, "\n[Libraries]\n");
-  /* additional libraries if any */
-  fputStrSet (lnkfile, libFilesSet);
-
-  fprintf (lnkfile, "\n[Output]\n" "%s.gb", dstFileName);
-
-  fclose (lnkfile);
-
-  buffer = buildCmdLine (port->linker.cmd, dstFileName, NULL, NULL, NULL);
-  /* call the linker */
-  if (sdcc_system (buffer))
-    {
-      Safe_free (buffer);
-      perror ("Cannot exec linker");
-      exit (1);
-    }
-  Safe_free (buffer);
-}
-
 static bool
 _parseOptions (int *pargc, char **argv, int *i)
 {
-  if (argv[*i][0] == '-')
-    {
-      if (IS_GB)
-        {
-          if (!strncmp (argv[*i], OPTION_BO, sizeof (OPTION_BO) - 1))
-            {
-              /* ROM bank */
-              int bank = getIntArg (OPTION_BO, argv, i, *pargc);
-              struct dbuf_s buffer;
-
-              dbuf_init (&buffer, 16);
-              dbuf_printf (&buffer, "CODE_%u", bank);
-              dbuf_c_str (&buffer);
-              /* ugly, see comment in src/port.h (borutr) */
-              gbz80_port.mem.code_name = dbuf_detach (&buffer);
-              options.code_seg = (char *) gbz80_port.mem.code_name;
-              return TRUE;
-            }
-          else if (!strncmp (argv[*i], OPTION_BA, sizeof (OPTION_BA) - 1))
-            {
-              /* RAM bank */
-              int bank = getIntArg (OPTION_BA, argv, i, *pargc);
-              struct dbuf_s buffer;
-
-              dbuf_init (&buffer, 16);
-              dbuf_printf (&buffer, "DATA_%u", bank);
-              dbuf_c_str (&buffer);
-              /* ugly, see comment in src/port.h (borutr) */
-              gbz80_port.mem.data_name = dbuf_detach (&buffer);
-              return TRUE;
-            }
-        }
-      else if (!strncmp (argv[*i], OPTION_ASM, sizeof (OPTION_ASM) - 1))
-        {
-          char *asmblr = getStringArg (OPTION_ASM, argv, i, *pargc);
-
-          if (!strcmp (asmblr, "rgbds"))
-            {
-              asm_addTree (&_rgbds_gb);
-              gbz80_port.assembler.cmd = _gbz80_rgbasmCmd;
-              gbz80_port.linker.cmd = _gbz80_rgblinkCmd;
-              gbz80_port.linker.do_link = _gbz80_rgblink;
-              _G.asmType = ASM_TYPE_RGBDS;
-              return TRUE;
-            }
-          else if (!strcmp (asmblr, "asxxxx"))
-            {
-              _G.asmType = ASM_TYPE_ASXXXX;
-              return TRUE;
-            }
-          else if (!strcmp (asmblr, "isas"))
-            {
-              asm_addTree (&_isas_gb);
-              /* Munge the function prefix */
-              gbz80_port.fun_prefix = "";
-              _G.asmType = ASM_TYPE_ISAS;
-              return TRUE;
-            }
-          else if (!strcmp (asmblr, "z80asm"))
-            {
-              port->assembler.externGlobal = TRUE;
-              asm_addTree (&_z80asm_z80);
-              _G.asmType = ASM_TYPE_ISAS;
-              return TRUE;
-            }
-        }
-      else if (!strncmp (argv[*i], OPTION_PORTMODE, sizeof (OPTION_PORTMODE) - 1))
-        {
-          char *portmode = getStringArg (OPTION_ASM, argv, i, *pargc);
-
-          if (!strcmp (portmode, "z80"))
-            {
-              z80_opts.port_mode = 80;
-              return TRUE;
-            }
-          else if (!strcmp (portmode, "z180"))
-            {
-              z80_opts.port_mode = 180;
-              return TRUE;
-            }
-        }
-    }
-  return FALSE;
+  /* SirCmpwn NOTE: We should eventually refactor this away */
+  return TRUE;
 }
 
 static void
@@ -578,16 +382,8 @@ _setValues (void)
   setMainValue ("z80extralibpaths", (s = joinStrSet (libPathsSet)));
   Safe_free ((void *) s);
 
-  if (IS_GB)
-    {
-      setMainValue ("z80outputtypeflag", "-Z");
-      setMainValue ("z80outext", ".gb");
-    }
-  else
-    {
-      setMainValue ("z80outputtypeflag", "-i");
-      setMainValue ("z80outext", ".ihx");
-    }
+  setMainValue ("z80outputtypeflag", "-i");
+  setMainValue ("z80outext", ".ihx");
 
   setMainValue ("stdobjdstfilename", "{dstfilename}{objext}");
   setMainValue ("stdlinkdstfilename", "{dstfilename}{z80outext}");
@@ -601,7 +397,7 @@ _setValues (void)
   dbuf_destroy (&dbuf);
 
   /* For the old register allocator (with the new one we decide to omit the frame pointer for each function individually) */
-  if (!IS_GB && options.omitFramePtr)
+  if (options.omitFramePtr)
     port->stack.call_overhead = 2;
 }
 
@@ -610,8 +406,6 @@ _finaliseOptions (void)
 {
   port->mem.default_local_map = data;
   port->mem.default_globl_map = data;
-  if (_G.asmType == ASM_TYPE_ASXXXX && IS_GB)
-    asm_addTree (&_asxxxx_gb);
 
   if (IY_RESERVED)
     port->num_regs -= 2;
@@ -622,6 +416,7 @@ _finaliseOptions (void)
 static void
 _setDefaultOptions (void)
 {
+  /* SirCmpwn NOTE: We may want to change these defaults at some point, particular with respect to code locations */
   options.nopeep = 0;
   options.stackAuto = 1;
   /* first the options part */
@@ -631,46 +426,9 @@ _setDefaultOptions (void)
   /* Default code and data locations. */
   options.code_loc = 0x200;
 
-  options.data_loc = IS_GB ? 0xC000 : 0x8000;
+  options.data_loc = 0x8000;
   options.out_fmt = 'i';        /* Default output format is ihx */
 }
-
-#if 0
-/* Mangling format:
-    _fun_policy_params
-    where:
-      policy is the function policy
-      params is the parameter format
-
-   policy format:
-    rsp
-    where:
-      r is 'r' for reentrant, 's' for static functions
-      s is 'c' for callee saves, 'r' for caller saves
-      f is 'f' for profiling on, 'x' for profiling off
-    examples:
-      rr - reentrant, caller saves
-   params format:
-    A combination of register short names and s to signify stack variables.
-    examples:
-      bds - first two args appear in BC and DE, the rest on the stack
-      s - all arguments are on the stack.
-*/
-static const char *
-_mangleSupportFunctionName (const char *original)
-{
-  struct dbuf_s dbuf;
-
-  if (strstr (original, "longlong"))
-    return (original);
-
-  dbuf_init (&dbuf, 128);
-  dbuf_printf (&dbuf, "%s_rr%s_%s", original, options.profile ? "f" : "x", options.noRegParams ? "s" : "bds"    /* MB: but the library only has hds variants ??? */
-    );
-
-  return dbuf_detach_c_str (&dbuf);
-}
-#endif
 
 static const char *
 _getRegName (const struct reg_info *reg)
@@ -700,12 +458,12 @@ _hasNativeMulFor (iCode *ic, sym_link *left, sym_link *right)
     test = right;
   /* 8x8 unsigned multiplication code is shorter than
      call overhead for the multiplication routine. */
-  else if (IS_CHAR (right) && IS_UNSIGNED (right) && IS_CHAR (left) && IS_UNSIGNED (left) && !IS_GB)
+  else if (IS_CHAR (right) && IS_UNSIGNED (right) && IS_CHAR (left) && IS_UNSIGNED (left))
     {
       return TRUE;
     }
   /* Same for any multiplication with 8 bit result. */
-  else if (result_size == 1 && !IS_GB)
+  else if (result_size == 1)
     {
       return TRUE;
     }
@@ -769,7 +527,7 @@ static const char *const _libs_z80[] = { "z80", NULL, };
 
 /* Globals */
 PORT z80_port = {
-  TARGET_ID_Z80,
+  3 /* SirCmpwn NOTE: This was TARGET_ID_Z80, which isn't in use in theory. We should eventually get rid of port targets. */,
   "z80",
   "Zilog Z80",                  /* Target name */
   NULL,                         /* Processor name */

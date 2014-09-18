@@ -10,3 +10,5 @@ install_manifest.txt
 *.rul
 SDCCy.c
 SDCCy.h
+# TODO: maybe move this one somewhere else
+src/SDCClex.c
