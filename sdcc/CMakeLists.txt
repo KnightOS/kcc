@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.5)
 project(kcc C CXX)
 set(CMAKE_CXX_FLAGS "-g")
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "bin/")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "../bin/")
 add_definitions("-Wall -Wno-parentheses")
 find_package(BISON REQUIRED)
 find_package(FLEX REQUIRED)
