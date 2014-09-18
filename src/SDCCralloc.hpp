@@ -645,8 +645,6 @@ struct assignment_rep
 template <class I_t>
 float compability_cost(const assignment& a, const assignment& ac, const I_t &I)
 {
-  typedef typename boost::graph_traits<I_t>::adjacency_iterator adjacency_iter_t;
-  
   float c = 0.0f;
   
   varset_t::const_iterator vi, vi_end;

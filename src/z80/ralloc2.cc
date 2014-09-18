@@ -565,15 +565,6 @@ static bool Ainst_ok(const assignment &a, unsigned short int i, const G_t &G, co
     }
   nobit:
 
-  // The Z180 has a non-destructive testing and.
-  if(IS_Z180 && ic->op == BITWISEAND && ifxForOp (IC_RESULT(ic), ic) &&
-    (operand_in_reg(left, REG_A, ia, i, G) && (IS_OP_LITERAL(right) /*|| operand_in_reg(right, ia, i, G) && !operand_in_reg(right, REG_IYL, ia, i, G) && !operand_in_reg(right, REG_IYH, ia, i, G)*/) ||
-    operand_in_reg(right, REG_A, ia, i, G) && (IS_OP_LITERAL(left) /*|| operand_in_reg(left, ia, i, G) && !operand_in_reg(left, REG_IYL, ia, i, G) && !operand_in_reg(left, REG_IYH, ia, i, G)*/)))
-    {
-      operand *const litop = IS_OP_LITERAL(left) ? IC_LEFT(ic) : IC_RIGHT(ic);
-      return(true);
-    }
-
   const std::set<var_t> &dying = G[i].dying;
 
   if(ic->op == GET_VALUE_AT_ADDRESS)
