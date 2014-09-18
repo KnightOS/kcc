@@ -8,7 +8,4 @@ install_manifest.txt
 *.o
 *.1
 *.rul
-SDCCy.c
-SDCCy.h
-# TODO: maybe move this one somewhere else
-src/SDCClex.c
+sdcc/gen/
