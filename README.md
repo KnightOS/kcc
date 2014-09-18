@@ -19,7 +19,6 @@ kcc depends on flex/bison and boost.
 * Switched from autotools to cmake
 * Dropped all targets but z80
 * Removed unneccessary subsystems (like simulators)
-* Remove boost dependency
 * General clean up
 
 ## Why a fork?
