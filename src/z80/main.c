@@ -314,8 +314,7 @@ _process_pragma (const char *s)
 static bool
 _parseOptions (int *pargc, char **argv, int *i)
 {
-  /* SirCmpwn NOTE: We should eventually refactor this away */
-  return TRUE;
+  return FALSE;
 }
 
 static void

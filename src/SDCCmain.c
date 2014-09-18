@@ -44,9 +44,6 @@
 #include <unistd.h>
 #endif
 
-/* REMOVE ME!!! */
-extern int yyparse (void);
-
 FILE *srcFile;                  /* source file */
 const char *fullSrcFileName;    /* full name for the source file; */
                                 /* can be NULL while c1mode or linking without compiling */
@@ -148,7 +145,7 @@ char buffer[PATH_MAX * 2];
 static const OPTION optionsTable[] = {
   {0,   NULL, NULL, "General options"},
   {0,   OPTION_HELP, NULL, "Display this help"},
-  {'v', OPTION_VERSION, NULL, "Display sdcc's version"},
+  {'v', OPTION_VERSION, NULL, "Display kcc's version"},
   {0,   "--verbose", &options.verbose, "Trace calls to the preprocessor, assembler, and linker"},
   {'V', NULL, &options.verboseExec, "Execute verbosely. Show sub commands as they are run"},
   {'d', NULL, NULL, NULL},
@@ -298,9 +295,9 @@ PORT *port = &z80_port;
 void
 printVersionInfo (FILE * stream)
 {
-  fprintf (stream, "SDCC : ");
+  fprintf (stream, "KCC ");
 
-  fprintf (stream, " " SDCC_VERSION_STR
+  fprintf (stream, SDCC_VERSION_STR
 #ifdef SDCC_SUB_VERSION_STR
            "/" SDCC_SUB_VERSION_STR
 #endif
@@ -339,7 +336,7 @@ printUsage (void)
 
   printVersionInfo (stream);
   fprintf (stream,
-           "Usage : sdcc [options] filename\n"
+           "Usage : kcc [options] filename\n"
            "Options :-\n");
 
   printOptions (optionsTable, stream);
@@ -755,8 +752,6 @@ parseCmdLine (int argc, char **argv)
   /* go thru all whole command line */
   for (i = 1; i < argc; i++)
     {
-      if (i >= argc)
-        break;
 
       /* check port specific options before general ones */
       if (port->parseOption (&argc, argv, &i) == TRUE)
