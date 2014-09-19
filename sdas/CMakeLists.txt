@@ -27,6 +27,7 @@ add_executable(kas
 add_executable(kld
     ${link}
     ${support}
+    ${PROJECT_SOURCE_DIR}/asxx/strcmpi.c
 )
 
 target_link_libraries(kas m ${LIBS})

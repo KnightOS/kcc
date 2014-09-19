@@ -63,26 +63,8 @@
  * select the 'l' forms for format strings.
  */
 
-/* Turbo C++ 3.0 for DOS */
-/* 'int' is 16-bits, 'long' is 32-bits */
-
-#ifdef  __TURBOC__
-#define         INT32   long
-#define         LONGINT
-#endif
-
-/* Symantec C++ V6.x/V7.x for DOS (not DOSX) */
-/* 'int' is 16-bits, 'long' is 32-bits */
-
-#ifdef  __SC__
-#define         INT32   long
-#define         LONGINT
-#endif
-
 /* The DEFAULT is 'int' is 32 bits */
-#ifndef INT32
 #define         INT32   int
-#endif
 
 
 /*)Module       aslink.h
@@ -116,21 +98,6 @@
         $(STACK) = 2000
 */
 
-#if defined  DECUS
-/* DECUS C void definition */
-/* File/extension seperator */
-
-#define VOID        char
-#define FSEPX       '.'
-
-#elif defined  PDOS
-/* PDOS C void definition */
-/* File/extension seperator */
-
-#define VOID        char
-#define FSEPX       ':'
-
-#elif defined UNIX
 /* UNIX void definition */
 /* File/extension seperator */
 
@@ -139,18 +106,6 @@
 #define LKDIRSEP    '/'
 #define LKDIRSEPSTR "/"
 #define OTHERSYSTEM
-
-#else
-/* DOS/WINDOWS void definition */
-/* File/extension seperator */
-
-#define VOID        void
-#define FSEPX       '.'
-#define LKDIRSEP    '\\'
-#define LKDIRSEPSTR "\\"
-#define OTHERSYSTEM
-
-#endif
 
 /*
  * PATH_MAX
@@ -1139,8 +1094,6 @@ extern  char *          strrchr();
 
 /* Program function definitions */
 
-#ifdef  NOTDEFINED
-
 /* lkmain.c */
 extern  FILE *          afile(char *fn, char *ft, int wf);
 extern  VOID            bassav(void);
@@ -1276,7 +1229,7 @@ extern  VOID            relerp3(char *str);
 extern  int             addfile(char *path, char *libfil);
 extern  VOID            addlib(void);
 extern  VOID            addpath(void);
-extern  int             fndsym(char *name);
+extern  int             fndsym(const char *name);
 extern  VOID            library(void);
 extern  VOID            loadfile(char *filspc);
 extern  VOID            search(void);
@@ -1311,7 +1264,3 @@ VOID gg(int in);
 /* strcmpi.h */
 extern int as_strcmpi(const char *s1, const char *s2);
 extern int as_strncmpi(const char *s1, const char *s2, size_t n);
-
-#else
-
-#endif
