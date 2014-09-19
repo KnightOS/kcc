@@ -15,10 +15,12 @@ include_directories(
 
 FILE(GLOB asxx ${PROJECT_SOURCE_DIR}/asxxsrc/*.c)
 FILE(GLOB asz80 ${PROJECT_SOURCE_DIR}/asz80/*.c)
+FILE(GLOB support ${PROJECT_SOURCE_DIR}/../support/util/*.c)
 
 add_executable(kas
     ${asxx}
     ${asz80}
+    ${support}
 )
 
 target_link_libraries(kas m ${LIBS})

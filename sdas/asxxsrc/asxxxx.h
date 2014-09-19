@@ -172,17 +172,7 @@
 #  endif
 #endif
 
-#ifdef _WIN32           /* WIN32 native */
-#  define NATIVE_WIN32          1
-#  ifdef __MINGW32__    /* GCC MINGW32 depends on configure */
-#    include "../../sdccconf.h"
-#  else
-#    include "../../sdcc_vc.h"
-#    define PATH_MAX    _MAX_PATH
-#  endif
-#else                   /* Assume *nix style system */
-#  include "../../sdccconf.h"
-#endif
+#include "sdccconf.h"
 
 /*
  * Error definitions
