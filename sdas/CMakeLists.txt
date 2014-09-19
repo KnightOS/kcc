@@ -7,15 +7,16 @@ add_definitions("-Wall -Wno-parentheses")
 set(LIBS ${LIBS})
 
 include_directories(
-    ${PROJECT_SOURCE_DIR}/asxxsrc/
+    ${PROJECT_SOURCE_DIR}/asxx/
     ${PROJECT_SOURCE_DIR}/asz80/
-    ${PROJECT_SOURCE_DIR}/linksrc/
+    ${PROJECT_SOURCE_DIR}/link/
     ${PROJECT_SOURCE_DIR}/../support/util/
 )
 
-FILE(GLOB asxx ${PROJECT_SOURCE_DIR}/asxxsrc/*.c)
+FILE(GLOB asxx ${PROJECT_SOURCE_DIR}/asxx/*.c)
 FILE(GLOB asz80 ${PROJECT_SOURCE_DIR}/asz80/*.c)
 FILE(GLOB support ${PROJECT_SOURCE_DIR}/../support/util/*.c)
+FILE(GLOB link ${PROJECT_SOURCE_DIR}/link/*.c)
 
 add_executable(kas
     ${asxx}
@@ -23,9 +24,17 @@ add_executable(kas
     ${support}
 )
 
+add_executable(kld
+    ${link}
+    ${support}
+)
+
 target_link_libraries(kas m ${LIBS})
+target_link_libraries(kld m ${LIBS})
 
 install(PROGRAMS ${PROJECT_BINARY_DIR}/${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/kas
+    DESTINATION bin)
+install(PROGRAMS ${PROJECT_BINARY_DIR}/${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/kld
     DESTINATION bin)
 
 set(CMAKE_BUILD_TYPE Release)
