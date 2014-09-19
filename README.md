@@ -1,8 +1,6 @@
 # KnightOS C Compiler
 
-The KnightOS C Compiler (kcc) is a fork of [sdcc](http://sdcc.sourceforge.net/).
-
-Yes, we know it doesn't compile. Still working on gutting all the sdcc cruft.
+The KnightOS C Compiler (kcc) is a fork of [sdcc](http://sdcc.sourceforge.net/). It's a work in progress.
 
 ## Compiling
 
