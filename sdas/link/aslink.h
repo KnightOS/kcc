@@ -1139,7 +1139,7 @@ extern  char *          strrchr();
 
 /* Program function definitions */
 
-#ifdef  OTHERSYSTEM
+#ifdef  NOTDEFINED
 
 /* lkmain.c */
 extern  FILE *          afile(char *fn, char *ft, int wf);
