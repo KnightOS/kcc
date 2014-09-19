@@ -513,12 +513,12 @@ oclsExpense (struct memmap *oclass)
 */
 
 static const char *_z80LinkCmd[] = {
-  "sdldz80", "-nf", "$1", NULL
+  "kld", "-nf", "$1", NULL
 };
 
 /* $3 is replaced by assembler.debug_opts resp. port->assembler.plain_opts */
 static const char *_z80AsmCmd[] = {
-  "sdasz80", "$l", "$3", "$2", "$1.asm", NULL
+  "kas", "$l", "$3", "$2", "$1.asm", NULL
 };
 
 static const char *const _crt[] = { "crt0.rel", NULL, };
