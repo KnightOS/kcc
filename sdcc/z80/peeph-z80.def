@@ -32,12 +32,6 @@ replace restart {
 } if notVolatile(%1), notUsed(%1), notVolatile(%2)
 
 replace restart {
-	add	ix,sp
-} by {
-	; peephole 1a removed dead frame pointer setup.
-} if notUsed('ix')
-
-replace restart {
 	ld	%1, %2 + %3
 } by {
 	; peephole 2 removed dead load from %2 + %3 into %1.
