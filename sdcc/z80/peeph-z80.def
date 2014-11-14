@@ -47,14 +47,14 @@ replace restart {
 replace restart {
 	ld	%1, (iy)
 } by {
-	ld	%1, 0 (iy)
+	ld	%1, (iy + 0)
 	; peephole 3 made 0 offset explicit.
 }
 
 replace restart {
 	ld	(iy), %1
 } by {
-	ld	0 (iy), %1
+	ld	(iy + 0), %1
 	; peephole 4 made 0 offset explicit.
 }
 
@@ -71,14 +71,14 @@ replace restart {
 } if notUsed('hl')
 
 replace restart {
-	ld	%1, %2 (iy)
+	ld	%1, (iy + %2)
 } by {
 	; peephole 7 removed dead load from %2 (iy) into %1.
 } if notUsed(%1)
 // Should probably check for notVolatile(), but gives many false positives and no regression tests fail.
 
 replace restart {
-	ld	%1, %2 (ix)
+	ld	%1, (ix + %2)
 } by {
 	; peephole 8 removed dead load from %2 (ix) into %1.
 } if notUsed(%1)
@@ -223,9 +223,9 @@ replace restart {
 
 replace restart {
 	ld	iy, #%1
-	ld	%2, %3 (iy)
+	ld	%2, (iy + %3)
 	srl	%2
-	bit %4, %3 (iy)
+	bit %4, (iy + %3)
 } by {
 	ld	hl, #%1 + %3
 	; peephole 21c used hl instead of iy.
@@ -355,21 +355,21 @@ replace restart {
 } if notUsed('bc')
 
 replace restart {
-	ld	%1 (ix), %2
-	ld	%3, %1 (ix)
+	ld	(ix + %1), %2
+	ld	%3, (ix + %1)
 } by {
 	; peephole 34 loaded %3 from %2 instead of going through %1 (ix).
-	ld	%1 (ix), %2
+	ld	(ix + %1), %2
 	ld	%3, %2
 }
 // Don't need to check for volatile, since ix is used for the stack.
 
 replace restart {
-	ld	%1 (ix), a
+	ld	(ix + %1), a
 	push	de
-	ld	%2, %1 (ix)
+	ld	%2, (ix + %1)
 } by {
-	ld	%1 (ix), a
+	ld	(ix + %1), a
 	push	de
 	; peephole 34a loaded %2 from a instead of %1 (ix)
 	ld	%2, a
@@ -528,7 +528,7 @@ replace restart {
 
 replace restart {
 	ld	iy,#%1
-	or	a,%2 (iy)
+	or	a,(iy + %2)
 } by {
 	; peephole 45 used hl instead of iy.
 	ld	hl,#%1 + %2
@@ -537,7 +537,7 @@ replace restart {
 
 replace restart {
 	ld	iy,#%1
-	ld	%2,%3 (iy)
+	ld	%2,(iy + %3)
 } by {
 	; peephole 46 used hl instead of iy.
 	ld	hl,#%1 + %3
@@ -546,7 +546,7 @@ replace restart {
 
 replace restart {
 	ld	iy,#%1
-	ld	h,%3 (iy)
+	ld	h,(iy + %3)
 } by {
 	; peephole 46a used hl instead of iy.
 	ld	hl,#%1 + %3
@@ -555,7 +555,7 @@ replace restart {
 
 replace restart {
 	ld	iy,#%1
-	ld	%2 (iy), %3
+	ld	(iy + %2), %3
 } by {
 	; peephole 46b used hl instead of iy.
 	ld	hl,#%1 + %2
@@ -564,8 +564,8 @@ replace restart {
 
 replace restart {
 	ld	iy,#%1
-	ld	%2,0 (iy)
-	ld	%3,1 (iy)
+	ld	%2,(iy + 0)
+	ld	%3,(iy + 1)
 } by {
 	; peephole 47 used hl instead of iy.
 	ld	hl,#%1
@@ -576,8 +576,8 @@ replace restart {
 
 replace restart {
 	ld	iy,#%1
-	ld	%2 (iy),%3
-	ld	l,%2 (iy)
+	ld	(iy + %2),%3
+	ld	l,(iy + %2)
 } by {
 	; peephole 48 used hl instead of iy.
 	ld	hl,#%1 + %2
@@ -596,7 +596,7 @@ replace restart {
 
 replace restart {
 	ld	iy,#%1
-	bit	%2,%3 (iy)
+	bit	%2,(iy + %3)
 } by {
 	; peephole 49a used hl instead of iy.
 	ld	hl,#%1+%3
@@ -606,7 +606,7 @@ replace restart {
 replace restart {
 	ld	iy, #%1
 	add	iy, sp
-	ld	%2, %3 (iy)
+	ld	%2, (iy + %3)
 } by {
 	; peephole 49b used hl instead of iy.
 	ld	hl, #%1+%3
@@ -617,8 +617,8 @@ replace restart {
 replace restart {
 	ld	iy, #%1
 	add	iy, sp
-	ld	%2, 0 (iy)
-	ld	%3, 1 (iy)
+	ld	%2, (iy + 0)
+	ld	%3, (iy + 1)
 } by {
 	; peephole 49c used hl instead of iy.
 	ld	hl, #%1
@@ -631,8 +631,8 @@ replace restart {
 replace restart {
 	ld	iy, #%1
 	add	iy, sp
-	ld	l, 0 (iy)
-	ld	h, 1 (iy)
+	ld	l, (iy + 0)
+	ld	h, (iy + 1)
 } by {
 	; peephole 49d used hl instead of iy.
 	ld	hl, #%1
@@ -646,8 +646,8 @@ replace restart {
 replace restart {
 	ld	iy, #%1
 	add	iy, sp
-	ld	0 (iy), #%2
-	ld	1 (iy), #%3
+	ld	(iy + 0), #%2
+	ld	(iy + 1), #%3
 } by {
 	; peephole 49e used hl instead of iy.
 	ld	hl, #%1
@@ -659,8 +659,8 @@ replace restart {
 
 replace restart {
 	ld	iy, #%1+1
-	ld	a, 1 (iy)
-	or	a, 0 (iy)
+	ld	a, (iy + 0)
+	or	a, (iy + 1)
 } by {
 	ld	hl, #%1
 	ld	a, (hl)
@@ -672,8 +672,8 @@ replace restart {
 replace restart {
 	ld	iy, #%1
 	add	iy, sp
-	ld	a, 1 (iy)
-	or	a, 0 (iy)
+	ld	a, (iy + 0)
+	or	a, (iy + 1)
 } by {
 	ld	hl, #%1+1
 	add	hl, sp
@@ -686,7 +686,7 @@ replace restart {
 replace restart {
 	ld	iy, #%1
 	add	iy, sp
-	bit	%2, %3 (iy)
+	bit	%2, (iy + %3)
 } by {
 	ld	hl, #%1+%3
 	add	hl, sp
@@ -697,7 +697,7 @@ replace restart {
 replace restart {
 	ld	iy, #%1
 	add	iy, sp
-	or	a, %2 (iy)
+	or	a, (iy + %2)
 } by {
 	ld	hl, #%1+%2
 	add	hl, sp
@@ -718,7 +718,7 @@ replace restart {
 
 replace restart {
 	ld	iy, #%1
-	inc	%2 (iy)
+	inc	(iy + %2)
 } by {
 	; peephole 51a incremented in (hl) instead of %2 (iy).
 	ld	hl, #%1+%2
@@ -727,7 +727,7 @@ replace restart {
 
 replace restart {
 	ld	iy, #%1
-	dec	%2 (iy)
+	dec	(iy + %2)
 } by {
 	; peephole 51a' decremented in (hl) instead of %2 (iy).
 	ld	hl, #%1+%2
@@ -1262,27 +1262,27 @@ replace restart {
 // canAssign('b' %2) is true, iff add a,%2 is possible.
 
 replace restart {
-	ld	%1 (ix),a
+	ld	(ix + %1),a
 	ld	a,#%2
-	add	a,%1 (ix)
+	add	a,(ix + %1)
 } by {
-	ld	%1 (ix),a
+	ld	(ix + %1),a
 	; peephole 92 removed loads by exploiting commutativity of addition.
 	add	a,#%2
 }
 // Don't need to check for volatile, since ix is used to access the stack.
 
 replace restart {
-	ld	l,%1 (ix)
-	ld	h,%2 (ix)
+	ld	l,(ix + %1)
+	ld	h,(ix + %2)
 	ld	a,(hl)
 	inc	a
-	ld	l,%1 (ix)
-	ld	h,%2 (ix)
+	ld	l,(ix + %1)
+	ld	h,(ix + %2)
 	ld	(hl),a
 } by {
-	ld	l,%1 (ix)
-	ld	h,%2 (ix)
+	ld	l,(ix + %1)
+	ld	h,(ix + %2)
 	inc	(hl)
 	; peephole 93 incremented in (hl) instead of going through a.
 } if notUsed('a')
@@ -1500,9 +1500,9 @@ replace restart {
 
 replace restart {
 	inc	iy
-	ld	%1, %2 (iy)
+	ld	%1, (iy + %2)
 } by {
-	ld	%1, %2+1 (iy)
+	ld	%1, (iy + %2+1)
 	; peephole 110 moved increment of iy to offset.
 } if notUsed('iy')
 
@@ -1619,13 +1619,13 @@ replace restart {
 }
 
 replace restart {
-	ld	%1 (ix),l
-	ld	%2 (ix),h
-	ld	%3,%1 (ix)
-	ld	%4,%2 (ix)
+	ld	(ix + %1),l
+	ld	(ix + %2),h
+	ld	%3,(ix + %1)
+	ld	%4,(ix + %2)
 } by {	
-	ld	%1 (ix),l
-	ld	%2 (ix),h
+	ld	(ix + %1),l
+	ld	(ix + %2),h
 	; peephole 118 used hl instead of %2 (ix), %1 (ix) to load %4%3.
 	ld	%3,l
 	ld	%4,h
