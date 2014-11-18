@@ -53,7 +53,7 @@ add_executable(kcc
 
 target_link_libraries(kcc m ${FLEX_LIBRARIES} ${BOOST_LIBRARIES} ${LIBS})
 
-install(PROGRAMS ${PROJECT_BINARY_DIR}/${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/kcc
+install(PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/kcc
     DESTINATION bin)
 
 set(CMAKE_BUILD_TYPE Release)
