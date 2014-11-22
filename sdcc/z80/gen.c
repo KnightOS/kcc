@@ -4578,6 +4578,7 @@ genEndFunction (iCode * ic)
           dbuf_printf (&dbuf, "%s_end", sym->rname);
           emit2 ("!labeldef", dbuf_c_str (&dbuf));
           dbuf_destroy (&dbuf);
+          emit2 (".function %s, %s_start, %s_end", sym->rname, sym->rname, sym->rname);
           genLine.lineCurr->isLabel = 1;
         }
       return;
@@ -4683,6 +4684,7 @@ genEndFunction (iCode * ic)
       dbuf_printf (&dbuf, "%s_end", sym->rname);
       emit2 ("!labeldef", dbuf_c_str (&dbuf));
       dbuf_destroy (&dbuf);
+      emit2 (".function %s, %s_start, %s_end", sym->rname, sym->rname, sym->rname);
       genLine.lineCurr->isLabel = 1;
     }
 
