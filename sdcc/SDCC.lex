@@ -111,7 +111,7 @@ static void checkCurrFile (const char *s);
 "__data"                { count (); TKEYWORD (DATA); }
 "default"               { count (); return DEFAULT; }
 "do"                    { count (); return DO; }
-"double"                { count (); werror (W_DOUBLE_UNSUPPORTED); return SD_FLOAT; }
+"double"                { count (); return SD_FLOAT; } /* NOTE: Doubles are unsupported (just floats) */
 "else"                  { count (); return ELSE; }
 "enum"                  { count (); return ENUM; }
 "extern"                { count (); return EXTERN; }
