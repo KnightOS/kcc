@@ -513,15 +513,15 @@ oclsExpense (struct memmap *oclass)
 */
 
 static const char *_z80LinkCmd[] = {
-  "kld", "-nf", "$1", NULL
+  "scas", "-l", "$1", NULL
 };
 
 /* $3 is replaced by assembler.debug_opts resp. port->assembler.plain_opts */
 static const char *_z80AsmCmd[] = {
-  "kas", "$l", "$3", "$2", "$1.asm", NULL
+  "scas", "%3", "$1.asm", NULL
 };
 
-static const char *const _crt[] = { "crt0.rel", NULL, };
+static const char *const _crt[] = { "crt0.o", NULL, };
 static const char *const _libs_z80[] = { "z80", NULL, };
 
 /* Globals */
@@ -540,15 +540,15 @@ PORT z80_port = {
   {                             /* Assembler */
    _z80AsmCmd,
    NULL,
-   "-plosgffwy",                /* Options with debug */
-   "-plosgffw",                 /* Options without debug */
+   "-o",                /* Options with debug */
+   "-o",                 /* Options without debug */
    0,
    ".asm"},
   {                             /* Linker */
    _z80LinkCmd,                 //NULL,
    NULL,                        //LINKCMD,
    NULL,
-   ".rel",
+   ".o",
    1,
    _crt,                        /* crt */
    _libs_z80,                   /* libs */
@@ -581,7 +581,7 @@ PORT z80_port = {
    "GSINIT",                    /* static initialization */
    NULL,                        /* overlay */
    "GSFINAL",
-   "HOME",
+   "CODE",
    NULL,                        /* xidata */
    NULL,                        /* xinit */
    NULL,                        /* const_name */

@@ -183,7 +183,7 @@ static const ASM_MAPPING _rgbds_mapping[] = {
     { "area", "SECTION \"%s\",CODE" },
     { "areadata", "SECTION \"%F_%s\",BSS" },
     { "areacode", "SECTION \"%F_CODE\",%s" }, 
-    { "areahome", "SECTION \"%F_HOME\",HOME" },
+    { "areahome", "SECTION \"%F_CODE\",%s" },
     { "ascii", "DB \"%s\"" },
     { "ds", "DS %d" },
     { "db", "DB" },
