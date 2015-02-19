@@ -382,7 +382,7 @@ _setValues (void)
   Safe_free ((void *) s);
 
   setMainValue ("z80outputtypeflag", "-i");
-  setMainValue ("z80outext", ".ihx");
+  setMainValue ("z80outext", ".bin");
 
   setMainValue ("stdobjdstfilename", "{dstfilename}{objext}");
   setMainValue ("stdlinkdstfilename", "{dstfilename}{z80outext}");
@@ -426,7 +426,7 @@ _setDefaultOptions (void)
   options.code_loc = 0x200;
 
   options.data_loc = 0x8000;
-  options.out_fmt = 'i';        /* Default output format is ihx */
+  options.out_fmt = '\0';        /* Default output format is ihx */
 }
 
 static const char *
@@ -513,15 +513,16 @@ oclsExpense (struct memmap *oclass)
 */
 
 static const char *_z80LinkCmd[] = {
-  "scas", "-l", "$1", NULL
+  "scas", "-l", "-o", "$1", "$1.o", NULL
 };
 
 /* $3 is replaced by assembler.debug_opts resp. port->assembler.plain_opts */
 static const char *_z80AsmCmd[] = {
-  "scas", "%3", "$1.asm", NULL
+  "scas", "-O", "-o", "$2.o", "$1.asm", NULL
 };
 
-static const char *const _crt[] = { "crt0.o", NULL, };
+static const char *const _crt[] = { "knightos-crt0.o", NULL, };
+
 static const char *const _libs_z80[] = { "z80", NULL, };
 
 /* Globals */
@@ -540,16 +541,26 @@ PORT z80_port = {
   {                             /* Assembler */
    _z80AsmCmd,
    NULL,
+<<<<<<< HEAD
    "-o",                /* Options with debug */
    "-o",                 /* Options without debug */
+=======
+   "",                /* Options with debug */
+   "",                 /* Options without debug */
+>>>>>>> 8fab023d7e75cb46d92c39d490b64d091018369a
    0,
    ".asm"},
   {                             /* Linker */
    _z80LinkCmd,                 //NULL,
    NULL,                        //LINKCMD,
    NULL,
+<<<<<<< HEAD
    ".o",
    1,
+=======
+   "",
+   0,
+>>>>>>> 8fab023d7e75cb46d92c39d490b64d091018369a
    _crt,                        /* crt */
    _libs_z80,                   /* libs */
    },

@@ -1316,9 +1316,15 @@ getOutFmtExt (void)
 {
   switch (options.out_fmt)
     {
+    case '\0':
     default:
+      return "";
+
     case 'i':
       return ".ihx";
+
+    case 'o':
+      return ".o";
 
     case 's':
       return ".s19";
@@ -1334,9 +1340,7 @@ getOutFmtExt (void)
 static void
 linkEdit (char **envp)
 {
-  FILE *lnkfile;
   int system_ret;
-  const char *s;
   struct dbuf_s linkerScriptFileName;
   struct dbuf_s binFileName;
   char *buf;
@@ -1344,179 +1348,18 @@ linkEdit (char **envp)
   dbuf_init (&linkerScriptFileName, PATH_MAX);
   dbuf_init (&binFileName, PATH_MAX);
 
+  if (NULL != fullDstFileName)
+    {
+      dbuf_append_str (&binFileName, fullDstFileName);
+    }
+  else
+    {
+      dbuf_append_str (&binFileName, dstFileName);
+      dbuf_append_str (&binFileName, getOutFmtExt ());
+    }
+
   if (port->linker.needLinkerScript)
     {
-      char out_fmt = (options.out_fmt == 0) ? 'i' : options.out_fmt;
-
-      if (NULL != fullDstFileName)
-        {
-          dbuf_append_str (&binFileName, fullDstFileName);
-        }
-      else
-        {
-          dbuf_append_str (&binFileName, dstFileName);
-          dbuf_append_str (&binFileName, getOutFmtExt ());
-        }
-
-      /* first we need to create the <filename>.lk file */
-      dbuf_printf (&linkerScriptFileName, "%s.lk", dstFileName);
-      if (!(lnkfile = fopen (dbuf_c_str (&linkerScriptFileName), "w")))
-        {
-          werror (E_FILE_OPEN_ERR, dbuf_c_str (&linkerScriptFileName));
-          exit (EXIT_FAILURE);
-        }
-
-      fprintf (lnkfile, "-mjwx\n-%c %s\n", out_fmt, dbuf_c_str (&binFileName));
-
-      if (options.debug)
-        fprintf (lnkfile, "-y\n");
-
-#define WRITE_SEG_LOC(N, L) \
-  if (N) \
-  { \
-    char *c, *segName; \
-    segName = Safe_strdup (N); \
-    c = strtok (segName, " \t"); \
-    fprintf (lnkfile,"-b %s = 0x%04x\n", c, L); \
-    if (segName) { Safe_free (segName); } \
-  }
-
-      WRITE_SEG_LOC ("_CODE", options.code_loc);
-      WRITE_SEG_LOC ("_DATA", options.data_loc);
-
-      /* If the port has any special linker area declarations, get 'em */
-      if (port->extraAreas.genExtraAreaLinkOptions)
-        {
-          port->extraAreas.genExtraAreaLinkOptions (lnkfile);
-        }
-
-      /* add the extra linker options */
-      fputStrSet (lnkfile, linkOptionsSet);
-
-      /* command line defined library paths if specified */
-      for (s = setFirstItem (libPathsSet); s != NULL; s = setNextItem (libPathsSet))
-        fprintf (lnkfile, "-k %s\n", s);
-
-      /* standard library path */
-      if (!options.nostdlib)
-        {
-          for (s = setFirstItem (libDirsSet); s != NULL; s = setNextItem (libDirsSet))
-            fprintf (lnkfile, "-k %s\n", s);
-        }
-
-      /* command line defined library files if specified */
-      for (s = setFirstItem (libFilesSet); s != NULL; s = setNextItem (libFilesSet))
-        fprintf (lnkfile, "-l %s\n", s);
-
-      /* standard library files */
-      if (!options.nostdlib)
-        {
-          if (NULL != port->linker.libs)
-            {
-              const char *const *p;
-
-              for (p = port->linker.libs; NULL != *p; ++p)
-                {
-                  fprintf (lnkfile, "-l %s\n", *p);
-                }
-            }
-        }
-
-      /* put in the object file, generated from the C cource */
-      if (fullSrcFileName)
-        {
-          struct dbuf_s path;
-
-          dbuf_init (&path, PATH_MAX);
-          dbuf_printf (&path, "%s%s", dstFileName, port->linker.rel_ext);
-          addSetHead (&relFilesSet, dbuf_detach (&path));
-        }
-
-      if (!options.no_std_crt0)
-        {
-          const char *const *p;
-          set *crtSet = NULL;
-
-          if (NULL != port->linker.crt)
-            {
-              struct dbuf_s crtpath;
-
-              dbuf_init (&crtpath, PATH_MAX);
-
-              for (p = port->linker.crt; NULL != *p; ++p)
-                {
-                  /* Try to find where C runtime files are ...
-                     It is very important for this file to be first on the linking proccess
-                     so the areas are set in the correct order, expecially _GSINIT */
-                  for (s = setFirstItem (libDirsSet); s != NULL; s = setNextItem (libDirsSet))
-                    {
-                      dbuf_set_length (&crtpath, 0);
-                      dbuf_printf (&crtpath, "%s%c%s", s, DIR_SEPARATOR_CHAR, *p);
-
-                      if (!access (dbuf_c_str (&crtpath), 0))   /* Found it! */
-                        {
-#ifdef __CYGWIN__
-                          /* TODO: is this still needed? */
-                          /* The CYGWIN version of the z80-gbz80 linker is getting confused with
-                             windows paths, so convert them to the CYGWIN format */
-                          char posix_path[PATH_MAX];
-                          void cygwin_conv_to_full_posix_path (char *win_path, char *posix_path);
-
-                          cygwin_conv_to_full_posix_path ((char *) dbuf_c_str (&crtpath), posix_path);
-                          dbuf_set_length (&crtpath, 0);
-                          dbuf_append_str (&crtpath, posix_path);
-#endif
-
-                          /* append C runtime file to the crt list */
-                          addSet (&crtSet, Safe_strdup (dbuf_c_str (&crtpath)));
-                          break;
-                        }
-                    }
-                  if (NULL == s)
-                    {
-                      /* not found in standard library directories, serch in user defined library paths */
-                      /* TODO: sould be crt searched here at all? */
-                      for (s = setFirstItem (libPathsSet); s != NULL; s = setNextItem (libPathsSet))
-                        {
-                          dbuf_set_length (&crtpath, 0);
-                          dbuf_printf (&crtpath, "%s%c%s", s, DIR_SEPARATOR_CHAR, *p);
-
-                          if (!access (dbuf_c_str (&crtpath), 0))       /* Found it! */
-                            {
-#ifdef __CYGWIN__
-                              /* TODO: is this still needed? */
-                              /* The CYGWIN version of the z80-gbz80 linker is getting confused with
-                                 windows paths, so convert them to the CYGWIN format */
-                              char posix_path[PATH_MAX];
-                              void cygwin_conv_to_full_posix_path (char *win_path, char *posix_path);
-
-                              cygwin_conv_to_full_posix_path ((char *) dbuf_c_str (&crtpath), posix_path);
-                              dbuf_set_length (&crtpath, 0);
-                              dbuf_append_str (&crtpath, posix_path);
-#endif
-
-                              /* append C runtime file to the crt list */
-                              addSet (&crtSet, Safe_strdup (dbuf_c_str (&crtpath)));
-                              break;
-                            }
-                        }
-                    }
-                  if (NULL == s)
-                    fprintf (stderr, "Warning: couldn't find %s\n", *p);
-                }
-              dbuf_destroy (&crtpath);
-            }
-
-          /* Merge crtSet and relFilesSet */
-          mergeSets (&crtSet, relFilesSet);
-          relFilesSet = crtSet;
-        }
-
-      /* put in all object files */
-      fputStrSet (lnkfile, relFilesSet);
-
-      fprintf (lnkfile, "\n-e\n");
-      fclose (lnkfile);
     }                           /* if(port->linker.needLinkerScript) */
 
   if (options.verbose)
@@ -1525,11 +1368,9 @@ linkEdit (char **envp)
   if (port->linker.cmd)
     {
       /* shell_escape file names */
-      char *b3 = shell_escape (dbuf_c_str (&linkerScriptFileName));
       char *bfn = shell_escape (dbuf_c_str (&binFileName));
-
-      buf = buildCmdLine (port->linker.cmd, b3, bfn, NULL, linkOptionsSet);
-      Safe_free (b3);
+      
+      buf = buildCmdLine (port->linker.cmd, bfn, NULL, NULL, linkOptionsSet);
       Safe_free (bfn);
     }
   else
@@ -1540,23 +1381,6 @@ linkEdit (char **envp)
   dbuf_destroy (&linkerScriptFileName);
 
   system_ret = sdcc_system (buf);
-
-  /* if the binary file name is defined,
-     rename the linker output file name to binary file name */
-  if (fullDstFileName)
-    {
-      struct dbuf_s lkrFileName;
-
-      dbuf_init (&lkrFileName, PATH_MAX);
-      dbuf_append_str (&lkrFileName, dstFileName);
-      dbuf_append_str (&lkrFileName, getOutFmtExt ());
-
-      if (FILENAME_CMP (dbuf_c_str (&binFileName), dbuf_c_str (&lkrFileName)))
-        remove (dbuf_c_str (&binFileName));
-      rename (dbuf_c_str (&lkrFileName), dbuf_c_str (&binFileName));
-
-      dbuf_destroy (&lkrFileName);
-    }
 
   dbuf_destroy (&binFileName);
 
