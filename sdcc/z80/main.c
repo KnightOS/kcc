@@ -541,26 +541,16 @@ PORT z80_port = {
   {                             /* Assembler */
    _z80AsmCmd,
    NULL,
-<<<<<<< HEAD
    "-o",                /* Options with debug */
    "-o",                 /* Options without debug */
-=======
-   "",                /* Options with debug */
-   "",                 /* Options without debug */
->>>>>>> 8fab023d7e75cb46d92c39d490b64d091018369a
    0,
    ".asm"},
   {                             /* Linker */
    _z80LinkCmd,                 //NULL,
    NULL,                        //LINKCMD,
    NULL,
-<<<<<<< HEAD
    ".o",
    1,
-=======
-   "",
-   0,
->>>>>>> 8fab023d7e75cb46d92c39d490b64d091018369a
    _crt,                        /* crt */
    _libs_z80,                   /* libs */
    },
