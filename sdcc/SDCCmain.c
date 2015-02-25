@@ -1443,28 +1443,6 @@ assemble (char **envp)
           exit (EXIT_FAILURE);
         }
       Safe_free (buf);
-
-      if (options.cc_only && fullDstFileName)
-        {
-          /* gpasm assembler doesn't properly handle the -o option:
-             the file extension is replaced with .o,
-             so sdcc have to rename the object file manually.
-             This has been fixed in gpasm svn:
-             http://sourceforge.net/tracker/?func=detail&aid=3018645&group_id=41924&atid=431665
-             TODO: This code should be removed when the next gputils version
-             after gpasm-0.13.7 beta will be released */
-          struct dbuf_s outName;
-          dbuf_init (&outName, PATH_MAX);
-          dbuf_printf (&outName, "%s%s", dstFileName, port->linker.rel_ext);
-
-          if (strcmp (dbuf_c_str (&outName), fullDstFileName))
-            {
-              /* file names are different: rename the genatated object file */
-              remove (fullDstFileName);
-              rename (dbuf_c_str (&outName), fullDstFileName);
-            }
-          dbuf_destroy (&outName);
-        }
     }
 }
 
