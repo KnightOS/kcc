@@ -513,12 +513,12 @@ oclsExpense (struct memmap *oclass)
 */
 
 static const char *_z80LinkCmd[] = {
-  "scas", "-l", "-o", "$1", "$2", NULL
+  "scas", "-o", "$1", "$2", NULL
 };
 
 /* $3 is replaced by assembler.debug_opts resp. port->assembler.plain_opts */
 static const char *_z80AsmCmd[] = {
-  "scas", "-O", "-o", "$2", "$1.asm", NULL
+  "scas", "-c", "-o", "$2", "$1.asm", NULL
 };
 
 static const char *const _crt[] = { "knightos-crt0.o", NULL, };
