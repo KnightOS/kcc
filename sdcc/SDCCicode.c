@@ -3715,7 +3715,7 @@ geniCodeJumpTable (operand * cond, value * caseVals, ast * tree)
   sizeofMatchJump = cnt * port->jumptableCost.sizeofMatchJump[sizeIndex];
 
   /* If the size cost of the jump table is uneconomical then exit */
-  if (sizeofMatchJump < sizeofJumpTable)
+  if (sizeofMatchJump < sizeofJumpTable || 1 /* SirCmpwn note: this is because relocating a jump table is hard */)
     return 0;
 
   /* The jump table is preferable. */
@@ -3860,8 +3860,9 @@ geniCodeSwitch (ast * tree, int lvl)
     }
 
   /* if we can make this a jump table */
-  if (geniCodeJumpTable (cond, caseVals, tree))
+  if (geniCodeJumpTable (cond, caseVals, tree)) {
     goto jumpTable;             /* no need for the comparison */
+  }
 
   /* for the cases defined do */
   while (caseVals)
