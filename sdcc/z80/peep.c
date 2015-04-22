@@ -230,6 +230,8 @@ z80MightRead(const lineNode *pl, const char *what)
         return TRUE;
       if(*(strchr(pl->line, ',') - 1) == ')' && strstr(pl->line + 3, what) && (strchr(pl->line, '#') == 0 || strchr(pl->line, '#') > strchr(pl->line, ',')))
         return TRUE;
+      if(strcmp(what, "ix") || strcmp(what, "iy")) /* SirCmpwn Note: it's probably going to be used if this check passes, but I'm not trying very hard */
+        return TRUE;
       return FALSE;
     }
 
