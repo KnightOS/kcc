@@ -32,7 +32,6 @@ foreach(peep ${peep_defs})
     execute_process(COMMAND sh -c "basename --suffix=.def '${peep}' | tr -d '\\n'"
         OUTPUT_VARIABLE rules
     )
-    message(STATUS "asdf ${rules}")
     set(rules ${PROJECT_SOURCE_DIR}/z80/${rules}.rul)
     add_custom_command(OUTPUT ${rules}
         COMMAND awk -f ${PROJECT_SOURCE_DIR}/SDCCpeeph.awk ${peep} > ${rules}
