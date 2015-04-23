@@ -29,9 +29,10 @@ BISON_TARGET(SDCCy ${PROJECT_SOURCE_DIR}/SDCC.y ${PROJECT_BINARY_DIR}/gen/SDCCy.
 FLEX_TARGET(SDCClex ${PROJECT_SOURCE_DIR}/SDCC.lex ${PROJECT_BINARY_DIR}/gen/SDCClex.c)
 
 foreach(peep ${peep_defs})
-    execute_process(COMMAND basename -z --suffix=.def ${peep}
+    execute_process(COMMAND sh -c "basename --suffix=.def '${peep}' | tr -d '\\n'"
         OUTPUT_VARIABLE rules
     )
+    message(STATUS "asdf ${rules}")
     set(rules ${PROJECT_SOURCE_DIR}/z80/${rules}.rul)
     add_custom_command(OUTPUT ${rules}
         COMMAND awk -f ${PROJECT_SOURCE_DIR}/SDCCpeeph.awk ${peep} > ${rules}
