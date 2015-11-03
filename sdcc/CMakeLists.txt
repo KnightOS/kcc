@@ -29,7 +29,7 @@ BISON_TARGET(SDCCy ${PROJECT_SOURCE_DIR}/SDCC.y ${PROJECT_BINARY_DIR}/gen/SDCCy.
 FLEX_TARGET(SDCClex ${PROJECT_SOURCE_DIR}/SDCC.lex ${PROJECT_BINARY_DIR}/gen/SDCClex.c)
 
 foreach(peep ${peep_defs})
-    execute_process(COMMAND sh -c "basename --suffix=.def '${peep}' | tr -d '\\n'"
+    execute_process(COMMAND sh -c "basename '${peep}' .def | tr -d '\\n'"
         OUTPUT_VARIABLE rules
     )
     set(rules ${PROJECT_SOURCE_DIR}/z80/${rules}.rul)
