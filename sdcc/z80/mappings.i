@@ -28,7 +28,7 @@ static const ASM_MAPPING _asxxxx_gb_mapping[] = {
       "pop bc\n"
       "pop af"
     },
-    { "adjustsp", "lda sp,-%d(sp)" },
+    { "adjustsp", "lda sp,-(sp + %d)" },
     { "fileprelude", "" },
     { "profileenter",
                 "ld a,#3\n"
@@ -63,6 +63,7 @@ static const ASM_MAPPING _asxxxx_z80_mapping[] = {
 		"add\tiy,sp\n"
 		"ld\tsp,iy" },
     { "*pair", "(%s)" },
+    { "*offspair", "%s" },
     { "enter", 
 		"push\tix\n"
 		"ld\tix,#0\n"
@@ -81,7 +82,7 @@ static const ASM_MAPPING _asxxxx_z80_mapping[] = {
 		"pop\tbc\n"
 		"pop\taf"
     },
-    { "adjustsp", "lda sp,-%d(sp)" },
+    { "adjustsp", "lda sp,-(sp + %d)" },
     { "profileenter",
                 "ld a,#3\n"
                 "rst\t0x08"
@@ -133,7 +134,7 @@ static const ASM_MAPPING _asxxxx_r2k_mapping[] = {
 		"pop\tbc\n"
 		"pop\taf"
     },
-    { "adjustsp", "lda sp,-%d(sp)" },
+    { "adjustsp", "lda sp,-(sp + %d)" },
     { "profileenter",
                 "ld a,#3\n"
                 "rst\t0x28"
