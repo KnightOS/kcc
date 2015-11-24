@@ -486,7 +486,6 @@ _vemit2 (const char *szFormat, va_list ap)
     }
 
   emit_raw (p);
-  printf("%s\n", p);
 
   dbuf_free (buffer);
 }
