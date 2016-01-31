@@ -12170,7 +12170,7 @@ genZ80Code (iCode * lic)
           if (options.debug)
             debugFile->writeCLine (ic);
           if (!options.noCcodeInAsm)
-            emit2 (";%s:%d: %s", ic->filename, ic->lineno, printCLine (ic->filename, ic->lineno));
+            emit2 (".map \"%s\", %d, \"%s\"", ic->filename, ic->lineno, printCLine (ic->filename, ic->lineno));
           cln = ic->lineno;
         }
       if (options.iCodeInAsm)
