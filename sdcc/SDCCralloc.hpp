@@ -51,6 +51,11 @@
 #include <sstream>
 #include <fstream>
 
+#include <boost/version.hpp>
+#if BOOST_VERSION >= 106000
+    // Workaround for https://svn.boost.org/trac/boost/ticket/11880
+    #include <boost/type_traits/ice.hpp>
+#endif
 #include <boost/graph/graphviz.hpp>
 #include <boost/graph/adjacency_matrix.hpp>
 #include <boost/graph/connected_components.hpp>
