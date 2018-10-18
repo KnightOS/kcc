@@ -141,6 +141,7 @@ char buffer[PATH_MAX * 2];
 #define OPTION_DUMP_AST             "--dump-ast"
 #define OPTION_DUMP_I_CODE          "--dump-i-code"
 #define OPTION_DUMP_GRAPHS          "--dump-graphs"
+#define OPTION_CPP                  "--cpp"
 
 static const OPTION optionsTable[] = {
   {0,   NULL, NULL, "General options"},
@@ -247,6 +248,7 @@ static const OPTION optionsTable[] = {
   {0,   OPTION_IDATA_LOC, &options.idata_loc, NULL, CLAT_INTEGER},
 
   {0,   OPTION_NO_OPTSDCC_IN_ASM, &options.noOptsdccInAsm, "Do not emit .optsdcc in asm"},
+  {0,   OPTION_CPP, NULL, "Use custom preprocessor", CLAT_STRING},
   /* End of options */
   {0,   NULL}
 };
@@ -275,10 +277,14 @@ static const UNSUPPORTEDOPT unsupportedOptTable[] = {
   {0, "--fommit-frame-pointer", "use --fomit-frame-pointer instead"},
 };
 
+#ifndef KCC_DEFAULT_PREPROCESSOR
+#define KCC_DEFAULT_PREPROCESSOR "cpp"
+#endif
+
 /** List of all default constant macros.
  */
 static const char *_baseValues[] = {
-  "cpp", "cpp",
+  "cpp", KCC_DEFAULT_PREPROCESSOR,
   "cppextraopts", "",
   /* Path seperator character */
   "sep", DIR_SEPARATOR_STRING,
@@ -404,6 +410,7 @@ setDefaultOptions (void)
   options.stack10bit = 0;
   options.out_fmt = 0;
   options.dump_graphs = 0;
+  options.preprocessor = NULL;
 
   /* now for the optimizations */
   /* turn on the everything */
@@ -972,6 +979,18 @@ parseCmdLine (int argc, char **argv)
               options.code_seg = dbuf_detach (&segname);
               continue;
             }
+          
+          if (strcmp (argv[i], OPTION_CPP) == 0)
+           {
+			   struct dbuf_s preproc;
+			   
+			   dbuf_init (&preproc, 256);
+			   dbuf_printf (&preproc, "%s", getStringArg (OPTION_CPP, argv, &i, argc));
+			   if (options.preprocessor)
+			     Safe_free (options.preprocessor);
+			   options.preprocessor = dbuf_detach(&preproc);
+			   continue;
+		   }
 
           if (strcmp (argv[i], OPTION_CONST_SEG) == 0)
             {
@@ -1638,7 +1657,12 @@ preProcess (char **envp)
           setMainValue ("cppoutfilename", NULL);
           addSet (&preArgvSet, Safe_strdup ("-")); /* Compatability with other implementations of cpp */
         }
-
+      
+      if (options.preprocessor)
+        {
+			setMainValue ("cpp", options.preprocessor);
+		}
+      
       if (options.verbose)
         printf ("sdcc: Calling preprocessor...\n");
       buf = buildMacros (_preCmd);

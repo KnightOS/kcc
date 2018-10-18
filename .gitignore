@@ -9,3 +9,4 @@ install_manifest.txt
 *.1
 *.rul
 sdcc/gen/
+build/
