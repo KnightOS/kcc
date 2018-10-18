@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.5)
 project(kcc C CXX)
-set(CMAKE_CXX_FLAGS "-g")
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/")
 add_definitions("-Wall -Wno-parentheses")
 find_package(BISON REQUIRED)
@@ -14,6 +14,12 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/../support/util/
     ${PROJECT_BINARY_DIR}/gen/
 )
+
+if (NOT DEFINED KCC_DEFAULT_PREPROCESSOR)
+	set(KCC_DEFAULT_PREPROCESSOR "cpp" CACHE PATH "The preprocessor KCC should use if none is explicitly specified")
+endif()
+
+add_definitions("-DKCC_DEFAULT_PREPROCESSOR=\"${KCC_DEFAULT_PREPROCESSOR}\"")
 
 FILE(GLOB sdcc ${PROJECT_SOURCE_DIR}/*.c)
 FILE(GLOB sdcc_cxx ${PROJECT_SOURCE_DIR}/*.cc)
