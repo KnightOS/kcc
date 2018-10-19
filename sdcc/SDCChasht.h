@@ -43,12 +43,12 @@ hashtItem;
 /* hashtable */
 typedef struct hTab
   {
-    int size;			/* max number of items */
-    int minKey;			/* minimum key value   */
-    int maxKey;			/* maximum key value */
-    hashtItem **table;		/* the actual table  */
-    int currKey;		/* used for iteration */
-    hashtItem *currItem;	/* current item within the list */
+    int size;           /* max number of items */
+    int minKey;         /* minimum key value   */
+    int maxKey;         /* maximum key value */
+    hashtItem **table;      /* the actual table  */
+    int currKey;        /* used for iteration */
+    hashtItem *currItem;    /* current item within the list */
     int nItems;
   }
 hTab;
@@ -69,20 +69,20 @@ DELETE_ACTION;
 hTab *newHashTable (int);
 void hTabAddItem (hTab **, int key, void *item);
 /** Adds a new item to the hash table.
-    @param h		The hash table to add to
-    @param key		A hashed version of pkey
-    @param pkey		A copy of the key.  Owned by the
-    			hash table after this function.
-    @param item		Value for this key.
+    @param h        The hash table to add to
+    @param key      A hashed version of pkey
+    @param pkey     A copy of the key.  Owned by the
+                hash table after this function.
+    @param item     Value for this key.
 */
 void hTabAddItemLong (hTab ** h, int key, void *pkey, void *item);
 /** Finds a item by exact key.
     Searches all items in the key 'key' for a key that
     according to 'compare' matches pkey.
-    @param h		The hash table to search
-    @param key		A hashed version of pkey.
-    @param pkey		The key to search for
-    @param compare	Returns 0 if pkey == this
+    @param h        The hash table to search
+    @param key      A hashed version of pkey.
+    @param pkey     The key to search for
+    @param compare  Returns 0 if pkey == this
 */
 void *hTabFindByKey (hTab * h, int key, const void *pkey, int (*compare) (const void *, const void *));
 /** Deletes an item with the exact key 'pkey'
@@ -91,10 +91,10 @@ void *hTabFindByKey (hTab * h, int key, const void *pkey, int (*compare) (const 
 int hTabDeleteByKey (hTab ** h, int key, const void *pkey, int (*compare) (const void *, const void *));
 
 void hTabDeleteItem (hTab **, int key,
-		     const void *item, DELETE_ACTION action,
-		     int (*compareFunc) (const void *, const void *));
+             const void *item, DELETE_ACTION action,
+             int (*compareFunc) (const void *, const void *));
 int hTabIsInTable (hTab *, int, void *,
-		   int (*compareFunc) (void *, void *));
+           int (*compareFunc) (void *, void *));
 void *hTabFirstItem (hTab *, int *);
 void *hTabNextItem (hTab *, int *);
 hTab *hTabFromTable (hTab *);
@@ -113,10 +113,10 @@ int hTabMaxKey (hTab *htab);
 
 /** Find the first item that either is 'item' or which
     according to 'compareFunc' is the same as item.
-    @param compareFunc		strcmp like compare function, may be null.
+    @param compareFunc      strcmp like compare function, may be null.
 */
 void *hTabFindItem (hTab * htab, int key,
-		    void *item, int (*compareFunc) (void *, void *));
+            void *item, int (*compareFunc) (void *, void *));
 
 void shash_add (hTab ** h, const char *szKey, const char *szValue);
 const char *shash_find (hTab * h, const char *szKey);

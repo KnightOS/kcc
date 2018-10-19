@@ -50,7 +50,7 @@ typedef struct ast
   unsigned lvalue:1;
   unsigned initMode:1;
   unsigned reversed:1;
-  int level;                    /* level for expr */
+  long level;                   /* level for expr */
   int block;                    /* block number   */
   int seqPoint;                 /* sequence point */
   /* union of values expression can have */
@@ -66,7 +66,7 @@ typedef struct ast
   /* union for special processing */
   union
   {
-    const char *inlineasm;      /* pointer to inline assembler code */
+    char *inlineasm;            /* pointer to inline assembler code */
     literalList *constlist;     /* init list for array initializer. */
     symbol *sym;                /* if block then -> symbols */
     value *args;                /* if function then args    */
@@ -211,7 +211,7 @@ ast *forLoopOptForm (ast *);
 ast *argAst (ast *);
 ast *resolveSymbols (ast *);
 void CodePtrPointsToConst (sym_link * t);
-void checkPtrCast (sym_link * newType, sym_link * orgType, bool implicit);
+void checkPtrCast (sym_link * newType, sym_link * orgType, bool implicit, bool orgIsNullPtrConstant);
 ast *decorateType (ast *, RESULT_TYPE);
 ast *createWhile (symbol *, symbol *, symbol *, ast *, ast *);
 ast *createIf (ast *, ast *, ast *);
@@ -224,9 +224,11 @@ int setAstFileLine (ast *, char *, int);
 symbol *funcOfType (const char *, sym_link *, sym_link *, int, int);
 symbol *funcOfTypeVarg (const char *, const char *, int, const char **);
 ast *initAggregates (symbol *, initList *, ast *);
+bool astHasVolatile (ast *tree);
 bool hasSEFcalls (ast *);
 void addSymToBlock (symbol *, ast *);
 void freeStringSymbol (symbol *);
+value *stringToSymbol (value *val);
 DEFSETFUNC (resetParmKey);
 int astErrors (ast *);
 RESULT_TYPE getResultTypeFromType (sym_link *);

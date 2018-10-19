@@ -27,8 +27,10 @@ D       [0-9]
 L       [a-zA-Z_$]
 H       [a-fA-F0-9]
 E       [Ee][+-]?{D}+
+BE      [Pp][+-]?{D}+
 FS      (f|F|l|L)
 IS      (u|U|l|L)*
+CP      (L|u|U)
 HASH    (#|%:)
 
 %{
@@ -63,12 +65,11 @@ static struct dbuf_s asmbuff; /* reusable _asm buffer */
 
 /* forward declarations */
 int yyerror (char *s);
-static const char *stringLiteral (void);
+static const char *stringLiteral (char);
 static void count (void);
 static void count_char (int);
 static int process_pragma (const char *);
 static int check_type (void);
-static int isTargetKeyword (const char *s);
 static void checkCurrFile (const char *s);
 %}
 
@@ -111,7 +112,7 @@ static void checkCurrFile (const char *s);
 "__data"                { count (); TKEYWORD (DATA); }
 "default"               { count (); return DEFAULT; }
 "do"                    { count (); return DO; }
-"double"                { count (); return SD_FLOAT; } /* NOTE: Doubles are unsupported (just floats) */
+"double"                { count (); werror (W_DOUBLE_UNSUPPORTED); return SD_FLOAT; }
 "else"                  { count (); return ELSE; }
 "enum"                  { count (); return ENUM; }
 "extern"                { count (); return EXTERN; }
@@ -128,6 +129,7 @@ static void checkCurrFile (const char *s);
 "__interrupt"           { count (); TKEYWORD (INTERRUPT); }
 "__nonbanked"           { count (); TKEYWORD (NONBANKED); }
 "__banked"              { count (); TKEYWORD (BANKED); }
+"__trap"                { count (); TKEYWORD (TRAP); }
 "long"                  { count (); return SD_LONG; }
 "__near"                { count (); TKEYWORD (DATA); }
 "__pdata"               { count (); TKEYWORD (PDATA); }
@@ -165,10 +167,14 @@ static void checkCurrFile (const char *s);
 "inline"                { count (); TKEYWORD99 (INLINE); }
 "_Noreturn"             { count (); return NORETURN;}
 "restrict"              { count (); TKEYWORD99 (RESTRICT); }
-"__smallc"              { count (); return SMALLC; }
+"__smallc"              { count (); TKEYWORD (SMALLC); }
+"__preserves_regs"      { count (); return PRESERVES_REGS; }
+"__z88dk_fastcall"      { count (); TKEYWORD (Z88DK_FASTCALL); }
+"__z88dk_callee"        { count (); TKEYWORD (Z88DK_CALLEE); }
 "__addressmod"          { count (); return ADDRESSMOD; }
 "_Static_assert"        { count (); return STATIC_ASSERT; }
 "_Alignas"              { count (); return ALIGNAS; }
+"_Generic"              { count (); return GENERIC; }
 {L}({L}|{D})*           {
   if (!options.dollars_in_ident && strchr (yytext, '$'))
     {
@@ -183,17 +189,24 @@ static void checkCurrFile (const char *s);
       yyerror ("binary (0b) constants are not allowed in ISO C");
     }
   count ();
-  yylval.val = constVal (yytext);
+  yylval.val = constIntVal (yytext);
   return CONSTANT;
 }
-0[xX]{H}+{IS}?          { count (); yylval.val = constVal (yytext); return CONSTANT; }
-0[0-7]*{IS}?            { count (); yylval.val = constVal (yytext); return CONSTANT; }
-[1-9]{D}*{IS}?          { count (); yylval.val = constVal (yytext); return CONSTANT; }
-'(\\.|[^\\'])+'         { count (); yylval.val = charVal (yytext); return CONSTANT; /* ' make syntax highliter happy */ }
-{D}+{E}{FS}?            { count (); yylval.val = constFloatVal (yytext); return CONSTANT; }
-{D}*"."{D}+({E})?{FS}?  { count (); yylval.val = constFloatVal (yytext); return CONSTANT; }
-{D}+"."{D}*({E})?{FS}?  { count (); yylval.val = constFloatVal (yytext); return CONSTANT; }
-\"                      { count (); yylval.yystr = stringLiteral (); return STRING_LITERAL; }
+0[xX]{H}+{IS}?               { count (); yylval.val = constIntVal (yytext); return CONSTANT; }
+0[0-7]*{IS}?                 { count (); yylval.val = constIntVal (yytext); return CONSTANT; }
+[1-9]{D}*{IS}?               { count (); yylval.val = constIntVal (yytext); return CONSTANT; }
+{CP}?'(\\.|[^\\'])+'         { count (); yylval.val = charVal (yytext); return CONSTANT; /* ' make syntax highlighter happy */ }
+{D}+{E}{FS}?                 { count (); yylval.val = constFloatVal (yytext); return CONSTANT; }
+{D}*"."{D}+({E})?{FS}?       { count (); yylval.val = constFloatVal (yytext); return CONSTANT; }
+{D}+"."{D}*({E})?{FS}?       { count (); yylval.val = constFloatVal (yytext); return CONSTANT; }
+0[xX]{H}+{BE}{FS}?           { count (); if (!options.std_c99) werror(E_HEXFLOAT_C99); yylval.val = constFloatVal (yytext); return CONSTANT; }
+0[xX]{H}*"."{H}+({BE})?{FS}? { count (); if (!options.std_c99) werror(E_HEXFLOAT_C99); yylval.val = constFloatVal (yytext); return CONSTANT; }
+0[xX]{H}+"."{H}*({BE})?{FS}? { count (); if (!options.std_c99) werror(E_HEXFLOAT_C99); yylval.val = constFloatVal (yytext); return CONSTANT; }
+\"                           { count (); yylval.yystr = stringLiteral (0); return STRING_LITERAL; }
+"L\""                        { count (); if (!options.std_c95) werror(E_WCHAR_STRING_C95); yylval.yystr = stringLiteral ('L'); return STRING_LITERAL; }
+"u8\""                       { count (); if (!options.std_c11) werror(E_WCHAR_STRING_C11); yylval.yystr = stringLiteral (0); return STRING_LITERAL; }
+"u\""                        { count (); if (!options.std_c11) werror(E_WCHAR_STRING_C11); yylval.yystr = stringLiteral ('u'); return STRING_LITERAL; }
+"U\""                        { count (); if (!options.std_c11) werror(E_WCHAR_STRING_C11); yylval.yystr = stringLiteral ('U'); return STRING_LITERAL; }
 ">>="                   { count (); yylval.yyint = RIGHT_ASSIGN; return RIGHT_ASSIGN; }
 "<<="                   { count (); yylval.yyint = LEFT_ASSIGN; return LEFT_ASSIGN; }
 "+="                    { count (); yylval.yyint = ADD_ASSIGN; return ADD_ASSIGN; }
@@ -382,7 +395,7 @@ check_type (void)
  */
 
 static const char *
-stringLiteral (void)
+stringLiteral (char enc)
 {
 #define STR_BUF_CHUNCK_LEN  1024
   int ch;
@@ -393,7 +406,19 @@ stringLiteral (void)
   else
     dbuf_set_length(&dbuf, 0);
 
-  dbuf_append_char(&dbuf, '"');
+  switch (enc)
+    {
+    case 'u': // UTF-16
+      dbuf_append_str(&dbuf, "u\"");
+      break;
+    case 'L':
+    case 'U': // UTF-32
+      enc = 'U';
+      dbuf_append_str(&dbuf, "U\"");
+      break;
+    default: // UTF-8 or whatever else the source character set is encoded in
+      dbuf_append_char(&dbuf, '"');
+    }
 
   /* put into the buffer till we hit the first \" */
 
@@ -503,6 +528,51 @@ stringLiteral (void)
           if (ch == EOF)
             goto out;
 
+          if (ch == 'u' || ch == 'U' || ch == 'L') /* Could be an utf-16 or utf-32 wide string literal prefix */
+            {
+              int ch2;
+
+              if (!(options.std_c11 || options.std_c95 && ch == 'L'))
+                {
+                  werror (ch == 'L' ? E_WCHAR_STRING_C95 : E_WCHAR_STRING_C11);
+                  unput(ch);
+                  goto out;
+                }
+
+              ch2 = input();
+              if (ch2 != '"')
+                unput (ch2);
+              else /* It is an utf-16 or utf-32 wide string literal prefix */
+                {
+                  if (!enc) 
+                    {
+                      dbuf_prepend_char(&dbuf, ch == 'L' ? 'U' : ch);
+                      enc = ch;
+                    }
+                  count_char(ch);
+                  count_char(ch2);
+                  break;
+                }
+            }
+
+          if (ch == 'u') /* Could be an utf-8 wide string literal prefix */
+            {
+              ch = input();
+              if (ch != '8')
+                {
+                  unput(ch);
+                  unput('u');
+                  goto out;
+                }
+              ch = input();
+              if (ch != '"')
+                {
+                  unput(ch);
+                  unput('8');
+                  unput('u');
+                  goto out;
+                }
+            }
           if (ch != '"')
             {
               unput(ch);
@@ -528,7 +598,6 @@ enum {
    P_NOINDUCTION,
    P_NOINVARIANT,
    P_STACKAUTO,
-   P_NOJTBOUND,
    P_OVERLAY_,     /* I had a strange conflict with P_OVERLAY while */
                    /* cross-compiling for MINGW32 with gcc 3.2 */
    P_NOOVERLAY,
@@ -545,6 +614,7 @@ enum {
    P_STD_C89,
    P_STD_C99,
    P_STD_C11,
+   P_STD_C2X,
    P_STD_SDCC89,
    P_STD_SDCC99,
    P_CODESEG,
@@ -729,17 +799,6 @@ doPragma (int id, const char *name, const char *cp)
       options.stackAuto = 1;
       break;
 
-    case P_NOJTBOUND:
-      cp = get_pragma_token(cp, &token);
-      if (TOKEN_EOL != token.type)
-        {
-          err = 1;
-          break;
-        }
-
-      optimize.noJTabBoundary = 1;
-      break;
-
     case P_NOGCSE:
       cp = get_pragma_token(cp, &token);
       if (TOKEN_EOL != token.type)
@@ -890,6 +949,7 @@ doPragma (int id, const char *name, const char *cp)
 
       options.std_c99 = 0;
       options.std_c11 = 0;
+      options.std_c2x = 0;
       options.std_sdcc = 0;
       break;
 
@@ -902,6 +962,8 @@ doPragma (int id, const char *name, const char *cp)
         }
 
       options.std_c99 = 1;
+      options.std_c11 = 0;
+      options.std_c2x = 0;
       options.std_sdcc = 0;
       break;
 
@@ -915,6 +977,21 @@ doPragma (int id, const char *name, const char *cp)
 
       options.std_c99 = 1;
       options.std_c11 = 1;
+      options.std_c2x = 0;
+      options.std_sdcc = 0;
+      break;
+
+    case P_STD_C2X:
+      cp = get_pragma_token(cp, &token);
+      if (TOKEN_EOL != token.type)
+        {
+          err = 1;
+          break;
+        }
+
+      options.std_c99 = 1;
+      options.std_c11 = 1;
+      options.std_c2x = 1;
       options.std_sdcc = 0;
       break;
 
@@ -928,6 +1005,7 @@ doPragma (int id, const char *name, const char *cp)
 
       options.std_c99 = 0;
       options.std_c11 = 0;
+      options.std_c2x = 0;
       options.std_sdcc = 1;
       break;
 
@@ -941,6 +1019,7 @@ doPragma (int id, const char *name, const char *cp)
 
       options.std_c99 = 1;
       options.std_c11 = 0;
+      options.std_c2x = 0;
       options.std_sdcc = 1;
       break;
 
@@ -996,7 +1075,6 @@ static struct pragma_s pragma_tbl[] = {
   { "noinvariant",       P_NOINVARIANT,     0, doPragma },
   { "noloopreverse",     P_LOOPREV,         0, doPragma },
   { "stackauto",         P_STACKAUTO,       0, doPragma },
-  { "nojtbound",         P_NOJTBOUND,       0, doPragma },
   { "nogcse",            P_NOGCSE,          0, doPragma },
   { "overlay",           P_OVERLAY_,        0, doPragma },
   { "nooverlay",         P_NOOVERLAY,       0, doPragma },
@@ -1011,6 +1089,7 @@ static struct pragma_s pragma_tbl[] = {
   { "std_c89",           P_STD_C89,         0, doPragma },
   { "std_c99",           P_STD_C99,         0, doPragma },
   { "std_c11",           P_STD_C11,         0, doPragma },
+  { "std_c2x",           P_STD_C2X,         0, doPragma },
   { "std_sdcc89",        P_STD_SDCC89,      0, doPragma },
   { "std_sdcc99",        P_STD_SDCC99,      0, doPragma },
   { "codeseg",           P_CODESEG,         0, doPragma },
@@ -1084,41 +1163,6 @@ process_pragma (const char *s)
       werror(W_UNKNOWN_PRAGMA, s);
       return 0;
     }
-}
-
-/* will return 1 if the string is a part
-   of a target specific keyword */
-static int
-isTargetKeyword (const char *s)
-{
-  int i;
-
-  if (port->keywords == NULL)
-    return 0;
-
-  if (s[0] == '_' && s[1] == '_')
-    {
-      /* Keywords in the port's array have either 0 or 1 underscore, */
-      /* so skip over the appropriate number of chars when comparing */
-      for (i = 0 ; port->keywords[i] ; i++ )
-        {
-          if (port->keywords[i][0] == '_' &&
-              strcmp(port->keywords[i],s+1) == 0)
-            return 1;
-          else if (strcmp(port->keywords[i],s+2) == 0)
-            return 1;
-        }
-    }
-  else
-    {
-      for (i = 0 ; port->keywords[i] ; i++ )
-        {
-          if (strcmp(port->keywords[i],s) == 0)
-            return 1;
-        }
-    }
-
-  return 0;
 }
 
 int

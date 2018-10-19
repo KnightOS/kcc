@@ -44,6 +44,7 @@ struct _dumpFiles dumpFiles[] = {
   {DUMP_RASSGN, ".dumprassgn", NULL},
   {DUMP_LRANGE, ".dumplrange", NULL},
   {DUMP_LOSPRE, ".dumplospre", NULL},
+  {DUMP_CUSTOM, ".dumpcustom", NULL},
   {0, NULL, NULL}
 };
 
@@ -223,9 +224,10 @@ dumpEbbsToFileExt (int id, ebbIndex * ebbi)
   for (i = 0; i < count; i++)
     {
       fprintf (of, "\n----------------------------------------------------------------\n");
-      fprintf (of, "Basic Block %s (df:%d bb:%d lvl:%d): loopDepth=%d%s%s%s\n",
+      fprintf (of, "Basic Block %s (df:%d bb:%d lvl:%ld:%ld): loopDepth=%d%s%s%s\n",
                ebbs[i]->entryLabel->name,
-               ebbs[i]->dfnum, ebbs[i]->bbnum, ebbs[i]->entryLabel->level,
+               ebbs[i]->dfnum, ebbs[i]->bbnum,
+               ebbs[i]->entryLabel->level / LEVEL_UNIT, ebbs[i]->entryLabel->level % LEVEL_UNIT,
                ebbs[i]->depth,
                ebbs[i]->noPath ? " noPath" : "",
                ebbs[i]->partOfLoop ? " partOfLoop" : "", ebbs[i]->isLastInLoop ? " isLastInLoop" : "");
@@ -395,7 +397,7 @@ iCode2eBBlock (iCode * ic)
 /* eBBWithEntryLabel - finds the basic block with the entry label  */
 /*-----------------------------------------------------------------*/
 eBBlock *
-eBBWithEntryLabel (ebbIndex * ebbi, symbol * eLabel)
+eBBWithEntryLabel (ebbIndex* ebbi, const symbol *eLabel)
 {
   eBBlock **ebbs = ebbi->bbOrder;
   int count = ebbi->count;
@@ -733,7 +735,7 @@ replaceSymBySym (set * sset, operand * src, operand * dest)
 /* replaceLabel - replace reference to one label by another        */
 /*-----------------------------------------------------------------*/
 void
-replaceLabel (eBBlock * ebp, symbol * fromLbl, symbol * toLbl)
+replaceLabel (eBBlock *ebp, symbol *fromLbl, symbol *toLbl)
 {
   iCode *ic;
 
@@ -756,6 +758,9 @@ replaceLabel (eBBlock * ebp, symbol * fromLbl, symbol * toLbl)
           else if (isSymbolEqual (IC_FALSE (ic), fromLbl))
             IC_FALSE (ic) = toLbl;
           break;
+
+        case JUMPTABLE:
+          replaceSetItem (IC_JTLABELS (ic), fromLbl, toLbl);
         }
     }
 
@@ -779,7 +784,7 @@ iCodeFromeBBlock (eBBlock ** ebbs, int count)
       if (ebbs[i]->sch == NULL)
         continue;
 
-      if (ebbs[i]->noPath && (ebbs[i]->entryLabel != entryLabel && ebbs[i]->entryLabel != returnLabel))
+      if (ebbs[i]->noPath && optimize.label4 && (ebbs[i]->entryLabel != entryLabel && ebbs[i]->entryLabel != returnLabel))
         {
           iCode *ic = NULL;
           bool foundNonlabel = 0;
@@ -808,7 +813,7 @@ iCodeFromeBBlock (eBBlock ** ebbs, int count)
       lic = ebbs[i]->ech;
 
     }
-
+  
   return ric;
 }
 
@@ -857,4 +862,27 @@ otherPathsPresent (eBBlock ** ebbs, eBBlock * this)
     return 0;
   else
     return 1;
+}
+
+
+/*-----------------------------------------------------------------*/
+/* freeBBlockData - Deallocate data structures associated with     */
+/*      the current blocks. They will all be recomputed if the     */
+/*      iCode chain is divided into blocks again later.            */
+/*-----------------------------------------------------------------*/
+void
+freeeBBlockData(ebbIndex * ebbi)
+{
+  int i;
+  eBBlock ** ebbs = ebbi->bbOrder;
+  
+  for (i=0; i < ebbi->count; i++)
+    {
+      deleteSet (&ebbs[i]->succList);
+      deleteSet (&ebbs[i]->predList);
+      freeBitVect (ebbs[i]->succVect);
+      freeBitVect (ebbs[i]->domVect);
+      
+      freeCSEdata(ebbs[i]);
+    }
 }

@@ -40,6 +40,7 @@
 //
 // void thorup_elimination_ordering(l_t &l, const J_t &J)
 // Creates an elimination ordering l of a graph J using Thorup's heuristic.
+//
 
 #include <map>
 #include <vector>
@@ -49,9 +50,13 @@
 
 #include <boost/tuple/tuple_io.hpp>
 #include <boost/graph/graph_traits.hpp>
+#include <boost/graph/graph_utility.hpp>
 #include <boost/graph/properties.hpp>
 #include <boost/graph/copy.hpp>
 #include <boost/graph/adjacency_list.hpp>
+
+#undef RANGE
+#undef BLOCK
 
 struct forget_properties
 {
@@ -142,7 +147,7 @@ void thorup_E(std::multimap<unsigned int, unsigned int> &M, const I_t &I)
       s.push(std::pair<int, unsigned int>(i2, j));
     }
     
-    // Not in Thorup's paper, but without this the algorithm gives incorrect results.
+    // Thorup forgot this in his paper. Without it, some maximal chains are omitted.
     while(s.size() > 1)
     {
         M.insert(std::pair<unsigned int, unsigned int>(s.top().second, s.top().first));
@@ -157,7 +162,7 @@ void thorup_E(std::multimap<unsigned int, unsigned int> &M, const I_t &I)
 template <class l_t, class G_t>
 void thorup_elimination_ordering(l_t &l, const G_t &G)
 {
-  // Should we do this? Or just use G as J? The Thorup paper seems unclear, it speaks of statements that contain jumps to other statements, but does it count as a jump, when they're just subsequent?
+  // Remove edges to immediately following instruction. By "each statement can have at most obne jump" in the last paragraph of Appendix A it is clear that Thorup does not consider the implicit next-instruction-edges as jumps.
   boost::adjacency_list<boost::vecS, boost::vecS, boost::directedS> J;
   boost::copy_graph(G, J, boost::vertex_copy(forget_properties()).edge_copy(forget_properties()));
   for (unsigned int i = 0; i < boost::num_vertices(J) - 1; i++)
@@ -254,7 +259,7 @@ void add_vertices_to_tree_decomposition(T_t &T, const v_t v, const v_t v_end, G_
   T[s].bag.insert(*v);
 }
 
-// Create a tree decomposition from en elimination ordering.
+// Create a tree decomposition from an elimination ordering.
 template <class T_t, class G_t>
 void tree_decomposition_from_elimination_ordering(T_t &T, const std::list<unsigned int>& l, const G_t &G)
 {
@@ -373,6 +378,19 @@ void nicify_diffs(T_t &T, typename boost::graph_traits<T_t>::vertex_descriptor t
   c0 = *c;
   nicify_diffs(T, c0);
 
+  // Redundant bags are isolated, and thus marked for later removal.
+  if (T[t].bag == T[c0].bag)
+    {
+      T[c0].bag.clear();
+      boost::remove_edge(t, c0, T);
+      adjacency_iter_t c, c_end;
+      for(boost::tie(c, c_end) = adjacent_vertices(c0, T); c != c_end; ++c)
+        {
+          boost::add_edge(t, *c, T);
+          boost::remove_edge(c0, *c, T);
+        }
+    }
+
   if (std::includes(T[t].bag.begin(), T[t].bag.end(), T[c0].bag.begin(), T[c0].bag.end()) || std::includes(T[c0].bag.begin(), T[c0].bag.end(), T[t].bag.begin(), T[t].bag.end()))
     return;
 
@@ -384,7 +402,7 @@ void nicify_diffs(T_t &T, typename boost::graph_traits<T_t>::vertex_descriptor t
   boost::add_edge(t, d, T);
 }
 
-// // Ensure that all nodes' bags' sizes differ by at most one to their successors'.
+// Ensure that all nodes' bags' sizes differ by at most one to their successors'.
 template <class T_t>
 void nicify_diffs_more(T_t &T, typename boost::graph_traits<T_t>::vertex_descriptor t)
 {
@@ -417,7 +435,11 @@ void nicify_diffs_more(T_t &T, typename boost::graph_traits<T_t>::vertex_descrip
       c1 = *c;
       nicify_diffs_more(T, c0);
       nicify_diffs_more(T, c1);
-      T[t].weight = std::min(T[c0].weight, T[c1].weight) + 1;
+      {
+        const unsigned l = T[c0].weight;
+        const unsigned r = T[c1].weight;
+        T[t].weight = (l == r) ? l + 1 : std::max(l , r);
+      }
       return;
     default:
       std::cerr << "nicify_diffs_more error.\n";
@@ -449,6 +471,15 @@ void nicify_diffs_more(T_t &T, typename boost::graph_traits<T_t>::vertex_descrip
   nicify_diffs_more(T, t);
 }
 
+#ifdef HAVE_TREEDEC_COMBINATIONS_HPP
+#include <treedec/treedec_traits.hpp>
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/tuple/tuple.hpp>
+#include <boost/graph/graph_utility.hpp>
+#include <treedec/nice_decomposition.hpp>
+
+using treedec::find_root;
+#else
 // Find a root of an acyclic graph T
 // Complexity: Linear in the number of vertices of T.
 template <class T_t>
@@ -463,6 +494,28 @@ typename boost::graph_traits<T_t>::vertex_descriptor find_root(T_t &T)
     t = boost::source(*e, T);
 
   return(t);
+}
+#endif
+
+// Remove isolated vertices possibly introduced by nicify_diffs(). Complicated, since boost does not support removing more than one vertex at a time.
+template <class T_t>
+void remove_isolated_vertices(T_t &T)
+{
+  bool change = true;
+  while(change)
+    {
+      change = false;
+      if(boost::num_vertices(T) <= 1)
+        return;
+
+      for (unsigned int i = 0; i < boost::num_vertices(T); i++)
+        if(!boost::out_degree(i, T) && !boost::in_degree(i, T))
+          {
+            remove_vertex(i, T);
+            change = true;
+            break;
+          }
+    }
 }
 
 // Transform a tree decomposition into a nice tree decomposition.
@@ -484,5 +537,115 @@ void nicify(T_t &T)
   nicify_joins(T, t);
   nicify_diffs(T, t);
   nicify_diffs_more(T, t);
+  remove_isolated_vertices(T);
 }
 
+class cfg_titlewriter
+{
+public:
+  explicit cfg_titlewriter(const std::string& f, const std::string& p) : function(f), purpose(p)
+    {
+    }
+  void operator()(std::ostream& out) const
+    {
+      out << "graph [label=\"Control-flow-graph for " << purpose << " (function " << function << ")\"]\n";
+    }
+private:
+  std::string function;
+  std::string purpose;
+};
+
+class dec_titlewriter
+{
+public:
+  explicit dec_titlewriter(unsigned int w, const std::string& f, const std::string& p) : function(f), purpose(p)
+    {
+      width = w;
+    }
+  void operator()(std::ostream& out) const
+    {
+      out << "graph [label=\"Tree-decomposition of width " << width << " for " << purpose << " (function " << function << ")\"]\n";
+    }
+private:
+  unsigned int width;
+  std::string function;
+  std::string purpose;
+};
+
+#ifdef HAVE_TREEDEC_COMBINATIONS_HPP
+
+#include <treedec/graph.hpp>
+#include <treedec/preprocessing.hpp>
+#include <boost/graph/copy.hpp>
+
+#include <treedec/thorup.hpp>
+#include <treedec/combinations.hpp>
+#include <treedec/misc.hpp>
+
+template <typename G1_t, typename G2_t>
+void copy_undir(G1_t &G1, G2_t const &G2){
+    for(unsigned i = 0; i < boost::num_vertices(G2); i++){
+        boost::add_vertex(G1);
+    }
+    typename boost::graph_traits<G2_t>::edge_iterator eIt, eEnd;
+    for(boost::tie(eIt, eEnd) = boost::edges(G2); eIt != eEnd; eIt++){
+        assert (boost::source(*eIt, G2) != boost::target(*eIt, G2));
+        if ( !boost::edge(boost::source(*eIt, G2), boost::target(*eIt, G2), G1).second){
+            boost::add_edge(boost::source(*eIt, G2), boost::target(*eIt, G2), G1);
+        }else{
+        // already there
+        // intended here: this way, or the other.
+      }
+    }
+}
+
+#endif
+
+#undef USE_THORUP // Thorup's classic algorithm (default in SDCC pre-3.7.0). Substantially worse width than the others.
+#define USE_PP_FI_TM 1 // A good trade-off between width and runtime
+#undef USE_EX17 // Slightly better width than PP_FI_TM, but no polynomial runtime bound.
+#undef USE_PP_MD // Slightly worse width than PP_FI_TM.
+#undef USE_PP_FI // Slightly worse width than PP_FI_TM.
+
+// Get a nice tree decomposition for a cfg.
+template <class T_t, class G_t>
+void get_nice_tree_decomposition(T_t &tree_dec, const G_t &cfg)
+{
+  thorup_tree_decomposition(tree_dec, cfg);
+
+#ifdef HAVE_TREEDEC_COMBINATIONS_HPP
+
+#ifdef USE_THORUP
+  treedec::thorup<G_t> a(cfg);
+#else
+  typedef boost::adjacency_list<boost::setS, boost::vecS, boost::undirectedS> cfg2_t;
+  cfg2_t cfg2;
+  copy_undir(cfg2, cfg);
+#if USE_PP_FI_TM
+  treedec::comb::PP_FI_TM<cfg2_t> a2(cfg2);
+#elif USE_EX17
+  treedec::comb::ex17<cfg2_t> a2(cfg2);
+#elif USE_PP_MD
+  treedec::comb::PP_MD<cfg2_t> a2(cfg2);
+#elif USE_PP_FI
+  treedec::comb::PP_FI<cfg2_t> a2(cfg2);
+#else
+#error No algorithm selected
+#endif
+#endif
+
+  T_t tree_dec2;
+  a2.do_it();
+  a2.get_tree_decomposition(tree_dec2);
+  wassert(treedec::is_valid_treedecomposition(cfg, tree_dec2));
+
+  if (treedec::get_width(tree_dec2) < treedec::get_width(tree_dec))
+    tree_dec = tree_dec2;
+#endif
+
+  nicify(tree_dec);
+
+#ifdef HAVE_TREEDEC_COMBINATIONS_HPP
+  wassert(treedec::is_valid_treedecomposition(cfg, tree_dec));
+#endif
+}

@@ -5,6 +5,7 @@ static const ASM_MAPPING _asxxxx_gb_mapping[] = {
     { "areadata", ".area _%s" },
     { "areahome", ".area _%s" },
     { "functionlabeldef", "%s:" },
+    { "globalfunctionlabeldef", "%s::" },
     { "*hl", "(hl)" },
     { "di", "di" },
     { "ei", "ei" },
@@ -14,6 +15,7 @@ static const ASM_MAPPING _asxxxx_gb_mapping[] = {
     { "ldaspsp", "add sp, #%d" },
     { "*pair", "(%s)" },
     { "enter", "" },
+    { "enters", "" },
     { "enterx", 
       "add sp, #-%d" },
     { "pusha", 
@@ -28,7 +30,7 @@ static const ASM_MAPPING _asxxxx_gb_mapping[] = {
       "pop bc\n"
       "pop af"
     },
-    { "adjustsp", "lda sp,-(sp + %d)" },
+    { "adjustsp", "lda sp,-%d(sp)" },
     { "fileprelude", "" },
     { "profileenter",
                 "ld a,#3\n"
@@ -48,41 +50,42 @@ static const ASM_MAPPING _asxxxx_z80_mapping[] = {
     { "areadata", ".area _%s" },
     { "areahome", ".area _%s" },
     { "*ixx", "(ix + %d)" },
-    { "*iyx", "(iy + %d)" },
+    { "*iyx", "%d (iy + %d)" },
     { "*hl", "(hl)" },
     { "di", "di" },
     { "ei", "ei" },
     { "ldahli", 
-		"ld a,(hl)\n"
-		"inc\thl" },
+    "ld a,(hl)\n"
+    "inc\thl" },
     { "ldahlsp", 
-		"ld hl,#%d\n"
-		"add\thl,sp" },
+    "ld hl,#%d\n"
+    "add\thl,sp" },
     { "ldaspsp", 
-		"ld iy,#%d\n"
-		"add\tiy,sp\n"
-		"ld\tsp,iy" },
+    "ld iy,#%d\n"
+    "add\tiy,sp\n"
+    "ld\tsp,iy" },
     { "*pair", "(%s)" },
-    { "*offspair", "%s" },
     { "enter", 
-		"push\tix\n"
-		"ld\tix,#0\n"
-		"add\tix,sp" },
+    "push\tix\n"
+    "ld\tix,#0\n"
+    "add\tix,sp" },
+    { "enters", 
+    "call\t___sdcc_enter_ix\n" },
     { "pusha", 
-      		"push af\n"
-      		"push\tbc\n"
-      		"push\tde\n"
-      		"push\thl\n"
-		"push\tiy"
+          "push af\n"
+          "push\tbc\n"
+          "push\tde\n"
+          "push\thl\n"
+    "push\tiy"
     },
     { "popa",
-		"pop iy\n"
-		"pop\thl\n"
-		"pop\tde\n"
-		"pop\tbc\n"
-		"pop\taf"
+    "pop iy\n"
+    "pop\thl\n"
+    "pop\tde\n"
+    "pop\tbc\n"
+    "pop\taf"
     },
-    { "adjustsp", "lda sp,-(sp + %d)" },
+    { "adjustsp", "lda sp,-%d(sp)" },
     { "profileenter",
                 "ld a,#3\n"
                 "rst\t0x08"
@@ -106,35 +109,37 @@ static const ASM_MAPPING _asxxxx_r2k_mapping[] = {
     { "di", "ipset3" },
     { "ei", "ipres" },
     { "ldahli", 
-		"ld a,(hl)\n"
-		"inc\thl" },
+    "ld a,(hl)\n"
+    "inc\thl" },
     { "ldahlsp", 
-		"ld hl,#%d\n"
-		"add\thl,sp" },
+    "ld hl,#%d\n"
+    "add\thl,sp" },
     { "ldaspsp", 
-		"ld iy,#%d\n"
-		"add\tiy,sp\n"
-		"ld\tsp,iy" },
+    "ld iy,#%d\n"
+    "add\tiy,sp\n"
+    "ld\tsp,iy" },
     { "*pair", "(%s)" },
     { "enter", 
-		"push\tix\n"
-		"ld\tix,#0\n"
-		"add\tix,sp" },
+    "push\tix\n"
+    "ld\tix,#0\n"
+    "add\tix,sp" },
+    { "enters", 
+    "call\t___sdcc_enter_ix\n" },
     { "pusha", 
-      		"push af\n"
-      		"push\tbc\n"
-      		"push\tde\n"
-      		"push\thl\n"
-		"push\tiy"
+          "push af\n"
+          "push\tbc\n"
+          "push\tde\n"
+          "push\thl\n"
+    "push\tiy"
     },
     { "popa",
-		"pop iy\n"
-		"pop\thl\n"
-		"pop\tde\n"
-		"pop\tbc\n"
-		"pop\taf"
+    "pop iy\n"
+    "pop\thl\n"
+    "pop\tde\n"
+    "pop\tbc\n"
+    "pop\taf"
     },
-    { "adjustsp", "lda sp,-(sp + %d)" },
+    { "adjustsp", "lda sp,-%d(sp)" },
     { "profileenter",
                 "ld a,#3\n"
                 "rst\t0x28"
@@ -179,12 +184,13 @@ static const ASM_MAPPING _rgbds_mapping[] = {
       "; ---------------------------------"
     },
     { "functionlabeldef", "%s:" },
+    { "globalfunctionlabeldef", "%s::" },
     { "zero", "$00" },
     { "one", "$01" },
     { "area", "SECTION \"%s\",CODE" },
     { "areadata", "SECTION \"%F_%s\",BSS" },
     { "areacode", "SECTION \"%F_CODE\",%s" }, 
-    { "areahome", "SECTION \"%F_CODE\",%s" },
+    { "areahome", "SECTION \"%F_HOME\",HOME" },
     { "ascii", "DB \"%s\"" },
     { "ds", "DS %d" },
     { "db", "DB" },
@@ -221,6 +227,7 @@ static const ASM_MAPPING _rgbds_gb_mapping[] = {
     { "ei", "ei" },
     { "adjustsp", "add sp,-%d" },
     { "enter", "" },
+    { "enters", "" },
     { "ldahli", "ld a,[hl+]" },
     { "*hl", "[hl]" },
     { "ldahlsp", "ld hl,[sp+%d]" },
@@ -243,7 +250,7 @@ static const ASM_MAPPING _isas_mapping[] = {
       "\tCAPSOFF      ; Case sensitive\n"
       "\tISDMG        ; Gameboy mode\n"
       "_CODE\tGROUP\n"
-      "\t; We have to define these here as sdcc doesnt make them global by default\n"
+      "\t; We have to define these here as sdcc doesn't make them global by default\n"
       "\tGLOBAL __mulschar\n"
       "\tGLOBAL __muluchar\n"
       "\tGLOBAL __mulint\n"
@@ -264,6 +271,7 @@ static const ASM_MAPPING _isas_mapping[] = {
       "; ---------------------------------"
     },
     { "functionlabeldef", "%s:" },
+    { "globalfunctionlabeldef", "%s::" },
     { "zero", "$00" },
     { "one", "$01" },
     { "area", "%s\tGROUP" },
@@ -306,6 +314,7 @@ static const ASM_MAPPING _isas_gb_mapping[] = {
     { "ei", "ei" },
     { "adjustsp", "add sp,-%d" },
     { "enter", "" },
+    { "enters", "" },
     { "ldahli", "ld a,(hli)" },
     { "*hl", "(hl)" },
     { "ldahlsp", "ldhl sp,%d" },
@@ -344,6 +353,7 @@ static const ASM_MAPPING _z80asm_mapping[] = {
       "; ---------------------------------"
     },
     { "functionlabeldef", ".%s" },
+    { "globalfunctionlabeldef", ".%s" },
     { "zero", "$00" },
     { "one", "$01" },
     { "ascii", "DEFM \"%s\"" },
@@ -377,33 +387,35 @@ static const ASM_MAPPING _z80asm_z80_mapping[] = {
     { "di", "di" },
     { "ei", "ei" },
     { "ldahli", 
-		"ld a,(hl)\n"
-		"inc\thl" },
+    "ld a,(hl)\n"
+    "inc\thl" },
     { "ldahlsp", 
-		"ld hl,%d\n"
-		"add\thl,sp" },
+    "ld hl,%d\n"
+    "add\thl,sp" },
     { "ldaspsp", 
-		"ld iy,%d\n"
-		"add\tiy,sp\n"
-		"ld\tsp,iy" },
+    "ld iy,%d\n"
+    "add\tiy,sp\n"
+    "ld\tsp,iy" },
     { "*pair", "(%s)" },
     { "enter", 
-		"push\tix\n"
-		"ld\tix,0\n"
-		"add\tix,sp" },
+    "push\tix\n"
+    "ld\tix,0\n"
+    "add\tix,sp" },
+    { "enters", 
+    "call\t___sdcc_enter_ix\n" },
     { "pusha", 
-      		"push af\n"
-      		"push\tbc\n"
-      		"push\tde\n"
-      		"push\thl\n"
-		"push\tiy"
+          "push af\n"
+          "push\tbc\n"
+          "push\tde\n"
+          "push\thl\n"
+    "push\tiy"
     },
     { "popa", 
-		"pop\tiy\n"
-		"pop\thl\n"
-		"pop\tde\n"
-		"pop\tbc\n"
-		"pop\taf"
+    "pop\tiy\n"
+    "pop\thl\n"
+    "pop\tde\n"
+    "pop\tbc\n"
+    "pop\taf"
     },
     { "adjustsp", "lda sp,(sp%+d)" },
     { "profileenter",

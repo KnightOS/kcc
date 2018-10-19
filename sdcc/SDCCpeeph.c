@@ -43,7 +43,7 @@ static int hashSymbolName (const char *name);
 static void buildLabelRefCountHash (lineNode * head);
 static void bindVar (int key, char **s, hTab ** vtab);
 
-static bool matchLine (char *, char *, hTab **);
+static bool matchLine (char *, const char *, hTab **);
 
 #define FBYNAME(x) static int x (hTab *vars, lineNode *currPl, lineNode *endPl, \
         lineNode *head, char *cmdLine)
@@ -313,7 +313,7 @@ FBYNAME (labelIsReturnOnly)
   if (!pl)
     return FALSE; /* did not find the label */
   pl = pl->next;
-  while (pl && (pl->isDebug || pl->isComment))
+  while (pl && (pl->isDebug || pl->isComment || pl->isLabel))
     pl = pl->next;
   if (!pl || !pl->line || pl->isDebug)
     return FALSE; /* next line not valid */
@@ -322,6 +322,8 @@ FBYNAME (labelIsReturnOnly)
     ;
 
   retInst = "ret";
+  if (TARGET_HC08_LIKE)
+    retInst = "rts";
   if (strcmp(p, retInst) == 0)
     return TRUE;
   return FALSE;
@@ -337,6 +339,7 @@ FBYNAME (labelIsUncondJump)
   const char *label;
   char *p, *q;
   const lineNode *pl;
+  bool found = FALSE;
   int len;
   char * jpInst = NULL;
   char * jpInst2 = NULL;
@@ -346,23 +349,48 @@ FBYNAME (labelIsUncondJump)
     return FALSE;
   len = strlen(label);
 
-  for (pl = currPl; pl; pl = pl->next)
+  for (pl = currPl; pl; pl = pl->prev)
     {
       if (pl->line && !pl->isDebug && !pl->isComment && pl->isLabel)
         {
           if (strncmp(pl->line, label, len) == 0)
-            break; /* Found Label */
+            {
+              found = TRUE;
+              break; /* Found Label */
+            }
           if (strlen(pl->line) != 7       || !ISCHARDIGIT(*(pl->line))   ||
               !ISCHARDIGIT(*(pl->line+1)) || !ISCHARDIGIT(*(pl->line+2)) ||
               !ISCHARDIGIT(*(pl->line+3)) || !ISCHARDIGIT(*(pl->line+4)) ||
               *(pl->line+5) != '$')
             {
-              return FALSE; /* non-local label encountered */
+              break; /* non-local label encountered */
             }
         }
     }
 
-  if (!pl)
+  if (!found)
+    {
+      for (pl = currPl; pl; pl = pl->next)
+        {
+          if (pl->line && !pl->isDebug && !pl->isComment && pl->isLabel)
+            {
+              if (strncmp(pl->line, label, len) == 0)
+                {
+                  found = TRUE;
+                  break; /* Found Label */
+                }
+              if (strlen(pl->line) != 7       || !ISCHARDIGIT(*(pl->line))   ||
+                  !ISCHARDIGIT(*(pl->line+1)) || !ISCHARDIGIT(*(pl->line+2)) ||
+                  !ISCHARDIGIT(*(pl->line+3)) || !ISCHARDIGIT(*(pl->line+4)) ||
+                  *(pl->line+5) != '$')
+                {
+                  return FALSE; /* non-local label encountered */
+                }
+            }
+        }
+    }
+
+  if (!pl || !found)
     return FALSE; /* did not find the label */
   pl = pl->next;
   while (pl && (pl->isDebug || pl->isComment))
@@ -373,8 +401,26 @@ FBYNAME (labelIsUncondJump)
   while (*p && ISCHARSPACE(*p))
     p++;
 
-  jpInst = "jp";
-  jpInst2 = "jr";
+  if (TARGET_MCS51_LIKE)
+    {
+      jpInst = "ljmp";
+      jpInst2 = "sjmp";
+    }
+  else if (TARGET_HC08_LIKE)
+    {
+      jpInst = "jmp";
+      jpInst2 = "bra";
+    }
+  else if (TARGET_Z80_LIKE)
+    {
+      jpInst = "jp";
+      jpInst2 = "jr";
+    }
+  else if (TARGET_IS_STM8)
+    {
+      jpInst = (options.model == MODEL_LARGE ? "jpf" : "jp");
+      jpInst2 = "jra";
+    }
   len = strlen(jpInst);
   if (strncmp(p, jpInst, len))
     {
@@ -396,10 +442,13 @@ FBYNAME (labelIsUncondJump)
   if (len == 0)
     return FALSE; /* no destination? */
 
-  while (q>p && *q!=',')
-    q--;
-  if (*q==',')
-    return FALSE; /* conditional jump */
+  if (TARGET_Z80_LIKE)
+    {
+      while (q>p && *q!=',')
+        q--;
+      if (*q==',')
+        return FALSE; /* conditional jump */
+    }
 
   /* now put the destination in %6 */
   bindVar (6, &p, &vars);
@@ -589,7 +638,7 @@ FBYNAME (labelRefCountChange)
                 {
                   fprintf (stderr, "*** internal error: label %s may not get"
                           " negative refCount in %s peephole.\n",
-                           label, __FUNCTION__);
+                           label, __func__);
                 }
             }
             else
@@ -602,7 +651,7 @@ FBYNAME (labelRefCountChange)
         {
           fprintf (stderr, "*** internal error: var %d not bound"
                    " in peephole %s rule.\n",
-                   varNumber, __FUNCTION__);
+                   varNumber, __func__);
         }
     }
   else
@@ -622,11 +671,11 @@ FBYNAME (labelRefCountChange)
 ** not found, or var was a indirect/pointer addressing mode.
 */
 static bool
-notVolatileVariable(char *var, lineNode *currPl, lineNode *endPl)
+notVolatileVariable(const char *var, lineNode *currPl, lineNode *endPl)
 {
   char symname[SDCC_NAME_MAX + 1];
   char *p = symname;
-  char *vp = var;
+  const char *vp = var;
   lineNode *cl;
   operand *op;
   iCode *last_ic;
@@ -634,16 +683,50 @@ notVolatileVariable(char *var, lineNode *currPl, lineNode *endPl)
   /* Can't tell if indirect accesses are volatile or not, so
   ** assume they are, just to be safe.
   */
-  if (strstr (var, "(bc)"))
-    return FALSE;
-  if (strstr (var, "(de)"))
-    return FALSE;
-  if (strstr (var, "(hl)"))
-    return FALSE;
-  if (strstr (var, "(ix"))
-    return FALSE;
-  if (strstr (var, "(iy"))
-    return FALSE;
+  if (TARGET_IS_MCS51 || TARGET_IS_DS390 || TARGET_IS_DS400)
+    {
+      if (*var=='@')
+        return false;
+    }
+  if (TARGET_Z80_LIKE)
+    {
+      if (var[0] == '#')
+        return true;
+      if (var[0] == '(')
+        return false;
+      if (strstr (var, "(bc)"))
+        return false;
+      if (strstr (var, "(de)"))
+        return false;
+      if (strstr (var, "(hl)"))
+        return false;
+      if (strstr (var, "(ix"))
+        return false;
+      if (strstr (var, "(iy"))
+        return false;
+    }
+
+  if (TARGET_IS_STM8)
+    {
+      if (var[0] == '#')
+        return true;
+      if (var[0] == '(')
+        return false;
+      if (strstr (var, "(x)"))
+        return false;
+      if (strstr (var, "(y)"))
+        return false;
+      if (strstr (var, ", x)"))
+        return false;
+      if (strstr (var, ", y)"))
+        return false;
+      if (strstr (var, ", sp)"))
+        return false;
+      if (strchr (var, '[') && strchr (var, ']'))
+        return false;
+      if (strstr(var, "0x") || strstr(var, "0X") || isdigit(var[0]))
+        return false;
+    }
 
   /* Extract a symbol name from the variable */
   while (*vp && (*vp!='_'))
@@ -657,7 +740,7 @@ notVolatileVariable(char *var, lineNode *currPl, lineNode *endPl)
       /* Nothing resembling a symbol name was found, so it can't
          be volatile
       */
-      return TRUE;
+      return true;
     }
 
   last_ic = NULL;
@@ -721,7 +804,7 @@ notVolatileVariable(char *var, lineNode *currPl, lineNode *endPl)
   }
 
   /* Couldn't find the symbol for some reason. Assume volatile. */
-  return FALSE;
+  return false;
 }
 
 /*  notVolatile:
@@ -890,16 +973,31 @@ error:
 static const char *
 operandBaseName (const char *op)
 {
-  if (!strcmp (op, "d") || !strcmp (op, "e") || !strcmp (op, "(de)"))
-    return "de";
-  if (!strcmp (op, "b") || !strcmp (op, "c") || !strcmp (op, "(bc)"))
-    return "bc";
-  if (!strcmp (op, "h") || !strcmp (op, "l") || !strcmp (op, "(hl)") || !strcmp (op, "(hl+)")  || !strcmp (op, "(hl-)"))
-    return "hl";
-  if (!strcmp (op, "iyh") || !strcmp (op, "iyl") || strstr (op, "iy"))
-    return "iy";
-  if (!strcmp (op, "ixh") || !strcmp (op, "ixl") || strstr (op, "ix"))
-    return "ix";
+  if (TARGET_IS_MCS51 || TARGET_IS_DS390 || TARGET_IS_DS400)
+    {
+      if (!strcmp (op, "acc") || !strncmp (op, "acc.", 4))
+        return "a";
+      if (!strncmp (op, "ar", 2) && ISCHARDIGIT(*(op+2)) && !*(op+3))
+        return op+1;
+      // bug 1739475, temp fix
+      if (op[0] == '@')
+        return operandBaseName(op+1);
+    }
+  if (TARGET_Z80_LIKE)
+    {
+      if (!strcmp (op, "d") || !strcmp (op, "e") || !strcmp (op, "(de)"))
+        return "de";
+      if (!strcmp (op, "b") || !strcmp (op, "c") || !strcmp (op, "(bc)"))
+        return "bc";
+      if (!strcmp (op, "h") || !strcmp (op, "l") || !strcmp (op, "(hl)") || !strcmp (op, "(hl+)")  || !strcmp (op, "(hl-)"))
+        return "hl";
+      if (!strcmp (op, "iyh") || !strcmp (op, "iyl") || strstr (op, "iy"))
+        return "iy";
+      if (!strcmp (op, "ixh") || !strcmp (op, "ixl") || strstr (op, "ix"))
+        return "ix";
+      if (!strcmp (op, "a"))
+        return "af";
+    }
 
   return op;
 }
@@ -1046,6 +1144,53 @@ FBYNAME (operandsNotRelated)
 
   deleteSet (&operands);
   return TRUE;
+}
+
+/*-----------------------------------------------------------------*/
+/* notSimilar - Check, if one is another's substring               */
+/*-----------------------------------------------------------------*/
+FBYNAME (notSimilar)
+{
+  set *operands;
+  const char *op1, *op2;
+
+  operands = setFromConditionArgs (cmdLine, vars);
+
+  if (!operands)
+    {
+      fprintf (stderr,
+               "*** internal error: notSimilar peephole restriction"
+               " malformed: %s\n", cmdLine);
+      return FALSE;
+    }
+
+  while ((op1 = setFirstItem (operands)))
+    {
+      deleteSetItem (&operands, (void*)op1);
+
+      for (op2 = setFirstItem (operands); op2; op2 = setNextItem (operands))
+        {
+          if ((strstr (op1, op2) || strstr (op2, op1)) && strcmp (op1, op2) == 0)
+            {
+              deleteSet (&operands);
+              return FALSE;
+            }
+        }
+    }
+
+  deleteSet (&operands);
+  return TRUE;
+}
+
+/*-----------------------------------------------------------------*/
+/* symmParmStack - Caller readjusts stack by the number of bytes
+   that were pushed in all calls to this function                  */
+/*-----------------------------------------------------------------*/
+FBYNAME (symmParmStack)
+{
+  if (port->peep.symmParmStack)
+    return port->peep.symmParmStack();
+  return FALSE;
 }
 
 /*-----------------------------------------------------------------*/
@@ -1340,7 +1485,13 @@ ftab[] =                                            // sorted on the number of t
   },
   {
     "immdInRange", immdInRange
-  }
+  },
+  {
+    "notSimilar", notSimilar
+  },
+  {
+    "symmParmStack", symmParmStack
+  },
 };
 
 /*-----------------------------------------------------------------*/
@@ -1469,7 +1620,7 @@ newPeepRule (lineNode * match,
   else
     pr->cond = NULL;
 
-  pr->vars = newHashTable (100);
+  pr->vars = newHashTable (16);
 
   /* if root is empty */
   if (!rootRules)
@@ -1492,14 +1643,14 @@ newPeepRule (lineNode * match,
 /* getPeepLine - parses the peep lines                             */
 /*-----------------------------------------------------------------*/
 static void
-getPeepLine (lineNode ** head, char **bpp)
+getPeepLine (lineNode ** head, const char **bpp)
 {
   char lines[MAX_PATTERN_LEN];
   char *lp;
   int isComment;
 
   lineNode *currL = NULL;
-  char *bp = *bpp;
+  const char *bp = *bpp;
   while (1)
     {
 
@@ -1557,12 +1708,13 @@ getPeepLine (lineNode ** head, char **bpp)
 /* readRules - reads the rules from a string buffer                */
 /*-----------------------------------------------------------------*/
 static void
-readRules (char *bp)
+readRules (const char *bp)
 {
   char restart = 0, barrier = 0;
   char lines[MAX_PATTERN_LEN];
   size_t safetycounter;
-  char *lp, *rp;
+  char *lp;
+  const char *rp;
   lineNode *match;
   lineNode *replace;
   lineNode *currL = NULL;
@@ -1637,8 +1789,13 @@ top:
   if (strncmp (bp, "if", 2) == 0)
     {
       bp += 2;
-      while ((ISCHARSPACE (*bp) || *bp == '\n') && *bp)
+      while ((ISCHARSPACE (*bp) || *bp == '\n' || (*bp == '/' && *(bp+1) == '/')) && *bp)
+      {
         bp++;
+        if (*bp == '/')
+          while (*bp && *bp != '\n')
+            bp++;
+      }
       if (!*bp)
         {
           fprintf (stderr, "expected condition name\n");
@@ -1692,7 +1849,7 @@ top:
 /* keyForVar - returns the numeric key for a var                   */
 /*-----------------------------------------------------------------*/
 static int
-keyForVar (char *d)
+keyForVar (const char *d)
 {
   int i = 0;
 
@@ -1756,23 +1913,23 @@ bindVar (int key, char **s, hTab ** vtab)
 /* matchLine - matches one line                                    */
 /*-----------------------------------------------------------------*/
 static bool
-matchLine (char *s, char *d, hTab ** vars)
+matchLine (char *s, const char *d, hTab ** vars)
 {
   if (!s || !(*s))
     return FALSE;
 
+  /* skip leading white spaces */
+  while (ISCHARSPACE (*s))
+    s++;
+  while (ISCHARSPACE (*d))
+    d++;
+
   while (*s && *d)
     {
-      /* skip white space in both */
-      while (ISCHARSPACE (*s))
-        s++;
-      while (ISCHARSPACE (*d))
-        d++;
-
       /* if the destination is a var */
       if (*d == '%' && ISCHARDIGIT (*(d + 1)) && vars)
         {
-          char *v = hTabItemWithKey (*vars, keyForVar (d + 1));
+          const char *v = hTabItemWithKey (*vars, keyForVar (d + 1));
           /* if the variable is already bound
              then it MUST match with dest */
           if (v)
@@ -1789,24 +1946,30 @@ matchLine (char *s, char *d, hTab ** vars)
           d++;
           while (ISCHARDIGIT (*d))
             d++;
-
+        }
+      else if (ISCHARSPACE (*s) && ISCHARSPACE (*d)) /* whitespace sequences match any whitespace sequences */
+        {
           while (ISCHARSPACE (*s))
             s++;
           while (ISCHARSPACE (*d))
             d++;
         }
-
-      /* they should be an exact match other wise */
-      if (*s && *d)
+      else if (*s == ',' && *d == ',') /* Allow comman to match comma followed by whitespace */
+        {
+          s++, d++;
+          while (ISCHARSPACE (*s))
+            s++;
+          while (ISCHARSPACE (*d))
+            d++;
+        }
+      else if (*s && *d) /* they should be an exact match otherwise */
         {
           if (*s++ != *d++)
             return FALSE;
         }
-
     }
 
-  /* get rid of the trailing spaces
-     in both source & destination */
+  /* skip trailing whitespaces */
   if (*s)
     while (ISCHARSPACE (*s))
       s++;
@@ -2231,10 +2394,13 @@ bool
 isLabelReference (const char *line, const char **start, int *len)
 {
   const char *s, *e;
+  if (!TARGET_Z80_LIKE && !TARGET_IS_STM8)
+    return FALSE;
+
   s = line;
   while (ISCHARSPACE (*s))
     ++s;
-  	
+    
   if(strncmp(s, "call", 4))
     return FALSE;
   s += 4;
@@ -2394,6 +2560,12 @@ peepHole (lineNode ** pls)
   lineNode *mtail = NULL;
   bool restart, replaced;
 
+#if !OPT_DISABLE_PIC14 || !OPT_DISABLE_PIC16
+  /* The PIC port uses a different peep hole optimizer based on "pCode" */
+  if (TARGET_PIC_LIKE)
+    return;
+#endif
+
   assert(labelHash == NULL);
 
   do
@@ -2548,6 +2720,24 @@ initPeepHole (void)
       /* override nopeep setting, default rules have not been read */
       options.nopeep = 0;
     }
+
+#if !OPT_DISABLE_PIC14
+  /* Convert the peep rules into pcode.
+     NOTE: this is only support in the PIC port (at the moment)
+  */
+  if (TARGET_IS_PIC14)
+    peepRules2pCode (rootRules);
+#endif
+
+#if !OPT_DISABLE_PIC16
+  /* Convert the peep rules into pcode.
+     NOTE: this is only support in the PIC port (at the moment)
+       and the PIC16 port (VR 030601)
+  */
+  if (TARGET_IS_PIC16)
+    pic16_peepRules2pCode (rootRules);
+
+#endif
 }
 
 /*-----------------------------------------------------------------*/
@@ -2555,26 +2745,26 @@ initPeepHole (void)
 /*-----------------------------------------------------------------*/
 const char * StrStr (const char * str1, const char * str2)
 {
-	const char * cp = str1;
-	const char * s1;
-	const char * s2;
+  const char * cp = str1;
+  const char * s1;
+  const char * s2;
 
-	if ( !*str2 )
-	    return str1;
+  if ( !*str2 )
+      return str1;
 
-	while (*cp)
-	{
-		s1 = cp;
-		s2 = str2;
+  while (*cp)
+  {
+    s1 = cp;
+    s2 = str2;
 
-		while ( *s1 && *s2 && !(tolower(*s1)-tolower(*s2)) )
-			s1++, s2++;
+    while ( *s1 && *s2 && !(tolower(*s1)-tolower(*s2)) )
+      s1++, s2++;
 
-		if (!*s2)
-			return( cp );
+    if (!*s2)
+      return( cp );
 
-		cp++;
-	}
+    cp++;
+  }
 
-	return (NULL) ;
+  return (NULL) ;
 }

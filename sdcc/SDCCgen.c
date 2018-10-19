@@ -92,17 +92,7 @@ add_line_node (const char *line)
 
   pl = Safe_alloc (sizeof (lineNode));
 
-#if 1
   memcpy (pl, (lineElem_t *) & genLine.lineElement, sizeof (lineElem_t));
-#else
-  pl->ic = genLine.lineElement.ic;
-  pl->isInline = genLine.lineElement.isInline;
-  pl->isComment = genLine.lineElement.isComment;
-  pl->isDebug = genLine.lineElement.isDebug;
-  pl->isLabel = genLine.lineElement.isLabel;
-  pl->visited = genLine.lineElement.visited;
-  pl->aln = genLine.lineElement.aln;
-#endif
 
   pl->line = Safe_strdup (line);
 
@@ -207,6 +197,8 @@ genInline (iCode * ic)
 {
   char *buf, *bp, *begin;
   bool inComment = FALSE;
+  bool inLiteral = FALSE;
+  bool inLiteralString = FALSE;
 
   D (emitcode (";", "genInline"));
 
@@ -219,13 +211,44 @@ genInline (iCode * ic)
     {
       switch (*bp)
         {
-        case ';':
-          inComment = TRUE;
+        case '\'':
+          inLiteral = !inLiteral;
           ++bp;
+          break;
+
+        case '"':
+          inLiteralString = !inLiteralString;
+          ++bp;
+          break;
+
+        case ';':
+          if (!inLiteral && !inLiteralString)
+            {
+              inComment = TRUE;
+            }
+          ++bp;
+          break;
+
+        case ':':
+          /* Add \n for labels, not dirs such as c:\mydir */
+          if (!inComment && !inLiteral && !inLiteralString && (isspace ((unsigned char) bp[1])))
+            {
+              ++bp;
+              *bp = '\0';
+              ++bp;
+              emitcode (begin, NULL);
+              begin = bp;
+            }
+          else
+            {
+              ++bp;
+            }
           break;
 
         case '\x87':
         case '\n':
+          inLiteral = FALSE;
+          inLiteralString = FALSE;
           inComment = FALSE;
           *bp++ = '\0';
 
@@ -240,17 +263,7 @@ genInline (iCode * ic)
           break;
 
         default:
-          /* Add \n for labels, not dirs such as c:\mydir */
-          if (!inComment && (*bp == ':') && (isspace ((unsigned char) bp[1])))
-            {
-              ++bp;
-              *bp = '\0';
-              ++bp;
-              emitcode (begin, NULL);
-              begin = bp;
-            }
-          else
-            ++bp;
+          ++bp;
           break;
         }
     }
@@ -333,6 +346,7 @@ ifxForOp (operand * op, const iCode * ic)
 
       if (ifxIc && ifxIc->op == IFX &&
         IC_COND (ifxIc)->key == op->key &&
+        OP_SYMBOL (op)->liveFrom >= ic->seq &&
         OP_SYMBOL (op)->liveTo <= ifxIc->seq)
         return ifxIc;
     }

@@ -20,6 +20,7 @@
 // Lifetime-optimal speculative partial redundancy elimination.
 
 // #define DEBUG_LOSPRE // Uncomment to get debug messages while doing lospre.
+// #define DEBUG_LOSPRE_ASS // Uncomment to get debug messages on considered assignmentd while doing lospre.
 
 #include "SDCClospre.hpp"
 
@@ -105,12 +106,6 @@ candidate_expression (const iCode *const ic, int lkey)
   if(ic->op == '=' && IS_OP_LITERAL (right))
     return (false);
 
-  if(IS_OP_VOLATILE (left) || IS_OP_VOLATILE (right))
-    return (false);
-
-  if(POINTER_GET (ic) && IS_VOLATILE (operandType (IC_LEFT (ic))->next))
-    return (false);
-
   // Todo: Allow more operands!
   if (ic->op != CAST && left && !(IS_SYMOP (left) || IS_OP_LITERAL (left)) ||
     right && !(IS_SYMOP (right) || IS_OP_LITERAL (right)) ||
@@ -163,12 +158,36 @@ get_candidate_set(std::set<int> *c, const iCode *const sic, int lkey)
 }
 
 static bool
-setup_cfg_for_expression (cfg_lospre_t *const cfg, const iCode *const eic)
+invalidates_expression(const iCode *const eic, const iCode *const iic)
 {
-  typedef boost::graph_traits<cfg_lospre_t>::vertex_descriptor vertex_t;
   const operand *const eleft = IC_LEFT (eic);
   const operand *const eright = IC_RIGHT (eic);
   const bool uses_global = (eic->op == GET_VALUE_AT_ADDRESS || isOperandGlobal (eleft) || isOperandGlobal (eright) || IS_SYMOP (eleft) && OP_SYMBOL_CONST (eleft)->addrtaken || IS_SYMOP (eright) && OP_SYMBOL_CONST (eright)->addrtaken);
+  const bool uses_volatile = POINTER_GET (eic) && IS_VOLATILE (operandType (eleft)->next) || IS_OP_VOLATILE (eleft) || IS_OP_VOLATILE (eright);
+
+  const operand *const left = IC_LEFT (iic);
+  const operand *const right = IC_RIGHT (iic);
+  const operand *const result = IC_RESULT (iic);
+
+  if (IC_RESULT (iic) && !IS_OP_LITERAL (result) && !POINTER_SET(iic) &&
+    (eleft && isOperandEqual (eleft, result) || eright && isOperandEqual (eright, result)))
+    return(true);
+  if (iic->op == FUNCTION || iic->op == ENDFUNCTION || iic->op == RECEIVE)
+    return(true);
+  if ((uses_global || uses_volatile) && (iic->op == CALL || iic->op == PCALL))
+    return(true);
+  if (uses_volatile && (POINTER_GET (iic) && IS_VOLATILE (operandType (left)->next)) || IS_OP_VOLATILE (left) || IS_OP_VOLATILE (right))
+    return(true);
+  if (uses_global && POINTER_SET (iic)) // TODO: More accuracy here!
+    return(true);
+
+  return(false);
+}
+
+static bool
+setup_cfg_for_expression (cfg_lospre_t *const cfg, const iCode *const eic)
+{
+  typedef boost::graph_traits<cfg_lospre_t>::vertex_descriptor vertex_t;
   bool safety_required = false;
 
   // In redundancy elimination, safety means not doing a computation on any path were it was not done before.
@@ -178,7 +197,7 @@ setup_cfg_for_expression (cfg_lospre_t *const cfg, const iCode *const eic)
   // safety, since reading from an unknown location could result in making the device do something or in a SIGSEGV. 
   // On the other hand, addition is something that typically does not require safety, since adding two undefined
   // operands gives just another undefined (the C standard allows trap representations, which, could result
-  // in addition requiring safety though; AFAIK none of the targets currently supported by sdcc have trap representations).
+  // in addition requiring safety though; AFAIK none of the targets currently supported by SDCC have trap representations).
   // Philipp, 2012-07-06.
   //
   // For now we just always require safety for "dangerous" operations.
@@ -190,8 +209,17 @@ setup_cfg_for_expression (cfg_lospre_t *const cfg, const iCode *const eic)
   if (eic->op == CALL || eic->op == PCALL)
     safety_required = true;
 
+  // volatile requires safety.
+  if (POINTER_GET (eic) && IS_VOLATILE (operandType (IC_LEFT (eic))->next) || IS_OP_VOLATILE (IC_LEFT (eic)) || IS_OP_VOLATILE (IC_RIGHT (eic)))
+    safety_required = true;
+
   // Reading from an invalid address might be dangerous, since there could be memory-mapped I/O.
-  if (eic->op == GET_VALUE_AT_ADDRESS && !optimize.lospre_unsafe_read)
+  if (eic->op == GET_VALUE_AT_ADDRESS && !optimize.allow_unsafe_read)
+    safety_required = true;
+
+  // The division routines for z80-like ports and the hc08/s08's and stm8's hardware division just give an undefined result
+  // for division by zero, but there are no harmful side effects. I don't know about the other ports.
+  if ((eic->op == '/' || eic->op == '%') && !TARGET_Z80_LIKE && !TARGET_HC08_LIKE && !TARGET_IS_STM8)
     safety_required = true;
 
   // TODO: Relax this! There are cases where allowing unsafe optimizations will improve speed.
@@ -199,31 +227,34 @@ setup_cfg_for_expression (cfg_lospre_t *const cfg, const iCode *const eic)
   if (optimize.codeSpeed)
     safety_required = true;
 
+#ifdef DEBUG_LOSPRE
+  std::cout << "Invalidation set I: ";
+#endif
   for (vertex_t i = 0; i < boost::num_vertices (*cfg); i++)
     {
        const iCode *const ic = (*cfg)[i].ic;
+
        (*cfg)[i].uses = same_expression (eic, ic);
-       (*cfg)[i].invalidates = false;
-       if (IC_RESULT (ic) && !IS_OP_LITERAL (IC_RESULT (ic)) && !POINTER_SET(ic) &&
-         (eleft && isOperandEqual (eleft, IC_RESULT (ic)) || eright && isOperandEqual (eright, IC_RESULT (ic))))
-         (*cfg)[i].invalidates = true;
-       if (ic->op == FUNCTION || ic->op == ENDFUNCTION || ic->op == RECEIVE)
-         (*cfg)[i].invalidates = true;
-       if(uses_global && (ic->op == CALL || ic->op == PCALL))
-         (*cfg)[i].invalidates = true;
-       if(uses_global && POINTER_SET (ic)) // TODO: More accuracy here!
-         (*cfg)[i].invalidates = true;
+       (*cfg)[i].invalidates = invalidates_expression (eic, ic);
 
        (*cfg)[i].forward = std::pair<int, int>(-1, -1);
+
+#ifdef DEBUG_LOSPRE
+       if ((*cfg)[i].invalidates)
+         std::cout << i << ", ";
+#endif
     }
+#ifdef DEBUG_LOSPRE
+  std::cout << "\n";
+#endif
 
   return (safety_required);
 }
 
 // Dump cfg, with numbered nodes.
-void dump_cfg_lospre(const cfg_lospre_t &cfg)
+void dump_cfg_lospre (const cfg_lospre_t &cfg)
 {
-  if(!currFunc)
+  if (!currFunc)
     return;
 
   std::ofstream dump_file((std::string(dstFileName) + ".dumplosprecfg" + currFunc->rname + ".dot").c_str());
@@ -237,14 +268,15 @@ void dump_cfg_lospre(const cfg_lospre_t &cfg)
       dbuf_free (iLine);
       name[i] = os.str();
     }
-  boost::write_graphviz(dump_file, cfg, boost::make_label_writer(name));
+  boost::write_graphviz(dump_file, cfg, boost::make_label_writer(name), boost::default_writer(), cfg_titlewriter(currFunc->rname, "lospre"));
   delete[] name;
 }
 
-#if 0
 // Dump tree decomposition.
-static void dump_tree_decomposition(const tree_dec_lospre_t &tree_dec)
+static void dump_dec_lospre(const tree_dec_t &tree_dec)
 {
+  wassert (currFunc);
+
   std::ofstream dump_file((std::string(dstFileName) + ".dumplospredec" + currFunc->rname + ".dot").c_str());
 
   unsigned int w = 0;
@@ -255,7 +287,7 @@ static void dump_tree_decomposition(const tree_dec_lospre_t &tree_dec)
       if (tree_dec[i].bag.size() > w)
         w = tree_dec[i].bag.size();
       std::ostringstream os;
-      std::set<unsigned int>::const_iterator v1;
+      typename decltype(tree_dec[0].bag)::const_iterator v1;
        os << i << " | ";
       for (v1 = tree_dec[i].bag.begin(); v1 != tree_dec[i].bag.end(); ++v1)
         os << *v1 << " ";
@@ -264,13 +296,12 @@ static void dump_tree_decomposition(const tree_dec_lospre_t &tree_dec)
   boost::write_graphviz(dump_file, tree_dec, boost::make_label_writer(name));
   delete[] name;
 }
-#endif
 
 void
 lospre (iCode *sic, ebbIndex *ebbi)
 {
   cfg_lospre_t control_flow_graph;
-  tree_dec_lospre_t tree_decomposition;
+  tree_dec_t tree_decomposition;
 
   wassert (sic);
 
@@ -284,8 +315,10 @@ lospre (iCode *sic, ebbIndex *ebbi)
   if(options.dump_graphs)
     dump_cfg_lospre(control_flow_graph);
 
-  thorup_tree_decomposition (tree_decomposition, control_flow_graph);
-  nicify (tree_decomposition);
+  get_nice_tree_decomposition (tree_decomposition, control_flow_graph);
+
+  if(options.dump_graphs)
+    dump_dec_lospre(tree_decomposition);
 
   int lkey = operandKey;
 
@@ -314,4 +347,3 @@ lospre (iCode *sic, ebbIndex *ebbi)
         }
     }
 }
-

@@ -1,5 +1,5 @@
 /*-----------------------------------------------------------------
-    SDCCset.c - contains support routines for sets
+    SDCCset.c - contains support routines for doubly linked lists.
 
     Written By - Sandeep Dutta . sandeep.dutta@usa.net (1998)
 
@@ -209,11 +209,44 @@ deleteItemIf (set ** sset, int (*cond) (void *, va_list),...)
     }
 }
 
+/*-------------------------------------------------------------------*/
+/* destructItemIf - will delete from set if cond function returns 1, */
+/*                  upon deletion, item's destructor is also called  */
+/*-------------------------------------------------------------------*/
+void
+destructItemIf (set ** sset, void (*destructor)(void * item), int (*cond) (void *, va_list),...)
+{
+  set *sp = *sset;
+  va_list ap;
+
+  while (sp)
+    {
+      /*
+       * On the x86 va_list is just a pointer, so due to pass by value
+       * ap is not mofified by the called function.  On the PPC va_list
+       * is a pointer to a structure, so ap is modified.  Re-init each time.
+       */
+      va_start (ap, cond);
+
+      if ((*cond) (sp->item, ap))
+        {
+          destructor (sp->item);
+          deleteSetItem (sset, sp->item);
+          sp = *sset;
+          continue;
+        }
+
+      va_end(ap);
+      sp = sp->next;
+    }
+}
+
+
 /*-----------------------------------------------------------------*/
 /* deleteSetItem - will delete a given item from the list          */
 /*-----------------------------------------------------------------*/
 void
-deleteSetItem (set ** list, void *item)
+deleteSetItem (set **list, void *item)
 {
   set *lp, *lp1;
 
@@ -241,6 +274,24 @@ deleteSetItem (set ** list, void *item)
           return;
         }
     }
+
+  /* could not find it */
+}
+
+/*-----------------------------------------------------------------*/
+/* replaceSetItem - will replace a given item in the list          */
+/*-----------------------------------------------------------------*/
+void
+replaceSetItem (set *list, void *olditem, void *newitem)
+{
+  /* find the item in the list */
+  for (; list; list = list->next)
+    if (list->item == olditem)
+      {
+        list->item = newitem;
+        return;
+      }
+
 
   /* could not find it */
 }
@@ -304,9 +355,23 @@ unionSets (set * list1, set * list2, int throw)
   set *un = NULL;
   set *lp;
 
-  /* add all elements in the first list */
-  for (lp = list1; lp; lp = lp->next)
-    addSet (&un, lp->item);
+  /* If we were going to throw away the destination list */
+  /* anyway, save memory and time by using it as the */
+  /* starting point for the new list. */
+  if (throw == THROW_DEST || throw == THROW_BOTH)
+    {
+      un = list1;
+      if (throw == THROW_BOTH)
+        throw = THROW_SRC;
+      else
+        throw = THROW_NONE;
+    }
+  else
+    {
+      /* add all elements in the first list */
+      for (lp = list1; lp; lp = lp->next)
+        addSet (&un, lp->item);
+    }
 
   /* now for all those in list2 which does not */
   /* already exist in the list add             */

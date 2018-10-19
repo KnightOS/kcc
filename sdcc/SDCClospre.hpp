@@ -19,11 +19,15 @@
 //
 // Lifetime-optimal speculative partial redundancy elimination.
 
+// Workaround for boost bug #11880
+#include <boost/version.hpp>
+#if BOOST_VERSION == 106000
+   #include <boost/type_traits/ice.hpp>
+#endif
+
 #include <boost/graph/graphviz.hpp>
 #include <boost/tuple/tuple.hpp>
 #include <boost/tuple/tuple_comparison.hpp>
-
-#include "SDCCtree_dec.hpp"
 
 extern "C"
 {
@@ -37,15 +41,7 @@ extern "C"
 #include "port.h"
 }
 
-#ifdef HAVE_STX_BTREE_SET_H
-#include <stx/btree_set.h>
-#endif
-
-#if 0 //def HAVE_STX_BTREE_SET_H
-typedef stx::btree_set<unsigned short int> lospreset_t; // Faster than std::set
-#else
-typedef std::set<unsigned short int> lospreset_t;
-#endif
+typedef std::set<unsigned int> lospreset_t;
 
 struct assignment_lospre
 {
@@ -62,6 +58,8 @@ struct assignment_lospre
 
     for (i = local.begin(), ai = a.local.begin();; ++i, ++ai)
       {
+        if (i == i_end && ai == ai_end)
+          return(false);
         if (i == i_end)
           return(true);
         if (ai == ai_end)
@@ -107,15 +105,23 @@ typedef std::list<assignment_lospre> assignment_list_lospre_t;
 
 struct tree_dec_lospre_node
 {
-  std::set<unsigned int> bag;
+  lospreset_t bag;
+
   assignment_list_lospre_t assignments;
   unsigned weight; // The weight is the number of nodes at which intermediate results need to be remembered. In general, to minimize memory consumption, at join nodes the child with maximum weight should be processed first.
 };
 
 typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS, cfg_lospre_node, float> cfg_lospre_t; // The edge property is the cost of subdividing the edge and inserting an instruction (for now we always use 1, optimizing for code size, but relative execution frequency could be used when optimizing for speed or total energy consumption; aggregates thereof can be a good idea as well).
-typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS, tree_dec_lospre_node> tree_dec_lospre_t;
+typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS, tree_dec_lospre_node> tree_dec_t;
 
-#if 1
+#ifdef HAVE_TREEDEC_COMBINATIONS_HPP
+#include <treedec/treedec_traits.hpp>
+TREEDEC_TREEDEC_BAG_TRAITS(tree_dec_t, bag);
+#endif
+
+#include "SDCCtree_dec.hpp"
+
+#ifdef DEBUG_LOSPRE
 void print_assignment(const assignment_lospre &a, cfg_lospre_t G)
 {
   wassert(a.global.size() == boost::num_vertices (G));
@@ -152,8 +158,8 @@ int tree_dec_lospre_introduce(T_t &T, typename boost::graph_traits<T_t>::vertex_
   assignment_list_lospre_t::iterator ai;
   boost::tie(c, c_end) = adjacent_vertices(t, T);
 
-  assignment_list_lospre_t &alist2 = T[t].assignments;
-  assignment_list_lospre_t &alist = T[*c].assignments;
+  assignment_list_lospre_t &alist = T[t].assignments;
+  std::swap(alist, T[*c].assignments);
 
   if(alist.size() > size_t(options.max_allocs_per_node) / 2)
     {
@@ -161,20 +167,18 @@ int tree_dec_lospre_introduce(T_t &T, typename boost::graph_traits<T_t>::vertex_
       return(-1);
     }
 
-  std::set<unsigned short> new_inst;
+  lospreset_t new_inst;
   std::set_difference(T[t].bag.begin(), T[t].bag.end(), T[*c].bag.begin(), T[*c].bag.end(), std::inserter(new_inst, new_inst.end()));
-  unsigned short int i = *(new_inst.begin());
+  unsigned int i = *(new_inst.begin());
 
   for(ai = alist.begin(); ai != alist.end(); ++ai)
     {
       ai->local.insert(i);
       ai->global[i] = false;
-      alist2.push_back(*ai);
+      ai = alist.insert(ai, *ai);
+      ++ai;
       ai->global[i] = true;
-      alist2.push_back(*ai);
     }
-
-  alist.clear();
 
   return(0);
 }
@@ -187,13 +191,17 @@ void tree_dec_lospre_forget(T_t &T, typename boost::graph_traits<T_t>::vertex_de
   adjacency_iter_t c, c_end;
   boost::tie(c, c_end) = adjacent_vertices(t, T);
 
+#ifdef DEBUG_LOSPRE_ASS
+  std::cout << "Forget (" << t << "):\n"; std::cout.flush();
+#endif
+
   assignment_list_lospre_t &alist = T[t].assignments;
 
   std::swap(alist, T[*c].assignments);
 
-  std::set<unsigned short int> old_inst;
+  lospreset_t old_inst;
   std::set_difference(T[*c].bag.begin(), T[*c].bag.end(), T[t].bag.begin(), T[t].bag.end(), std::inserter(old_inst, old_inst.end()));
-  unsigned short int i = *(old_inst.begin());
+  unsigned int i = *(old_inst.begin());
 
   assignment_list_lospre_t::iterator ai, aif;
 
@@ -227,6 +235,14 @@ void tree_dec_lospre_forget(T_t &T, typename boost::graph_traits<T_t>::vertex_de
 
   alist.sort();
 
+#ifdef DEBUG_LOSPRE_ASS
+  for(ai = alist.begin(); ai != alist.end(); ++ai)
+    {
+      print_assignment(*ai, G);
+      std::cout << "\n";
+    }
+#endif
+
   // Collapse (locally) identical assignments.
   for (ai = alist.begin(); ai != alist.end();)
     {
@@ -241,16 +257,24 @@ void tree_dec_lospre_forget(T_t &T, typename boost::graph_traits<T_t>::vertex_de
               ++ai;
             }
           else
-            {
-              alist.erase(ai);
-              ai = aif;
-              ++ai;
-            }
+            ai = alist.erase(ai);
         }
     }
 
   if(!alist.size())
     std::cerr << "No surviving assignments at forget node (lospre).\n";
+
+#ifdef DEBUG_LOSPRE
+  std::cout << "Remaining assignments: " << alist.size() << "\n"; std::cout.flush();
+#endif
+
+#ifdef DEBUG_LOSPRE_ASS
+  for(ai = alist.begin(); ai != alist.end(); ++ai)
+    {
+      print_assignment(*ai, G);
+      std::cout << "\n";
+    }
+#endif
 }
 
 // Handle join nodes in the nice tree decomposition
@@ -265,41 +289,35 @@ void tree_dec_lospre_join(T_t &T, typename boost::graph_traits<T_t>::vertex_desc
   ++c;
   c3 = c;
 
-  assignment_list_lospre_t &alist1 = T[t].assignments;
+  assignment_list_lospre_t &alist = T[t].assignments;
   assignment_list_lospre_t &alist2 = T[*c2].assignments;
-  assignment_list_lospre_t &alist3 = T[*c3].assignments;
+  std::swap(alist, T[*c3].assignments);
 
+  alist.sort();
   alist2.sort();
-  alist3.sort();
 
-  assignment_list_lospre_t::iterator ai2, ai3;
-  for (ai2 = alist2.begin(), ai3 = alist3.begin(); ai2 != alist2.end() && ai3 != alist3.end();)
+  assignment_list_lospre_t::iterator ai, ai2;
+  for (ai = alist.begin(), ai2 = alist2.begin(); ai != alist.end() && ai2 != alist2.end();)
     {
-      if (assignments_lospre_locally_same(*ai2, *ai3))
+      if (assignments_lospre_locally_same(*ai, *ai2))
         {
-          ai2->s.get<0>() += ai3->s.get<0>();
-          ai2->s.get<1>() += ai3->s.get<1>();
-          for (size_t i = 0; i < ai2->global.size(); i++)
-            ai2->global[i] = (ai2->global[i] || ai3->global[i]);
-          alist1.push_back(*ai2);
+          ai->s.get<0>() += ai2->s.get<0>();
+          ai->s.get<1>() += ai2->s.get<1>();
+          for (size_t i = 0; i < ai->global.size(); i++)
+            ai->global[i] = (ai->global[i] || ai2->global[i]);
 
+          ++ai;
           ++ai2;
-          ++ai3;
         }
-      else if (*ai2 < *ai3)
-        {
-          ++ai2;
-          continue;
-        }
-      else if (*ai3 < *ai2)
-        {
-          ++ai3;
-          continue;
-        }
+      else if (*ai < *ai2)
+        ai = alist.erase(ai);
+      else if (*ai2 < *ai)
+        ++ai2;
     }
+  while(ai != alist.end())
+    ai = alist.erase(ai);
 
   alist2.clear();
-  alist3.clear();
 }
 
 template <class T_t, class G_t>
@@ -359,9 +377,9 @@ void tree_dec_safety_forget(T_t &T, typename boost::graph_traits<T_t>::vertex_de
 
   std::swap(alist, T[*c].assignments);
 
-  std::set<unsigned short int> old_inst;
+  lospreset_t old_inst;
   std::set_difference(T[*c].bag.begin(), T[*c].bag.end(), T[t].bag.begin(), T[t].bag.end(), std::inserter(old_inst, old_inst.end()));
-  unsigned short int i = *(old_inst.begin());
+  unsigned int i = *(old_inst.begin());
 
   assignment_list_lospre_t::iterator ai, aif;
 
@@ -392,7 +410,7 @@ void tree_dec_safety_forget(T_t &T, typename boost::graph_traits<T_t>::vertex_de
         bool ok;
 
         for (ok = false, boost::tie(n, n_end) = boost::out_edges(i, G);  !ok && n != n_end; ++n)
-          if (ai->global[boost::target(*n, G)] || G[boost::target(*n, G)].invalidates)
+          if (ai->global[boost::target(*n, G)] || G[boost::target(*n, G)].invalidates && !G[boost::target(*n, G)].uses)
             ok = true;
 
         if(!ok)
@@ -500,7 +518,7 @@ int tree_dec_safety_nodes(T_t &T, typename boost::graph_traits<T_t>::vertex_desc
 }
 
 template <class T_t, class G_t>
-static void split_edge(T_t &T, G_t &G, typename boost::graph_traits<G_t>::edge_descriptor e, const iCode *ic, operand *tmpop)
+typename boost::graph_traits<G_t>::vertex_descriptor split_edge(T_t &T, G_t &G, typename boost::graph_traits<G_t>::edge_descriptor e, const iCode *ic, operand *tmpop)
 {
   // Insert new iCode into chain.
   iCode *newic = newiCode (ic->op, IC_LEFT (ic), IC_RIGHT (ic));
@@ -509,6 +527,7 @@ static void split_edge(T_t &T, G_t &G, typename boost::graph_traits<G_t>::edge_d
   newic->lineno = ic->lineno;
   newic->prev = G[boost::source(e, G)].ic;
   newic->next = G[boost::target(e, G)].ic;
+  newic->count = G[boost::source(e, G)].ic->count;
   G[boost::source(e, G)].ic->next = newic;
   G[boost::target(e, G)].ic->prev = newic;
 
@@ -520,11 +539,12 @@ static void split_edge(T_t &T, G_t &G, typename boost::graph_traits<G_t>::edge_d
 
   // Insert node into cfg.
   typename boost::graph_traits<G_t>::vertex_descriptor n = boost::add_vertex(G);
-  // TODO: Exact cost.
+
   G[n].ic = newic;
   G[n].uses = false;
+  G[n].invalidates = false;
   boost::add_edge(boost::source(e, G), n, G[e], G);
-  boost::add_edge(n, boost::target(e, G), 3.0, G);
+  boost::add_edge(n, boost::target(e, G), G[e], G);
 
 #ifdef DEBUG_LOSPRE
   std::cout << "Calculating " << OP_SYMBOL_CONST(tmpop)->name << " at ic " << newic->key << "\n";
@@ -551,6 +571,8 @@ static void split_edge(T_t &T, G_t &G, typename boost::graph_traits<G_t>::edge_d
 
   // Remove old edge from cfg.
   boost::remove_edge(e, G);
+
+  return(n);
 }
 
 
@@ -571,13 +593,13 @@ static void forward_lospre_assignment(G_t &G, typename boost::graph_traits<G_t>:
 
       iCode *nic = G[i].ic;
 
-      if (isOperandEqual(IC_RESULT(ic), IC_LEFT(nic)) && nic->op != ADDRESS_OF && (!POINTER_GET(nic) || !IS_PTR(operandType(IC_RESULT(nic))) || !IS_BITFIELD(operandType(IC_LEFT(nic))->next) || compareType(operandType(IC_LEFT(nic)), operandType(tmpop)) == 1))
+      if (isOperandEqual(IC_RESULT(ic), IC_LEFT(nic)) && nic->op != ADDRESS_OF && nic->op != PCALL && (!POINTER_GET(nic) || !IS_PTR(operandType(IC_LEFT(nic))) || !IS_BITFIELD(operandType(IC_LEFT(nic))->next) || compareType(operandType(IC_LEFT(nic)), operandType(tmpop)) == 1))
         {
           bool isaddr = IC_LEFT (nic)->isaddr;
 #ifdef DEBUG_LOSPRE
           std::cout << "Forward substituted left operand " << OP_SYMBOL_CONST(IC_LEFT(nic))->name << " at " << nic->key << "\n";
 #endif
-          //bitVectUnSetBit (OP_SYMBOL (IC_LEFT (nic))->uses, nic->key);
+          bitVectUnSetBit (OP_SYMBOL (IC_LEFT (nic))->uses, nic->key);
           IC_LEFT(nic) = operandFromOperand (tmpop);
           //bitVectSetBit (OP_SYMBOL (IC_LEFT (nic))->uses, nic->key);
           IC_LEFT (nic)->isaddr = isaddr;
@@ -587,7 +609,7 @@ static void forward_lospre_assignment(G_t &G, typename boost::graph_traits<G_t>:
 #ifdef DEBUG_LOSPRE
           std::cout << "Forward substituted right operand " << OP_SYMBOL_CONST(IC_RIGHT(nic))->name << " at " << nic->key << "\n";
 #endif
-          //bitVectUnSetBit (OP_SYMBOL (IC_RIGHT (nic))->uses, nic->key);
+          bitVectUnSetBit (OP_SYMBOL (IC_RIGHT (nic))->uses, nic->key);
           IC_RIGHT(nic) = operandFromOperand (tmpop);
           //bitVectSetBit (OP_SYMBOL (IC_RIGHT (nic))->uses, nic->key);
         }
@@ -596,7 +618,7 @@ static void forward_lospre_assignment(G_t &G, typename boost::graph_traits<G_t>:
 #ifdef DEBUG_LOSPRE
           std::cout << "Forward substituted result operand " << OP_SYMBOL_CONST(IC_RESULT(nic))->name << " at " << nic->key << "\n";
 #endif
-          //bitVectUnSetBit (OP_SYMBOL (IC_RESULT (nic))->uses, nic->key);
+          bitVectUnSetBit (OP_SYMBOL (IC_RESULT (nic))->uses, nic->key);
           IC_RESULT(nic) = operandFromOperand (tmpop);
           IC_RESULT(nic)->isaddr = true;
           //bitVectSetBit (OP_SYMBOL (IC_RESULT (nic))->uses, nic->key);
@@ -624,7 +646,7 @@ static void forward_lospre_assignment(G_t &G, typename boost::graph_traits<G_t>:
           adjacency_iter_t c, c_end;
           for(boost::tie(c, c_end) = boost::adjacent_vertices(i, G); c != c_end; ++c)
             {
-              if(!((a.global[i] & true) && !G[i].invalidates) && (a.global[*c] & true)) // Calculation edge
+              if(!(a.global[i] && !G[i].invalidates) && a.global[*c]) // Calculation edge
                 continue;
               forward_lospre_assignment(G, *c, ic, a);
             }
@@ -634,14 +656,14 @@ static void forward_lospre_assignment(G_t &G, typename boost::graph_traits<G_t>:
       boost::tie(c, c_end) = adjacent_vertices(i, G);
       if(c == c_end)
         break;
-      if(!((a.global[i] & true) && !G[i].invalidates) && (a.global[*c] & true)) // Calculation edge
+      if(!(a.global[i] && !G[i].invalidates) && a.global[*c]) // Calculation edge
         break;
       i = *c;
     }
 }
 
 template <class T_t, class G_t>
-static int implement_lospre_assignment(const assignment_lospre a, T_t &T, G_t &G, const iCode *ic) // Assignment has to be passed as a copy (not reference), since the transformations on the tree-decomposition will invalidate it otherwise.
+static int implement_lospre_assignment(assignment_lospre a, T_t &T, G_t &G, const iCode *ic) // Assignment has to be passed as a copy (not reference), since the transformations on the tree-decomposition will invalidate it otherwise.
 {
   operand *tmpop;
   unsigned substituted = 0, split = 0;
@@ -669,7 +691,9 @@ static int implement_lospre_assignment(const assignment_lospre a, T_t &T, G_t &G
 
   for(typename std::set<edge_desc_t>::iterator i = calculation_edges.begin(); i != calculation_edges.end(); ++i)
   {
-    split_edge(T, G, *i, ic, tmpop);
+    typename boost::graph_traits<G_t>::vertex_descriptor n = split_edge(T, G, *i, ic, tmpop);
+    a.global.resize(boost::num_vertices(G));
+    a.global[n] = true;
     split++;
   }
 
@@ -686,15 +710,16 @@ static int implement_lospre_assignment(const assignment_lospre a, T_t &T, G_t &G
       if(!((a.global[*v] & true) && !G[*v].invalidates || boost::source(*e, G) < a.global.size() && (a.global[boost::source(*e, G)] & true)))
         continue;
 #ifdef DEBUG_LOSPRE
-      std::cout << "Substituting ic " << G[*v].ic->key << "\n";
+      std::cerr << "Substituting ic " << G[*v].ic->key << "\n";
 #endif
       substituted++;
 
       iCode *ic = G[*v].ic;
-      //if (IC_LEFT (ic) && IS_ITEMP (IC_LEFT (ic)))
-      //  bitVectUnSetBit (OP_SYMBOL (IC_LEFT (ic))->uses, ic->key);
-      //if (IC_RIGHT (ic) && IS_ITEMP (IC_RIGHT (ic)))
-       // bitVectUnSetBit (OP_SYMBOL (IC_RIGHT (ic))->uses, ic->key);
+
+      if (IS_SYMOP (IC_LEFT (ic)))
+        bitVectUnSetBit (OP_SYMBOL (IC_LEFT (ic))->uses, ic->key);
+      if (IS_SYMOP (IC_RIGHT (ic)))
+        bitVectUnSetBit (OP_SYMBOL (IC_RIGHT (ic))->uses, ic->key);
       IC_RIGHT(ic) = tmpop;
       //bitVectSetBit (OP_SYMBOL (IC_RIGHT(ic))->uses, ic->key);
       if (!POINTER_SET (ic))
@@ -730,7 +755,7 @@ static int implement_lospre_assignment(const assignment_lospre a, T_t &T, G_t &G
 
 /* Using a template here confuses debugging tools such as valgrind. */
 /*template <class T_t, class G_t>*/
-static int tree_dec_lospre (tree_dec_lospre_t/*T_t*/ &T, cfg_lospre_t/*G_t*/ &G, const iCode *ic)
+static int tree_dec_lospre (tree_dec_t/*T_t*/ &T, cfg_lospre_t/*G_t*/ &G, const iCode *ic)
 {
   if(tree_dec_lospre_nodes(T, find_root(T), G))
     return(-1);
@@ -738,8 +763,10 @@ static int tree_dec_lospre (tree_dec_lospre_t/*T_t*/ &T, cfg_lospre_t/*G_t*/ &G,
   wassert(T[find_root(T)].assignments.begin() != T[find_root(T)].assignments.end());
   const assignment_lospre &winner = *(T[find_root(T)].assignments.begin());
 
-  //std::cout << "Winner (lospre): ";
-  //print_assignment(winner, G);
+#ifdef DEBUG_LOSPRE
+  std::cout << "Winner (lospre): ";
+  print_assignment(winner, G);
+#endif
 
   int change;
   if (change = implement_lospre_assignment(winner, T, G, ic))
@@ -760,7 +787,7 @@ static void implement_safety(const assignment_lospre &a, G_t &G)
 
 /* Using a template here confuses debugging tools such as valgrind. */
 /*template <class T_t, class G_t>*/
-static int tree_dec_safety (tree_dec_lospre_t/*T_t*/ &T, cfg_lospre_t/*G_t*/ &G, const iCode *ic)
+static int tree_dec_safety (tree_dec_t/*T_t*/ &T, cfg_lospre_t/*G_t*/ &G, const iCode *ic)
 {
   if(tree_dec_safety_nodes(T, find_root(T), G))
     return(-1);
@@ -771,11 +798,10 @@ static int tree_dec_safety (tree_dec_lospre_t/*T_t*/ &T, cfg_lospre_t/*G_t*/ &G,
   implement_safety(winner, G);
 
 #ifdef DEBUG_LOSPRE
-  std::cout << "Winner (safety): ";
+  std::cout << "Winner (safety) (I' \\ I): ";
   print_assignment(winner, G);
 #endif
 
   T[find_root(T)].assignments.clear();
   return (0);
 }
-

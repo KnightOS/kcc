@@ -37,9 +37,13 @@
 #include <sstream>
 #include <fstream>
 
-#include <boost/graph/graphviz.hpp>
+// Workaround for boost bug #11880
+#include <boost/version.hpp>
+#if BOOST_VERSION == 106000
+   #include <boost/type_traits/ice.hpp>
+#endif
 
-#include "SDCCtree_dec.hpp"
+#include <boost/graph/graphviz.hpp>
 
 extern "C"
 {
@@ -50,17 +54,9 @@ extern "C"
 #include "SDCCy.h"
 }
 
-#ifdef HAVE_STX_BTREE_SET_H
-#include <stx/btree_set.h>
-#endif
-
 typedef short int naddrspace_t; // Named address spaces. -1: Undefined, Others: see map.
 
-#ifdef HAVE_STX_BTREE_SET_H
-typedef stx::btree_set<unsigned short int> naddrspaceset_t; // Faster than std::set
-#else
 typedef std::set<unsigned short int> naddrspaceset_t;
-#endif
 
 struct assignment_naddr
 {
@@ -124,7 +120,14 @@ struct tree_dec_naddr_node
 };
 
 typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS, cfg_naddr_node, float> cfg_t; // The edge property is the cost of subdividing the edge and inserting a bank switching instruction.
-typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS, tree_dec_naddr_node> tree_dec_naddr_t;
+typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS, tree_dec_naddr_node> tree_dec_t;
+
+#ifdef HAVE_TREEDEC_COMBINATIONS_HPP
+#include <treedec/treedec_traits.hpp>
+TREEDEC_TREEDEC_BAG_TRAITS(tree_dec_t, bag);
+#endif
+
+#include "SDCCtree_dec.hpp"
 
 // Annotate nodes of the control flow graph with the set of possible named address spaces active there.
 void annotate_cfg_naddr(cfg_t &cfg, std::map<naddrspace_t, const symbol *> &addrspaces)
@@ -450,7 +453,7 @@ int tree_dec_address_switch(T_t &T, const G_t &G, const std::map<naddrspace_t, c
   std::cout << "Winner: ";
   for(unsigned int i = 0; i < boost::num_vertices(G); i++)
   {
-  	std::cout << "(" << i << ", " << int(winner.global[i]) << ") ";
+    std::cout << "(" << i << ", " << int(winner.global[i]) << ") ";
   }
   std::cout << "\n";
   std::cout << "Cost: " << winner.s << "\n";
@@ -477,9 +480,31 @@ void dump_cfg_naddr(const cfg_t &cfg)
         os << *n << " ";
       name[i] = os.str();
     }
-  boost::write_graphviz(dump_file, cfg, boost::make_label_writer(name));
+  boost::write_graphviz(dump_file, cfg, boost::make_label_writer(name), boost::default_writer(), cfg_titlewriter(currFunc->rname, " bank selection instr. placement"));
+  delete[] name;
+}
+
+// Dump tree decomposition, show bag and live variables at each node.
+static void dump_tree_decomposition_naddr(const tree_dec_t &tree_dec)
+{
+  std::ofstream dump_file((std::string(dstFileName) + ".dumpnaddrdec" + currFunc->rname + ".dot").c_str());
+
+  unsigned int w = 0;
+
+  std::string *name = new std::string[num_vertices(tree_dec)];
+  for (unsigned int i = 0; i < boost::num_vertices(tree_dec); i++)
+    {
+      if (tree_dec[i].bag.size() > w)
+        w = tree_dec[i].bag.size();
+      std::ostringstream os;
+      std::set<unsigned int>::const_iterator v1;
+      os << i << " | ";
+      for (v1 = tree_dec[i].bag.begin(); v1 != tree_dec[i].bag.end(); ++v1)
+        os << *v1 << " ";
+      name[i] = os.str();
+    }
+  boost::write_graphviz(dump_file, tree_dec, boost::make_label_writer(name), boost::default_writer(), dec_titlewriter((w - 1), currFunc->rname, " bank selection instr. placement"));
   delete[] name;
 }
 
 #endif
-

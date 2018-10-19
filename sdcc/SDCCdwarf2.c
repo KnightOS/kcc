@@ -39,7 +39,7 @@ int dwOpenFile (const char *file);
 int dwCloseFile (void);
 int dwWriteFunction (symbol *pSym, iCode *ic);
 int dwWriteEndFunction (symbol *pSym, iCode *ic, int offset);
-int dwWriteLabel (symbol *pSym, iCode *ic);
+int dwWriteLabel (symbol *pSym, const iCode *ic);
 int dwWriteScope (iCode *ic);
 int dwWriteSymbol (symbol *pSym);
 int dwWriteType (structdef *sdef, int block, int inStruct, const char *tag);
@@ -76,9 +76,9 @@ int dwAbbrevNum = 0;
 hTab * dwTypeTagTable;
 int dwRefNum = 0;
 int dwScopeBlock = 0;
-int dwScopeLevel = 0;
+long dwScopeLevel = 0;
 int dwDebugSymbol = 0;
-//dwcfins * dwCIEins = NULL;
+dwcfins * dwCIEins = NULL;
 dwlocregion * dwFrameLastLoc = NULL;
 dwloclist * dwRootLocList = NULL;
 dwloclist * dwFrameLocList = NULL;
@@ -88,6 +88,8 @@ int dwLineOpcodeBase = 10;
 set * dwFilenameSet = NULL;
 dwline * dwLineFirst = NULL;
 dwline * dwLineLast = NULL;
+dwlocregion * dwCFILastLoc = NULL;
+dwcfilist * dwCFIRoot = NULL;
 
 
 /*----------------------------------------------------------------------*/
@@ -407,8 +409,6 @@ dwWriteWordDelta (char * label1, char * label2)
 }
 
 
-/* disabled to eliminiate unused function warning */
-#if 0 
 /*----------------------------------------------------------------------*/
 /* dwWriteAddressDelta - generate an assembler constant in the form:    */
 /*                                                                      */
@@ -435,6 +435,7 @@ dwWriteAddressDelta (char * label1, char * label2)
     }
 }
 
+#if 0
 /*----------------------------------------------------------------------*/
 /* dwWriteULEB128Delta - generate an unsigned variable byte assembler   */
 /*                       constant in the form:                          */
@@ -454,6 +455,19 @@ dwWriteULEB128Delta (char * label1, char * label2, int offset)
 #endif
 
 /*------------------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------*/
+/* dwNewCFIlist - allocates a new CFI list node                         */
+/*----------------------------------------------------------------------*/
+dwcfilist *
+dwNewCFIlist ()
+{
+  dwcfilist * p;
+  
+  p = Safe_alloc (sizeof (dwcfilist));
+  
+  return p;
+}
 
 /*----------------------------------------------------------------------*/
 /* dwNewLoc - allocates a new location expression node                  */
@@ -1803,9 +1817,6 @@ dwWriteLineNumbers (void)
 /*------------------------------------------------------------------------*/
 
 
-/* I have disabled all of this canonical frame address related code */
-/* until I better understand this part of the DWARF2 spec. -- EEP   */
-#if 0
 static void
 dwWriteCFAinstructions (dwcfins *ip)
 {
@@ -1820,7 +1831,7 @@ dwWriteCFAinstructions (dwcfins *ip)
           switch (op->opcode)
             {
             case DW_CFA_set_loc:
-              dwWriteAddress (NULL, op->label, op->operand1);
+              dwWriteAddress (op->label, op->operand1, NULL);
               break;
             
             case DW_CFA_advance_loc1:
@@ -1951,74 +1962,23 @@ dwAddCFinsOp (dwcfins * ip, dwcfop *op)
   ip->last = op;
 }
 
-static dwcfins *
-dwGenCFIins (void)
+static void
+dwGenCFIins (int callsize, int id)
 {
   dwcfins * ip;
   dwcfop * op;
   int i;
+  char s[32];
   
-  ip = dwNewCFins ();
-  
-  /* Define the CFA as the top of the stack at function start. */
-  /* The return address is then at cfa+0                       */
-  op = dwNewCFop (DW_CFA_def_cfa);
-  op->operand1 = port->debugger.dwarf.regNumSP;
-  op->operand2 = port->debugger.dwarf.offsetSP;
-  dwAddCFinsOp (ip, op);
-
-  op = dwNewCFop (DW_CFA_offset + port->debugger.dwarf.regNumRet);
-  op->operand1 = 0;
-  dwAddCFinsOp (ip, op);
-
-  if (port->debugger.dwarf.cfiUndef)
-    for (i=0; i < port->debugger.dwarf.cfiUndef->size; i++)
-      {
-        if (bitVectBitValue (port->debugger.dwarf.cfiUndef, i))
-          {
-            op = dwNewCFop (DW_CFA_undefined);
-            dwAddCFinsOp (ip, op);
-          }
-    }
-  
-  if (port->debugger.dwarf.cfiSame)
-    for (i=0; i < port->debugger.dwarf.cfiSame->size; i++)
-      {
-        if (bitVectBitValue (port->debugger.dwarf.cfiSame, i))
-          {
-            op = dwNewCFop (DW_CFA_undefined);
-            dwAddCFinsOp (ip, op);
-          }
-      }
-
-  return ip;
-}
-
-
-static void
-dwWriteFDE (dwfde * fp)
-{
-  dwWriteWord (NULL, dwSizeofCFAinstructions(fp->ins) + 4
-                + port->debugger.dwarf.addressSize * 2, NULL);
-  
-  dwWriteWord ("Ldebug_CIE_start-4", 0, NULL);
-  
-  dwWriteAddressDelta (fp->endLabel, fp->startLabel);
-  
-  dwWriteCFAinstructions (fp->ins);
-  
-}
-
-static void
-dwWriteFrames (void)
-{  
   tfprintf (dwarf2FilePtr, "\n\t!area\n", ".debug_frame (NOLOAD)");
 
   /* FIXME: these two dw should be combined into a dd */
   tfprintf (dwarf2FilePtr, "\t!dw\t0\n");
-  tfprintf (dwarf2FilePtr, "\t!dw\t%s\n", "Ldebug_CIE_end-Ldebug_CIE_start");
+  tfprintf (dwarf2FilePtr, "\t!dw\t");
+  tfprintf (dwarf2FilePtr, "Ldebug_CIE%d_end-Ldebug_CIE%d_start\n", id, id);
 
-  tfprintf (dwarf2FilePtr, "!slabeldef\n", "Ldebug_CIE_start");
+  snprintf(s, sizeof(s), "Ldebug_CIE%d_start", id);
+  tfprintf (dwarf2FilePtr, "!slabeldef\n", s);
   
   tfprintf (dwarf2FilePtr, "\t!dw\t0xffff\n");
   tfprintf (dwarf2FilePtr, "\t!dw\t0xffff\n");  /* CIE_id */
@@ -2029,25 +1989,137 @@ dwWriteFrames (void)
 
   dwWriteULEB128 (NULL, 1, NULL);       /* code alignment factor */
   
-  dwWriteSLEB128 (NULL, (port->stack.direction > 0) ? -1 : 1, NULL); /* data alignment factor */
+  dwWriteSLEB128 (NULL, (port->stack.direction > 0) ? 1 : -1, NULL); /* data alignment factor */
   
   dwWriteByte (NULL, port->debugger.dwarf.regNumRet, NULL);
   
-  if (!dwCIEins)
-    {
-      #if 0
-      if (port->debugger.dwarf.genCFIins)
-        dwCIEins = port->debugger.dwarf.genCFIins ();
-      else
-      #endif
-        dwCIEins = dwGenCFIins ();
-    }
-  dwWriteCFAinstructions (dwCIEins);
+  ip = dwNewCFins ();
   
-  tfprintf (dwarf2FilePtr, "!slabeldef\n", "Ldebug_CIE_end");
-}
-#endif
+  /* Define the CFA as the SP at the previous frame (call site) */
+  /* The return address is then at CFA-1 (for stm8)             */
+  op = dwNewCFop (DW_CFA_def_cfa);
+  op->operand1 = port->debugger.dwarf.regNumSP;
+  op->operand2 = port->debugger.dwarf.offsetSP;
+  if (callsize == 3)
+    op->operand2 = port->debugger.dwarf.offsetSP + port->stack.isr_overhead;
+  dwAddCFinsOp (ip, op);
 
+  op = dwNewCFop (DW_CFA_offset + port->debugger.dwarf.regNumRet);
+  op->operand1 = 1;  /* perhaps we need a way to configure this relative position for the ret pos? ARE*/
+  dwAddCFinsOp (ip, op);
+
+  if (port->debugger.dwarf.cfiUndef)
+    for (i=0; i < port->debugger.dwarf.cfiUndef->size; i++)
+      {
+        if (bitVectBitValue (port->debugger.dwarf.cfiUndef, i))
+          {
+            op = dwNewCFop (DW_CFA_undefined);
+            op->operand1 = i;
+            dwAddCFinsOp (ip, op);
+          }
+    }
+  
+  if (port->debugger.dwarf.cfiSame)
+    for (i=0; i < port->debugger.dwarf.cfiSame->size; i++)
+      {
+        if (bitVectBitValue (port->debugger.dwarf.cfiSame, i))
+          {
+            op = dwNewCFop (DW_CFA_same_value);
+            op->operand1 = i;
+            dwAddCFinsOp (ip, op);
+          }
+      }
+
+  dwWriteCFAinstructions (ip);
+  
+  op = ip->first;
+  while (op)
+  {
+    dwcfop * next;
+    next = op->next;
+    Safe_free(op);
+    op = next;
+  }
+  Safe_free(ip);
+
+  snprintf(s, sizeof(s), "Ldebug_CIE%d_end", id);
+  tfprintf (dwarf2FilePtr, "!slabeldef\n",s);
+}
+
+
+static void
+dwWriteFDE (dwfde * fp, int id)
+{
+  //length
+  dwWriteWord (NULL, dwSizeofCFAinstructions(fp->ins) + 4
+                + port->debugger.dwarf.addressSize * 2 , NULL);
+
+  //CIE ptr
+  char s[32];
+  snprintf(s, sizeof(s), "Ldebug_CIE%d_start-4", id);
+  dwWriteWord (s, 0, NULL);
+  
+  //initial loc
+  dwWriteAddress(fp->startLabel, 0, "initial loc");
+
+  //address range
+  dwWriteAddressDelta (fp->endLabel, fp->startLabel);
+
+  //instructions
+  dwWriteCFAinstructions (fp->ins);
+}
+
+static void
+dwWriteFrames (void)
+{
+  dwfde fp;
+  dwcfop * op;
+  dwcfilist * cfip;
+  dwlocregion * lrp;
+
+  int id = 0;
+  cfip = dwCFIRoot;
+  while (cfip)
+    {
+      fp.startLabel=cfip->startLabel;
+      fp.endLabel=cfip->endLabel;
+
+      fp.ins = dwNewCFins();
+
+      lrp = cfip->region;
+
+      /* emit fde records */
+      while (lrp)
+        {
+          op = dwNewCFop (DW_CFA_set_loc);
+          op->label = lrp->startLabel;
+          op->operand1 = 0;
+          dwAddCFinsOp (fp.ins, op);
+          op = dwNewCFop (DW_CFA_def_cfa_offset);
+          if (cfip->callsize == 3)
+            op->operand1 = lrp->loc->operand.offset +  port->debugger.dwarf.offsetSP - 1 + port->stack.isr_overhead;
+          else
+            op->operand1 = lrp->loc->operand.offset +  port->debugger.dwarf.offsetSP - 1; /* another -1 constant that needs attention ARE*/
+          dwAddCFinsOp (fp.ins, op);
+
+          lrp = lrp ->next;
+        }
+
+      dwGenCFIins(cfip->callsize, id);
+      dwWriteFDE(&fp, id++);
+
+      op = fp.ins->first;
+      while (op)
+      {
+        dwcfop * next;
+        next = op->next;
+        Safe_free(op);
+        op = next;
+      }
+
+      cfip = cfip->next;
+    }
+}
 
 
 
@@ -2076,7 +2148,8 @@ dwHashType (sym_link * type)
           hash ^= SPEC_NOUN (type)
                | (SPEC_CONST (type) << 4)
                | (SPEC_VOLATILE (type) << 5)
-               | (SPEC_LONG (type) << 6);
+               | (SPEC_LONG (type) << 6)
+               | (SPEC_LONGLONG (type) << 7);
         }
       
       type = type->next;
@@ -2119,6 +2192,8 @@ dwMatchTypes (const void * type1v, const void * type2v)
               if (SPEC_SHORT (type1) != SPEC_SHORT (type2))
                 return 0;
               if (SPEC_LONG (type1) != SPEC_LONG (type2))
+                return 0;
+              if (SPEC_LONGLONG (type1) != SPEC_LONGLONG (type2))
                 return 0;
               if (SPEC_USIGN (type1) != SPEC_USIGN (type2))
                 return 0;
@@ -2301,9 +2376,9 @@ dwTagFromType (sym_link * type, dwtag * parent)
                                                     ((blen+7) & ~7)
                                                     - (blen+bstr)));
                       if (blen < 8)
-                        type = typeFromStr ("uc");
+                        type = typeFromStr ("Uc");
                       else
-                        type = typeFromStr ("ui");
+                        type = typeFromStr ("Ui");
                       subtp = dwTagFromType (type, tp);
                       dwAddTagAttr (memtp, dwNewAttrTagRef (DW_AT_type, subtp));
                     }
@@ -2356,7 +2431,10 @@ dwTagFromType (sym_link * type, dwtag * parent)
                     {
                       dwAddTagAttr (tp, dwNewAttrConst (DW_AT_encoding,
                                                         DW_ATE_unsigned));
-                      if (SPEC_LONG (type))
+                      if (SPEC_LONGLONG (type))
+                        dwAddTagAttr (tp, dwNewAttrString (DW_AT_name,
+                                                           "unsigned long long"));
+                      else if (SPEC_LONG (type))
                         dwAddTagAttr (tp, dwNewAttrString (DW_AT_name,
                                                            "unsigned long"));
                       else
@@ -2367,7 +2445,9 @@ dwTagFromType (sym_link * type, dwtag * parent)
                     {
                       dwAddTagAttr (tp, dwNewAttrConst (DW_AT_encoding,
                                                         DW_ATE_signed));
-                      if (SPEC_LONG (type))
+                      if (SPEC_LONGLONG (type))
+                        dwAddTagAttr (tp, dwNewAttrString (DW_AT_name, "long long"));
+                      else if (SPEC_LONG (type))
                         dwAddTagAttr (tp, dwNewAttrString (DW_AT_name, "long"));
                       else
                         dwAddTagAttr (tp, dwNewAttrString (DW_AT_name, "int"));
@@ -2400,7 +2480,7 @@ dwTagFromType (sym_link * type, dwtag * parent)
                 case V_BOOL:
                   tp = dwNewTag (DW_TAG_base_type);
                   dwAddTagAttr (tp, dwNewAttrConst (DW_AT_encoding,
-                                                    DW_ATE_float));
+                                                    DW_ATE_boolean));
                   dwAddTagAttr (tp, dwNewAttrString (DW_AT_name, "_Bool"));
                   dwAddTagAttr (tp, dwNewAttrConst (DW_AT_byte_size,
                                                     getSize (type)));
@@ -2420,7 +2500,7 @@ dwTagFromType (sym_link * type, dwtag * parent)
                     {
                       dwAddTagAttr (tp, dwNewAttrConst (DW_AT_encoding,
                                                         DW_ATE_signed));
-                      dwAddTagAttr (tp, dwNewAttrString (DW_AT_name, "char"));
+                      dwAddTagAttr (tp, dwNewAttrString (DW_AT_name, "signed char"));
                     }
                   dwAddTagAttr (tp, dwNewAttrConst (DW_AT_byte_size,
                                                     getSize (type)));
@@ -2556,14 +2636,14 @@ dwFindScope (dwtag * tp, int block)
 static int
 dwWriteSymbolInternal (symbol *sym)
 {
-  dwtag * tp;
-  dwtag * subtp;
-  dwloc * lp;
-  dwtag * scopetp;
-  symbol * symloc;
-  dwtag * functp;
-  dwattr * funcap;
-  int inregs = 0;
+  dwtag *tp;
+  dwtag *subtp;
+  dwloc *lp;
+  dwtag *scopetp;
+  symbol *symloc;
+  dwtag *functp;
+  dwattr *funcap;
+  bool inregs = FALSE;
 
   if (!sym->level || IS_EXTERN (sym->etype))
     scopetp = dwRootTag;
@@ -2605,39 +2685,61 @@ dwWriteSymbolInternal (symbol *sym)
   /*   b) register equivalent,                   */
   /*   c) spill location                         */
   symloc = sym;
-  if (!sym->allocreq && sym->reqv)
+  if (/*!sym->allocreq &&*/ sym->reqv)
     {
       symloc = OP_SYMBOL (symloc->reqv);
-      if (symloc->isspilt && !symloc->remat)
+
+      for (int i = 0; i < symloc->nRegs; i++)
+        if (symloc->regs[i])
+          {
+            inregs = TRUE;
+            break;
+          }
+
+      if (!inregs && symloc->isspilt && !symloc->remat)
         symloc = symloc->usl.spillLoc;
-      else
-        inregs = 1;
     }
-  
+
   lp = NULL;
-  if (inregs && symloc->regs[0])
+  if (inregs) /* Variable (partially) in registers*/
     {
-      dwloc * reglp;
-      dwloc * lastlp = NULL;
-      int regNum;
-      int i;
-      
+      dwloc *reglp;
+      dwloc *lastlp = NULL;
+      symbol *spillloc = NULL;
+      int regNum, i, stack = 0;
+      int stackchange = port->little_endian ? port->stack.direction : -port->stack.direction;
+
+      if ((spillloc = symloc->usl.spillLoc) && spillloc->onStack)
+        stack = (port->little_endian ? spillloc->stack + symloc->nRegs - 1 : spillloc->stack);
+
       /* register allocation */
       for (i = (port->little_endian ? 0 : symloc->nRegs-1);
            (port->little_endian ? (i < symloc->nRegs) : (i >= 0));
-           (port->little_endian ? i++ : i--))
+           (port->little_endian ? i++ : i--), stack += stackchange)
         {
-          regNum = port->debugger.dwarf.regNum (symloc->regs[i]);
-          if (regNum >= 0 && regNum <= 31)
-            reglp = dwNewLoc (DW_OP_reg0 + regNum, NULL, 0);
-          else if (regNum >= 0)
-            reglp = dwNewLoc (DW_OP_regx, NULL, regNum);
-          else
+          if (!symloc->regs[i]) /* Spilt byte of variable */
             {
-              /* We are forced to give up if the ABI for this port */
-              /* does not define a number for this register        */
-              lp = NULL;
-              break;
+              if (!(spillloc && spillloc->onStack))
+                {
+                  lp = NULL;
+                  break;
+                }
+              reglp = dwNewLoc (DW_OP_fbreg, NULL, stack);
+            }
+          else /* Byte in registers */
+            {
+              regNum = port->debugger.dwarf.regNum (symloc->regs[i]);
+              if (regNum >= 0 && regNum <= 31)
+                reglp = dwNewLoc (DW_OP_reg0 + regNum, NULL, 0);
+              else if (regNum >= 0)
+                reglp = dwNewLoc (DW_OP_regx, NULL, regNum);
+              else
+                {
+                  /* We are forced to give up if the ABI for this port */
+                  /* does not define a number for this register        */
+                  lp = NULL;
+                  break;
+                }
             }
           
           if (lastlp)
@@ -2698,7 +2800,17 @@ dwWriteFunction (symbol *sym, iCode *ic)
 {
   dwtag * tp;
   value * args;
-    
+
+  /* Add this function to CFI list */
+  dwcfilist * cfip;
+  cfip = dwNewCFIlist();
+  cfip->callsize = 1;
+  if (FUNC_ISISR (sym->type))
+    cfip->callsize = 3;
+  cfip->next = dwCFIRoot;
+  dwCFIRoot = cfip;
+  dwCFILastLoc = NULL;
+  
   dwFuncTag = tp = dwNewTag (DW_TAG_subprogram);
   
   dwAddTagAttr (dwFuncTag, dwNewAttrString (DW_AT_name, sym->name));
@@ -2769,21 +2881,21 @@ dwWriteEndFunction (symbol *sym, iCode *ic, int offset)
   else
     sprintf (debugSym, "XG$%s$0$0", sym->name);
   emitDebuggerSymbol (debugSym);
-      
+
   dwAddTagAttr (dwFuncTag, dwNewAttrAddrLabel (DW_AT_high_pc,
                                                Safe_strdup(debugSym),
                                                offset));
-  
+
   if (dwFrameLocList)
     {
       dwAddTagAttr (dwFuncTag, dwNewAttrLocRef (DW_AT_frame_base,
                                                 dwFrameLocList));
-      
+
       dwFrameLocList->next = dwRootLocList;
       dwRootLocList = dwFrameLocList;
       dwFrameLocList = NULL;
     }
-    
+
   return 1;
 }
 
@@ -2792,7 +2904,7 @@ dwWriteEndFunction (symbol *sym, iCode *ic, int offset)
 /* dwWriteLabel - generate a tag for a source level label                */
 /*-----------------------------------------------------------------------*/
 int
-dwWriteLabel (symbol *sym, iCode *ic)
+dwWriteLabel (symbol *sym, const iCode *ic)
 {
   char debugSym[SDCC_NAME_MAX + 1];
   dwtag * tp;
@@ -2866,8 +2978,12 @@ dwWriteSymbol (symbol *sym)
   if (IS_FUNC (sym->type))
     return 1;
 
-  /* If it is an iTemp, then it is not a C source symbol; ignore it */
+  /* If it is an iTemp, then it is a local variable; ignore it */
   if (sym->isitmp)
+    return 1;
+
+  /* If it is an unused extern ignore it, or it might produce link failure */
+  if (IS_EXTERN (sym->etype) && !sym->used)
     return 1;
 
   /* Ignore parameters; they must be handled specially so that they will */
@@ -2897,7 +3013,7 @@ int
 dwWriteModule (const char *name)
 {
   dwtag * tp;
-  char verid[125];
+  char *verid = (char*)Safe_alloc(125);
   
   dwModuleName = Safe_strdup (name);
   
@@ -2962,6 +3078,7 @@ dwWriteFrameAddress(const char *variable, struct reg_info *reg, int offset)
 {
   char * debugSym = NULL;
   dwlocregion * lrp;
+  dwlocregion * cfi_lrp;
   dwloc * lp;
   int regNum;
     
@@ -2970,10 +3087,17 @@ dwWriteFrameAddress(const char *variable, struct reg_info *reg, int offset)
     {
       debugSym = dwNewDebugSymbol ();
       emitDebuggerSymbol (debugSym);
-      
+
       dwFrameLastLoc->endLabel = debugSym;
       dwFrameLastLoc = NULL;
     }
+
+  if (dwCFILastLoc)
+    {
+      dwCFILastLoc->endLabel = debugSym;
+      dwCFIRoot->endLabel = debugSym;
+    }
+
 
   if (!variable && !reg)
     return 1;
@@ -2989,12 +3113,27 @@ dwWriteFrameAddress(const char *variable, struct reg_info *reg, int offset)
   lrp = Safe_alloc (sizeof (dwlocregion));
   lrp->startLabel = debugSym;
 
+  /*** Create a new loc region for CFI */
+  cfi_lrp = Safe_alloc (sizeof (dwlocregion));
+  cfi_lrp->startLabel = debugSym;
+  cfi_lrp->loc = dwNewLoc (0, NULL, offset);
+  if (dwCFILastLoc)
+    {
+      dwCFILastLoc->next = cfi_lrp;
+    }
+  else
+    {
+      dwCFIRoot->region = cfi_lrp;
+      dwCFIRoot->startLabel = debugSym;
+    }
+  dwCFILastLoc = cfi_lrp;
+
   if (variable)         /* frame pointer based from a global variable */
     {
       dwloc * lp;
 
       lrp->loc = dwNewLoc (DW_OP_addr, variable, 0);
-      lrp->loc->next = lp = dwNewLoc (DW_OP_deref_size, NULL, PTRSIZE);
+      lrp->loc->next = lp = dwNewLoc (DW_OP_deref_size, NULL, NEARPTRSIZE);
       if (offset)
         {
           lp->next = dwNewLoc (DW_OP_consts, NULL, offset);
@@ -3024,12 +3163,12 @@ dwWriteFrameAddress(const char *variable, struct reg_info *reg, int offset)
         }
     }
   dwFrameLastLoc = lrp;
-  
+
   if (!dwFrameLocList)
     dwFrameLocList = dwNewLocList();
   lrp->next = dwFrameLocList->region;
   dwFrameLocList->region = lrp;
-  
+
   return 1;
 }
 
@@ -3094,6 +3233,8 @@ dwarf2FinalizeFile (FILE *of)
 
   /* Write the .debug_pubnames section */
   dwWritePubnames ();
+
+  dwWriteFrames ();
   
   return 1;
 }

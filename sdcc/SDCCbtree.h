@@ -36,4 +36,3 @@ void btree_add_symbol(struct symbol *s);
 void btree_alloc(void);
 
 #endif
-

@@ -33,10 +33,10 @@ typedef struct region
 
     unsigned int merged:1;
     unsigned int visited:1;
-    eBBlock *entry;		/* entry Block */
-    int containsLoops;		/* contains other loops */
-    set *regBlocks;		/* set of all blocks */
-    set *exits;			/* set of exits */
+    eBBlock *entry;   /* entry Block */
+    int containsLoops;    /* contains other loops */
+    set *regBlocks;   /* set of all blocks */
+    set *exits;     /* set of exits */
   }
 region;
 
