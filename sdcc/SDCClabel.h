@@ -36,4 +36,3 @@ iCode *iCodeLabelOptimize (iCode *);
 
 
 #endif
-

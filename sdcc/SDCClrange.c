@@ -66,12 +66,12 @@ sequenceiCode (eBBlock ** ebbs, int count)
       iCode *ic;
       ebbs[i]->fSeq = iCodeSeq + 1;
       for (ic = ebbs[i]->sch; ic; ic = ic->next)
-	{
-	  ic->seq = ++iCodeSeq;
-	  ic->depth = ebbs[i]->depth;
-	  //hTabAddItem (&iCodehTab, ic->key, ic);
-	  hTabAddItem (&iCodeSeqhTab, ic->seq, ic);
-	}
+  {
+    ic->seq = ++iCodeSeq;
+    ic->depth = ebbs[i]->depth;
+    //hTabAddItem (&iCodehTab, ic->key, ic);
+    hTabAddItem (&iCodeSeqhTab, ic->seq, ic);
+  }
       ebbs[i]->lSeq = iCodeSeq;
     }
 }
@@ -157,22 +157,22 @@ markLiveRanges (eBBlock **ebbs, int count)
 
       for (ic = ebbs[i]->sch; ic; ic = ic->next)
         {
-	  if (ic->op == CALL || ic->op == PCALL)
-	    if (bitVectIsZero (OP_SYMBOL (IC_RESULT (ic))->uses))
+    if (ic->op == CALL || ic->op == PCALL)
+      if (bitVectIsZero (OP_SYMBOL (IC_RESULT (ic))->uses))
               bitVectUnSetBit (ebbs[i]->defSet, ic->key);
 
-	  /* for all iTemps alive at this iCode */
-	  for (key = 1; key < ic->rlive->size; key++)
-	    {
-	      if (!bitVectBitValue(ic->rlive, key))
-	        continue;
+    /* for all iTemps alive at this iCode */
+    for (key = 1; key < ic->rlive->size; key++)
+      {
+        if (!bitVectBitValue(ic->rlive, key))
+          continue;
 
-	      sym = hTabItemWithKey(liveRanges, key);
-	      setLiveTo(sym, ic->seq);
-	      setLiveFrom(sym, ic->seq);
-	    }
+        sym = hTabItemWithKey(liveRanges, key);
+        setLiveTo(sym, ic->seq);
+        setLiveFrom(sym, ic->seq);
+      }
 
-	}
+  }
     }
 }
 
@@ -241,47 +241,47 @@ findNextUseSym (eBBlock *ebp, iCode *ic, symbol * sym)
         {
           if (IS_ITEMP(IC_JTCOND(uic)) && IC_JTCOND(uic)->key == sym->key)
             {
-	      markAlive(ic, uic, sym->key);
-	      return 1;
-	    }
-	   continue;
-	}
+        markAlive(ic, uic, sym->key);
+        return 1;
+      }
+     continue;
+  }
 
       if (uic->op == IFX)
         {
           if (IS_ITEMP(IC_COND(uic)) && IC_COND(uic)->key == sym->key)
             {
-	      markAlive(ic, uic, sym->key);
-	      return 1;
-	    }
-	   continue;
-	}
+        markAlive(ic, uic, sym->key);
+        return 1;
+      }
+     continue;
+  }
 
       if (IS_ITEMP (IC_LEFT (uic)))
         if (IC_LEFT (uic)->key == sym->key)
           {
-	    markAlive(ic, uic, sym->key);
-	    return 1;
-	  }
+      markAlive(ic, uic, sym->key);
+      return 1;
+    }
 
       if (IS_ITEMP (IC_RIGHT (uic)))
         if (IC_RIGHT (uic)->key == sym->key)
-	  {
-	    markAlive (ic, uic, sym->key);
-	    return 1;
-	  }
+    {
+      markAlive (ic, uic, sym->key);
+      return 1;
+    }
 
       if (IS_ITEMP (IC_RESULT (uic)))
         if (IC_RESULT (uic)->key == sym->key)
-	  {
-	    if (POINTER_SET (uic))
-	      {
-	        markAlive (ic, uic, sym->key);
+    {
+      if (POINTER_SET (uic))
+        {
+          markAlive (ic, uic, sym->key);
                 return 1;
-	      }
-	    else
-	      return 0;
-	  }
+        }
+      else
+        return 0;
+    }
 
     }
 
@@ -513,9 +513,9 @@ rliveClear (eBBlock **ebbs, int count)
       /* for all instructions in this block do */
       for (ic = ebbs[i]->sch; ic; ic = ic->next)
         {
-	      freeBitVect (ic->rlive);
-	      ic->rlive = NULL;
-	    }
+        freeBitVect (ic->rlive);
+        ic->rlive = NULL;
+      }
     }
 }
 
@@ -540,20 +540,20 @@ rlivePoint (eBBlock ** ebbs, int count, bool emitWarnings)
       for (ic = ebbs[i]->sch; ic; ic = ic->next)
         {
 
-	  if (!ic->rlive)
-	    ic->rlive = newBitVect (operandKey);
+    if (!ic->rlive)
+      ic->rlive = newBitVect (operandKey);
 
-	  if (SKIP_IC2(ic))
-	    continue;
+    if (SKIP_IC2(ic))
+      continue;
 
-	  if (ic->op == JUMPTABLE && IS_SYMOP(IC_JTCOND(ic)))
-	    {
-	      incUsed (ic, IC_JTCOND(ic));
+    if (ic->op == JUMPTABLE && IS_SYMOP(IC_JTCOND(ic)))
+      {
+        incUsed (ic, IC_JTCOND(ic));
 
-	      if (!IS_AUTOSYM(IC_JTCOND(ic)))
-	        continue;
+        if (!IS_AUTOSYM(IC_JTCOND(ic)))
+          continue;
 
-	      findPrevUse (ebbs[i], ic, IC_JTCOND(ic), ebbs, count, emitWarnings);
+        findPrevUse (ebbs[i], ic, IC_JTCOND(ic), ebbs, count, emitWarnings);
               if (IS_ITEMP(IC_JTCOND(ic)))
                 {
                   unvisitBlocks(ebbs, count);
@@ -561,17 +561,17 @@ rlivePoint (eBBlock ** ebbs, int count, bool emitWarnings)
                   findNextUse (ebbs[i], ic->next, IC_JTCOND(ic));
                 }
 
-	      continue;
-	    }
+        continue;
+      }
 
-	  if (ic->op == IFX && IS_SYMOP(IC_COND(ic)))
-	    {
-	      incUsed (ic, IC_COND(ic));
+    if (ic->op == IFX && IS_SYMOP(IC_COND(ic)))
+      {
+        incUsed (ic, IC_COND(ic));
 
-	      if (!IS_AUTOSYM(IC_COND(ic)))
-	        continue;
+        if (!IS_AUTOSYM(IC_COND(ic)))
+          continue;
 
-	      findPrevUse (ebbs[i], ic, IC_COND(ic), ebbs, count, emitWarnings);
+        findPrevUse (ebbs[i], ic, IC_COND(ic), ebbs, count, emitWarnings);
               if (IS_ITEMP(IC_COND(ic)))
                 {
                   unvisitBlocks (ebbs, count);
@@ -579,16 +579,16 @@ rlivePoint (eBBlock ** ebbs, int count, bool emitWarnings)
                   findNextUse (ebbs[i], ic->next, IC_COND(ic));
                 }
 
-	      continue;
-	    }
+        continue;
+      }
 
-	  if (IS_SYMOP(IC_LEFT(ic)))
-	    {
-	      incUsed (ic, IC_LEFT(ic));
-	      if (IS_AUTOSYM(IC_LEFT(ic)) &&
-	          ic->op != ADDRESS_OF)
-	        {
-	          findPrevUse (ebbs[i], ic, IC_LEFT(ic), ebbs, count, emitWarnings);
+    if (IS_SYMOP(IC_LEFT(ic)))
+      {
+        incUsed (ic, IC_LEFT(ic));
+        if (IS_AUTOSYM(IC_LEFT(ic)) &&
+            ic->op != ADDRESS_OF)
+          {
+            findPrevUse (ebbs[i], ic, IC_LEFT(ic), ebbs, count, emitWarnings);
                   if (IS_ITEMP(IC_LEFT(ic)))
                     {
                       unvisitBlocks(ebbs, count);
@@ -609,33 +609,33 @@ rlivePoint (eBBlock ** ebbs, int count, bool emitWarnings)
                             }
                         }
                     }
-		}
-	    }
+    }
+      }
 
-	  if (IS_SYMOP(IC_RIGHT(ic)))
-	    {
-	      incUsed (ic, IC_RIGHT(ic));
+    if (IS_SYMOP(IC_RIGHT(ic)))
+      {
+        incUsed (ic, IC_RIGHT(ic));
               if (IS_AUTOSYM(IC_RIGHT(ic)))
-	        {
-	          findPrevUse (ebbs[i], ic, IC_RIGHT(ic), ebbs, count, emitWarnings);
+          {
+            findPrevUse (ebbs[i], ic, IC_RIGHT(ic), ebbs, count, emitWarnings);
                   if (IS_ITEMP(IC_RIGHT(ic)))
                     {
                       unvisitBlocks(ebbs, count);
                       ic->rlive = bitVectSetBit (ic->rlive, IC_RIGHT(ic)->key);
                       findNextUse (ebbs[i], ic->next, IC_RIGHT(ic));
                     }
-		}
-	    }
+    }
+      }
 
-	  if (POINTER_SET(ic) && IS_SYMOP(IC_RESULT(ic)))
-	    incUsed (ic, IC_RESULT(ic));
+    if (POINTER_SET(ic) && IS_SYMOP(IC_RESULT(ic)))
+      incUsed (ic, IC_RESULT(ic));
 
           if (IS_AUTOSYM(IC_RESULT(ic)))
-	    {
-	      if (POINTER_SET(ic))
-	        {
-	          findPrevUse (ebbs[i], ic, IC_RESULT(ic), ebbs, count, emitWarnings);
-		}
+      {
+        if (POINTER_SET(ic))
+          {
+            findPrevUse (ebbs[i], ic, IC_RESULT(ic), ebbs, count, emitWarnings);
+    }
               if (IS_ITEMP(IC_RESULT(ic)))
                 {
                   unvisitBlocks(ebbs, count);
@@ -645,12 +645,12 @@ rlivePoint (eBBlock ** ebbs, int count, bool emitWarnings)
                      dead code. Something should be done about this dead code since
                      e.g. register allocation suffers. */
                 }
-	    }
+      }
 
-	  if (!POINTER_SET(ic) && IC_RESULT(ic))
-	    ic->defKey = IC_RESULT(ic)->key;
+    if (!POINTER_SET(ic) && IC_RESULT(ic))
+      ic->defKey = IC_RESULT(ic)->key;
 
-	}
+  }
 
       /* check all symbols that are alive in the last instruction */
       /* but are not alive in all successors */
@@ -662,9 +662,9 @@ rlivePoint (eBBlock ** ebbs, int count, bool emitWarnings)
       alive = succ->sch->rlive;
       while ((succ = setNextItem (ebbs[i]->succList)))
         {
-	  if (succ->sch)
+    if (succ->sch)
             alive = bitVectIntersect (alive, succ->sch->rlive);
-	}
+  }
 
       if (ebbs[i]->ech)
         alive = bitVectCplAnd ( bitVectCopy (ebbs[i]->ech->rlive), alive);
@@ -673,12 +673,12 @@ rlivePoint (eBBlock ** ebbs, int count, bool emitWarnings)
         continue;
       for (key = 1; key < alive->size; key++)
         {
-	  if (!bitVectBitValue (alive, key))
-	    continue;
+    if (!bitVectBitValue (alive, key))
+      continue;
 
-	  unvisitBlocks(ebbs, count);
-	  findNextUseSym (ebbs[i], NULL, hTabItemWithKey (liveRanges, key));
-	}
+    unvisitBlocks(ebbs, count);
+    findNextUseSym (ebbs[i], NULL, hTabItemWithKey (liveRanges, key));
+  }
 
     }
 }
@@ -698,80 +698,80 @@ computeClash (eBBlock ** ebbs, int count)
 
       /* for every iCode do */
       for (ic = ebbs[i]->sch; ic; ic = ic->next)
-	{
-	  symbol *sym1, *sym2;
-	  int key1, key2;
+  {
+    symbol *sym1, *sym2;
+    int key1, key2;
 
-	  /* for all iTemps alive at this iCode */
-	  for (key1 = 1; key1 < ic->rlive->size; key1++)
-	    {
-	      if (!bitVectBitValue(ic->rlive, key1))
-	        continue;
+    /* for all iTemps alive at this iCode */
+    for (key1 = 1; key1 < ic->rlive->size; key1++)
+      {
+        if (!bitVectBitValue(ic->rlive, key1))
+          continue;
 
-	      sym1 = hTabItemWithKey(liveRanges, key1);
+        sym1 = hTabItemWithKey(liveRanges, key1);
 
-	      if (!sym1->isitmp)
-	        continue;
+        if (!sym1->isitmp)
+          continue;
 
-	      /* for all other iTemps alive at this iCode */
-	      for (key2 = key1+1; key2 < ic->rlive->size; key2++)
-	        {
-		  if (!bitVectBitValue(ic->rlive, key2))
-		    continue;
+        /* for all other iTemps alive at this iCode */
+        for (key2 = key1+1; key2 < ic->rlive->size; key2++)
+          {
+      if (!bitVectBitValue(ic->rlive, key2))
+        continue;
 
-		  sym2 = hTabItemWithKey(liveRanges, key2);
+      sym2 = hTabItemWithKey(liveRanges, key2);
 
-		  if (!sym2->isitmp)
-		    continue;
+      if (!sym2->isitmp)
+        continue;
 
-		  /* if the result and left or right is an iTemp */
-		  /* than possibly the iTemps do not clash */
-		  if ((ic->op != JUMPTABLE) && (ic->op != IFX) &&
-		      IS_ITEMP(IC_RESULT(ic)) &&
-		      (IS_ITEMP(IC_LEFT(ic)) || IS_ITEMP(IC_RIGHT(ic))))
-		    {
-		      if (OP_SYMBOL(IC_RESULT(ic))->key == key1
-			  && sym1->liveFrom == ic->seq
-			  && sym2->liveTo == ic->seq)
-		        {
-		          if (IS_SYMOP(IC_LEFT(ic)))
-			    if (OP_SYMBOL(IC_LEFT(ic))->key == key2)
-			      continue;
-		          if (IS_SYMOP(IC_RIGHT(ic)))
-			    if (OP_SYMBOL(IC_RIGHT(ic))->key == key2)
-			      continue;
-			}
+      /* if the result and left or right is an iTemp */
+      /* than possibly the iTemps do not clash */
+      if ((ic->op != JUMPTABLE) && (ic->op != IFX) &&
+          IS_ITEMP(IC_RESULT(ic)) &&
+          (IS_ITEMP(IC_LEFT(ic)) || IS_ITEMP(IC_RIGHT(ic))))
+        {
+          if (OP_SYMBOL(IC_RESULT(ic))->key == key1
+        && sym1->liveFrom == ic->seq
+        && sym2->liveTo == ic->seq)
+            {
+              if (IS_SYMOP(IC_LEFT(ic)))
+          if (OP_SYMBOL(IC_LEFT(ic))->key == key2)
+            continue;
+              if (IS_SYMOP(IC_RIGHT(ic)))
+          if (OP_SYMBOL(IC_RIGHT(ic))->key == key2)
+            continue;
+      }
 
-		      if (OP_SYMBOL(IC_RESULT(ic))->key == key2
-			  && sym2->liveFrom == ic->seq
-			  && sym1->liveTo == ic->seq)
-		        {
-		          if (IS_SYMOP(IC_LEFT(ic)))
-			    if (OP_SYMBOL(IC_LEFT(ic))->key == key1)
-			      continue;
-		          if (IS_SYMOP(IC_RIGHT(ic)))
-			    if (OP_SYMBOL(IC_RIGHT(ic))->key == key1)
-			      continue;
-			}
-		    }
+          if (OP_SYMBOL(IC_RESULT(ic))->key == key2
+        && sym2->liveFrom == ic->seq
+        && sym1->liveTo == ic->seq)
+            {
+              if (IS_SYMOP(IC_LEFT(ic)))
+          if (OP_SYMBOL(IC_LEFT(ic))->key == key1)
+            continue;
+              if (IS_SYMOP(IC_RIGHT(ic)))
+          if (OP_SYMBOL(IC_RIGHT(ic))->key == key1)
+            continue;
+      }
+        }
 
-		  /* the iTemps do clash. set the bits in clashes */
-		  sym1->clashes = bitVectSetBit (sym1->clashes, key2);
-		  sym2->clashes = bitVectSetBit (sym2->clashes, key1);
+      /* the iTemps do clash. set the bits in clashes */
+      sym1->clashes = bitVectSetBit (sym1->clashes, key2);
+      sym2->clashes = bitVectSetBit (sym2->clashes, key1);
 
-		  /* check if they share the same spill location */
-		  /* what is this good for? */
-	          if (SYM_SPIL_LOC(sym1) && SYM_SPIL_LOC(sym2) &&
-		      SYM_SPIL_LOC(sym1) == SYM_SPIL_LOC(sym2))
-		    {
-		      if (sym1->reqv && !sym2->reqv) SYM_SPIL_LOC(sym2)=NULL;
-		      else if (sym2->reqv && !sym1->reqv) SYM_SPIL_LOC(sym1)=NULL;
-		      else if (sym1->used > sym2->used) SYM_SPIL_LOC(sym2)=NULL;
-		      else SYM_SPIL_LOC(sym1)=NULL;
-		    }
-		}
-	    }
-	}
+      /* check if they share the same spill location */
+      /* what is this good for? */
+            if (SYM_SPIL_LOC(sym1) && SYM_SPIL_LOC(sym2) &&
+          SYM_SPIL_LOC(sym1) == SYM_SPIL_LOC(sym2))
+        {
+          if (sym1->reqv && !sym2->reqv) SYM_SPIL_LOC(sym2)=NULL;
+          else if (sym2->reqv && !sym1->reqv) SYM_SPIL_LOC(sym1)=NULL;
+          else if (sym1->used > sym2->used) SYM_SPIL_LOC(sym2)=NULL;
+          else SYM_SPIL_LOC(sym1)=NULL;
+        }
+    }
+      }
+  }
     }
 }
 
@@ -791,9 +791,9 @@ allDefsOutOfRange (bitVect * defs, int fseq, int toseq)
       iCode *ic;
 
       if (bitVectBitValue (defs, i) &&
-	  (ic = hTabItemWithKey (iCodehTab, i)) &&
-	  (ic->seq >= fseq && ic->seq <= toseq))
-	return FALSE;
+    (ic = hTabItemWithKey (iCodehTab, i)) &&
+    (ic->seq >= fseq && ic->seq <= toseq))
+  return FALSE;
 
     }
 
@@ -807,8 +807,8 @@ int
 notUsedInBlock (symbol * sym, eBBlock * ebp, iCode *ic)
 {
   return (!bitVectBitsInCommon (sym->defs, ebp->usesDefs) &&
-	  allDefsOutOfRange (sym->defs, ebp->fSeq, ebp->lSeq) &&
-	  allDefsOutOfRange (sym->uses, ebp->fSeq, ebp->lSeq));
+    allDefsOutOfRange (sym->defs, ebp->fSeq, ebp->lSeq) &&
+    allDefsOutOfRange (sym->uses, ebp->fSeq, ebp->lSeq));
 }
 
 /*-----------------------------------------------------------------*/
@@ -940,6 +940,9 @@ dumpIcRlive (eBBlock ** ebbs, int count)
 }
 #endif
 
+/*-----------------------------------------------------------------*/
+/* Visit all iCodes reachable from ic                              */
+/*-----------------------------------------------------------------*/
 static void visit (set **visited, iCode *ic, const int key)
 {
   symbol *lbl;
@@ -980,16 +983,16 @@ static void visit (set **visited, iCode *ic, const int key)
 /* Such temporaries can result from GCSE and losrpe,               */
 /* And can confuse register allocation and rematerialization.      */
 /*-----------------------------------------------------------------*/
-void
+int
 separateLiveRanges (iCode *sic, ebbIndex *ebbi)
 {
-  iCode *ic;
   set *candidates = 0;
   symbol *sym;
+  int num_separated = 0;
 
   // printf("separateLiveRanges()\n");
 
-  for (ic = sic; ic; ic = ic->next)
+  for (iCode *ic = sic; ic; ic = ic->next)
     {
       if (ic->op == IFX || ic->op == GOTO || ic->op == JUMPTABLE || !IC_RESULT (ic) || !IS_ITEMP (IC_RESULT (ic)) || bitVectnBitsOn (OP_DEFS (IC_RESULT (ic))) <= 1 || isinSet (candidates, OP_SYMBOL (IC_RESULT (ic))))
         continue;
@@ -998,28 +1001,38 @@ separateLiveRanges (iCode *sic, ebbIndex *ebbi)
     }
 
   if (!candidates)
-    return;
+    return (0);
 
   for(sym = setFirstItem (candidates); sym; sym = setNextItem (candidates))
     {
       // printf("Looking at %s, %d definitions\n", sym->name, bitVectnBitsOn (sym->defs));
 
-      int i;
       set *defs = 0;
+      set *uses = 0;
+      bool skip_uses = false;
 
-      for (i = 0; i < sym->defs->size; i++)
-        if (bitVectBitValue (sym->defs, i))
-          {
-            iCode *dic;
-            if(dic = hTabItemWithKey (iCodehTab, i))
-              addSet (&defs, hTabItemWithKey (iCodehTab, i));
-            else
-              {
-                werror (W_INTERNAL_ERROR, __FILE__, __LINE__, "Definition not found");
-                return;
-              }
-          }
-
+      for (int i = 0; i < sym->defs->size; i++)
+        {
+          if (bitVectBitValue (sym->defs, i))
+            {
+              iCode *dic;
+              if(dic = hTabItemWithKey (iCodehTab, i))
+                addSet (&defs, dic);
+              else
+                {
+                  werror (W_INTERNAL_ERROR, __FILE__, __LINE__, "Definition not found");
+                  return (num_separated);
+                }
+            }
+          if (bitVectBitValue (sym->uses, i))
+            {
+              iCode *uic;
+              if(uic = hTabItemWithKey (iCodehTab, i))
+                addSet (&uses, uic);
+              else
+                skip_uses = true; // werror (W_INTERNAL_ERROR, __FILE__, __LINE__, "Use not found"); // return (num_separated); seems too harsh.
+            }
+        }
       do
         {
           set *visited = 0;
@@ -1043,8 +1056,8 @@ separateLiveRanges (iCode *sic, ebbIndex *ebbi)
           do
             {
               oldsize = elementsInSet(visited);
-              ic = setFirstItem (defs);
-              for(ic = setNextItem (defs); ic; ic = setNextItem (defs))
+              setFirstItem (defs);
+              for(iCode *ic = setNextItem (defs); ic; ic = setNextItem (defs))
                 {
                   // printf("Looking at other def at %d now\n", ic->key);
                   set *visited2 = 0;
@@ -1071,7 +1084,7 @@ separateLiveRanges (iCode *sic, ebbIndex *ebbi)
 
               // printf("Splitting %s from %s, using def at %d, op %d\n", OP_SYMBOL_CONST(tmpop)->name, sym->name, ((iCode *)(setFirstItem (newdefs)))->key, ((iCode *)(setFirstItem (newdefs)))->op);
 
-              for (ic = setFirstItem (visited); ic; ic = setNextItem (visited))
+              for (iCode *ic = setFirstItem (visited); ic; ic = setNextItem (visited))
                 {
                   if (IC_LEFT (ic) && IS_ITEMP (IC_LEFT (ic)) && OP_SYMBOL (IC_LEFT (ic)) == sym)
                     IC_LEFT (ic) = operandFromOperand (tmpop);
@@ -1085,18 +1098,139 @@ separateLiveRanges (iCode *sic, ebbIndex *ebbi)
                       IC_RESULT (ic) = operandFromOperand (tmpop);
                       if (pset)
                         IC_RESULT(ic)->isaddr = TRUE;
+                      else
+                        bitVectUnSetBit (sym->defs, ic->key);
                     }
                   bitVectUnSetBit (sym->uses, ic->key);
+
+                  skip_uses = true;
+                  num_separated++;
                 }
             }
+          else if (!skip_uses)
+            {      
+              set *undefined_uses = 0;
+              undefined_uses = subtractFromSet (uses, visited, THROW_NONE);
+
+              // Eliminate uses of undefined variables.
+              for (iCode *ic = setFirstItem (undefined_uses); ic; ic = setNextItem (undefined_uses))
+                {
+                  iCode *prev = ic->prev;
+                  iCode *next = ic->next;
+                  if (prev && next)
+                    {
+                      prev->next = next;
+                      next->prev = prev;
+                    }
+
+                  bitVectUnSetBit (sym->uses, ic->key);
+                  if (IS_SYMOP (IC_RESULT (ic)))
+                    bitVectUnSetBit (OP_DEFS (IC_RESULT (ic)), ic->key);
+                }
+
+              deleteSet (&undefined_uses);
+            }
+
           deleteSet (&newdefs);
           deleteSet (&visited);
         }
       while (elementsInSet(defs) > 1);
 
       deleteSet (&defs);
+      deleteSet (&uses);
     }
 
   deleteSet (&candidates);
+
+  return (num_separated);
 }
 
+/*-----------------------------------------------------------------*/
+/* Shorten live ranges by swapping order of operations             */
+/*-----------------------------------------------------------------*/
+int
+shortenLiveRanges (iCode *sic, ebbIndex *ebbi)
+{
+  int change = 0;
+
+  for (iCode *ic = sic; ic; ic = ic->next)
+    {
+      iCode *ifx = 0;
+
+      if (!ic->prev || !ic->next)
+        continue;
+
+      iCode *pic = ic->prev;
+      iCode *nic = ic->next;
+
+      if (ic->op == IFX || nic->op == IFX)
+        continue;
+
+      if (pic->op != '=' || !IS_ITEMP (IC_RESULT (pic)) || bitVectnBitsOn (OP_DEFS (IC_RESULT (pic))) != 1)
+        continue;
+
+      if (IC_LEFT (nic) != IC_RESULT (pic) && IC_RIGHT (nic) != IC_RESULT (pic) || bitVectnBitsOn (OP_USES (IC_RESULT (pic))) != 1)
+        continue;
+
+      if (IS_OP_VOLATILE (IC_RIGHT (pic)) || IS_OP_VOLATILE (IC_LEFT (nic)) || IS_OP_VOLATILE (IC_RIGHT (nic)) || IS_OP_VOLATILE (IC_RESULT (nic)))
+        continue;
+
+      if (isOperandEqual (IC_RESULT (pic), IC_LEFT (ic)) || isOperandEqual (IC_RESULT (pic), IC_RIGHT (ic)))
+        continue;
+
+      if (isOperandEqual (IC_RESULT (ic), IC_LEFT (nic)) || isOperandEqual (IC_RESULT (ic), IC_RIGHT (nic)))
+        continue;
+
+      if ((POINTER_SET (nic) || isOperandGlobal (IC_RESULT (nic))) && (POINTER_GET (ic) || isOperandGlobal (IC_LEFT (ic)) || isOperandGlobal (IC_RIGHT (ic))) ||
+        (POINTER_GET (nic) || isOperandGlobal (IC_LEFT (nic)) || isOperandGlobal (IC_RIGHT (nic))) && (POINTER_SET (ic) || POINTER_SET (nic) && isOperandGlobal (IC_RESULT (ic))))
+        continue;
+
+      if (isOperandGlobal (IC_RIGHT (pic))) // Might result in too many globaloperands per op for backend.
+        continue;
+
+      if (ifx = ifxForOp (IC_RESULT (nic), nic))
+        {
+          const symbol *starget = IC_TRUE (ifx) ? IC_TRUE (ifx) : IC_FALSE (ifx);
+          const iCode *itarget = eBBWithEntryLabel(ebbi, starget)->sch;
+
+          if (nic->next != ifx || bitVectBitValue(itarget->rlive, IC_RESULT (ic)->key))
+            continue;
+        }
+
+      if (IC_LEFT (nic) == IC_RESULT (pic))
+        IC_LEFT (nic) = IC_RIGHT (pic);
+      if (IC_RIGHT (nic) == IC_RESULT (pic))
+        IC_RIGHT (nic) = IC_RIGHT (pic);
+      bitVectUnSetBit (OP_USES (IC_RESULT (pic)), nic->key);
+      if (IS_SYMOP (IC_RIGHT (pic)))
+        bitVectSetBit (OP_USES (IC_RIGHT (pic)), nic->key);
+
+      // Assignment to self will get optimized out later
+      IC_LEFT (pic) = IC_RESULT (pic); 
+      bitVectSetBit (OP_USES (IC_RESULT (pic)), pic->key);
+
+      pic->next = nic;
+      nic->prev = pic;
+      ic->prev = nic;
+      ic->next = nic->next;
+      nic->next = ic;
+      if (ic->next)
+        ic->next->prev = ic;
+
+      if (ifx) // Move calculation beyond ifx.
+        {
+          ifx->prev = ic->prev;
+          ic->next = ifx->next;
+          ifx->next = ic;
+          ic->prev = ifx;
+
+          ifx->prev->next = ifx;
+          if (ic->next)
+            ic->next->prev = ic;
+        }
+
+       change++;
+    }
+
+  return (change);
+}

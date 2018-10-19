@@ -83,17 +83,17 @@ eBBPredecessors (ebbIndex * ebbi)
 
       /* if there is no path to this then continue */
       if (ebbs[i]->noPath)
-	continue;
+  continue;
 
       /* for each successor of this block if */
       /* it has depth first number > this block */
       /* then this block precedes the successor  */
       for (j = 0; j < ebbs[i]->succVect->size; j++)
 
-	if (bitVectBitValue (ebbs[i]->succVect, j) &&
-	    ebbs[j]->dfnum > ebbs[i]->dfnum)
+  if (bitVectBitValue (ebbs[i]->succVect, j) &&
+      ebbs[j]->dfnum > ebbs[i]->dfnum)
 
-	  addSet (&ebbs[j]->predList, ebbs[i]);
+    addSet (&ebbs[j]->predList, ebbs[i]);
     }
 }
 
@@ -113,7 +113,7 @@ eBBSuccessors (ebbIndex * ebbi)
       iCode *ic;
 
       if (ebbs[i]->noPath)
-	continue;
+  continue;
 
       ebbs[i]->succVect = newBitVect (count);
 
@@ -122,10 +122,10 @@ eBBSuccessors (ebbIndex * ebbi)
       /* a natural successor of this. Note we have */
       /* consider eBBlocks with no instructions    */
       if (ebbs[i + 1])
-	{
+  {
 
-	  if (ebbs[i]->ech)
-	    {
+    if (ebbs[i]->ech)
+      {
               bool foundNoReturn = FALSE;
               if (ebbs[i]->ech->op == CALL || ebbs[i]->ech->op == PCALL)
                 {
@@ -135,75 +135,86 @@ eBBSuccessors (ebbIndex * ebbi)
                   if (type && FUNC_ISNORETURN (type))
                     foundNoReturn = TRUE;
                 }
-	      if (!foundNoReturn &&
+        if (!foundNoReturn &&
                  ebbs[i]->ech->op != GOTO &&
-		  ebbs[i]->ech->op != RETURN &&
-		  ebbs[i]->ech->op != JUMPTABLE)
-		{
-		  int j = i + 1;
+      ebbs[i]->ech->op != RETURN &&
+      ebbs[i]->ech->op != JUMPTABLE)
+    {
+      int j = i + 1;
 
-		  while (ebbs[j] && ebbs[j]->noPath)
-		    j++;
+      while (ebbs[j] && ebbs[j]->noPath)
+        j++;
 
-		  addSuccessor (ebbs[i], ebbs[j]);	/* add it */
-		}
-	      else
-		{
-		  if (i && ebbs[i-1]->ech && ebbs[i-1]->ech->op==IFX) {
-		    ebbs[i]->isConditionalExitFrom=ebbs[i-1];
-		  }
-		}
-	    }			/* no instructions in the block */
-	  /* could happen for dummy blocks */
-	  else
-	    addSuccessor (ebbs[i], ebbs[i + 1]);
-	}
+      addSuccessor (ebbs[i], ebbs[j]);  /* add it */
+    }
+        else
+    {
+      if (i && ebbs[i-1]->ech && ebbs[i-1]->ech->op==IFX) {
+        ebbs[i]->isConditionalExitFrom=ebbs[i-1];
+      }
+    }
+      }     /* no instructions in the block */
+    /* could happen for dummy blocks */
+    else
+      addSuccessor (ebbs[i], ebbs[i + 1]);
+  }
 
       /* go thru all the instructions: if we find a */
       /* goto or ifx or a return then we have a succ */
       if ((ic = ebbs[i]->ech))
-	{
-	  eBBlock *succ;
+  {
+    eBBlock *succ;
 
-	  /* special case for jumptable */
-	  if (ic->op == JUMPTABLE)
-	    {
-	      symbol *lbl;
-	      for (lbl = setFirstItem (IC_JTLABELS (ic)); lbl;
-		   lbl = setNextItem (IC_JTLABELS (ic)))
-		addSuccessor (ebbs[i],
-			      eBBWithEntryLabel (ebbi, lbl));
-	    }
-	  else
-	    {
+    /* special case for jumptable */
+    if (ic->op == JUMPTABLE)
+      {
+        symbol *lbl;
+        for (lbl = setFirstItem (IC_JTLABELS (ic)); lbl;
+       lbl = setNextItem (IC_JTLABELS (ic)))
+    addSuccessor (ebbs[i],
+            eBBWithEntryLabel (ebbi, lbl));
+      }
+    else
+      {
 
-	      succ = NULL;
-	      /* depending on the instruction operator */
-	      switch (ic->op)
-		{
-		case GOTO:	/* goto has edge to label */
-		  succ = eBBWithEntryLabel (ebbi, ic->label);
-		  break;
+        succ = NULL;
+        /* depending on the instruction operator */
+        switch (ic->op)
+    {
+    case GOTO:  /* goto has edge to label */
+      succ = eBBWithEntryLabel (ebbi, ic->label);
 
-		case IFX:	/* conditional jump */
-		  /* if true label is present */
-		  if (IC_TRUE (ic))
-		    succ = eBBWithEntryLabel (ebbi, IC_TRUE (ic));
-		  else
-		    succ = eBBWithEntryLabel (ebbi, IC_FALSE (ic));
-		  break;
+                  /* Sometimes a block has a GOTO added after the original */
+                  /* final IFX (due to loop optimizations). If IFX found,  */
+                  /* fall through to handle the IFX too. */
+                  if (ic->prev && ic->prev->op == IFX)
+                    {
+                      if (succ)
+                        addSuccessor (ebbs[i], succ); /* add the GOTO target */
+                      ic = ic->prev;       /* get ready to handle IFX too. */
+                    }
+                  else
+                    break;
 
-		case RETURN:	/* block with return */
-		  succ = eBBWithEntryLabel (ebbi, returnLabel);
-		  break;
-		}
+    case IFX: /* conditional jump */
+      /* if true label is present */
+      if (IC_TRUE (ic))
+        succ = eBBWithEntryLabel (ebbi, IC_TRUE (ic));
+      else
+        succ = eBBWithEntryLabel (ebbi, IC_FALSE (ic));
+      break;
 
-	      /* if there is a successor add to the list */
-	      /* if it is not already present in the list */
-	      if (succ)
-		addSuccessor (ebbs[i], succ);
-	    }
-	}
+    case RETURN:  /* block with return */
+      succ = eBBWithEntryLabel (ebbi, returnLabel);
+      break;
+    }
+
+        /* if there is a successor add to the list */
+        /* if it is not already present in the list */
+        if (succ)
+    addSuccessor (ebbs[i], succ);
+      }
+  }
     }
 }
 
@@ -229,10 +240,10 @@ computeDominance (ebbIndex * ebbi)
     {
       ebbs[i]->domVect = newBitVect (count);
       for (j = 0; j < count; j++)
-	{
-	  ebbs[i]->domVect =
-	    bitVectSetBit (ebbs[i]->domVect, ebbs[j]->bbnum);
-	}
+  {
+    ebbs[i]->domVect =
+      bitVectSetBit (ebbs[i]->domVect, ebbs[j]->bbnum);
+  }
     }
 
   /* end of initialisation */
@@ -246,36 +257,37 @@ computeDominance (ebbIndex * ebbi)
 
       change = 0;
       for (i = 1; i < count; i++)
-	{
-	  bitVect *cDomVect;
-	  eBBlock *pred;
+  {
+    bitVect *cDomVect;
+    eBBlock *pred;
 
-	  cDomVect = NULL;
+    cDomVect = NULL;
 
-	  /* get the intersection of the dominance of all predecessors */
-	  for (pred = setFirstItem (ebbs[i]->predList),
-	       cDomVect = (pred ? bitVectCopy (pred->domVect) : NULL);
-	       pred;
-	       pred = setNextItem (ebbs[i]->predList))
-	    {
-	      cDomVect = bitVectIntersect (cDomVect, pred->domVect);
-	    }
-	  if (!cDomVect)
-	    cDomVect = newBitVect (count);
-	  /* this node to the list */
-	  cDomVect = bitVectSetBit (cDomVect, ebbs[i]->bbnum);
+    /* get the intersection of the dominance of all predecessors */
+    for (pred = setFirstItem (ebbs[i]->predList),
+         cDomVect = (pred ? bitVectCopy (pred->domVect) : NULL);
+         pred;
+         pred = setNextItem (ebbs[i]->predList))
+      {
+        cDomVect = bitVectInplaceIntersect (cDomVect, pred->domVect);
+      }
+    if (!cDomVect)
+      cDomVect = newBitVect (count);
+    /* this node to the list */
+    cDomVect = bitVectSetBit (cDomVect, ebbs[i]->bbnum);
 
 
-	  if (!bitVectEqual (cDomVect, ebbs[i]->domVect))
-	    {
-	      ebbs[i]->domVect = cDomVect;
-	      change = 1;
-	    }
-	}
+    if (!bitVectEqual (cDomVect, ebbs[i]->domVect))
+      {
+        freeBitVect (ebbs[i]->domVect);
+        ebbs[i]->domVect = cDomVect;
+        change = 1;
+      }
+  }
 
       /* if no change then exit */
       if (!change)
-	break;
+  break;
     }
   
 }
@@ -316,7 +328,7 @@ DEFSETFUNC (DFOrdering)
   if (ebbp->visited)
     return 0;
 
-  computeDFOrdering (ebbp, count);	/* depthfirst */
+  computeDFOrdering (ebbp, count);  /* depthfirst */
 
   return 0;
 }
@@ -399,10 +411,10 @@ computeControlFlow (ebbIndex * ebbi)
 
   for (i = 0; i < ebbi->count; i++)
     {
-      setToNull ((void *) &ebbs[i]->predList);
-      setToNull ((void *) &ebbs[i]->domVect);
-      setToNull ((void *) &ebbs[i]->succList);
-      setToNull ((void *) &ebbs[i]->succVect);
+      deleteSet (&ebbs[i]->predList);
+      freeBitVect (ebbs[i]->domVect); ebbs[i]->domVect = NULL;
+      deleteSet (&ebbs[i]->succList);
+      freeBitVect (ebbs[i]->succVect); ebbs[i]->succVect = NULL;
       ebbs[i]->visited = 0;
       ebbs[i]->dfnum = 0;
     }
@@ -453,17 +465,17 @@ int returnAtEnd (eBBlock *ebp)
        successor has only one return statement
     */
     if (elementsInSet(ebp->succList) == 1) {
-	eBBlock *succ = setFirstItem(ebp->succList);
-	/* could happen for dummy blocks */
-	if (!succ->sch || !succ->ech) return 0;
+  eBBlock *succ = setFirstItem(ebp->succList);
+  /* could happen for dummy blocks */
+  if (!succ->sch || !succ->ech) return 0;
 
-	/* first iCode is a return */
-	if (succ->sch->op == RETURN) return 2;
+  /* first iCode is a return */
+  if (succ->sch->op == RETURN) return 2;
 
-	/* or first iCode is a label & the next &
-	   last icode is a return */
-	if (succ->sch->op == LABEL && succ->sch->next == succ->ech &&
-	    succ->ech->op == RETURN ) return 2;
+  /* or first iCode is a label & the next &
+     last icode is a return */
+  if (succ->sch->op == LABEL && succ->sch->next == succ->ech &&
+      succ->ech->op == RETURN ) return 2;
     }
 
     return 0;

@@ -26,7 +26,6 @@
 #include "newalloc.h"
 #include "dbuf_string.h"
 
-
 /*-----------------------------------------------------------------*/
 /* newCseDef - new cseDef                                          */
 /*-----------------------------------------------------------------*/
@@ -42,7 +41,7 @@ newCseDef (operand * sym, iCode * ic)
   cdp->sym = sym;
   cdp->diCode = ic;
   cdp->key = sym->key;
-  cdp->ancestors = newBitVect(iCodeKey);
+  cdp->ancestors = newBitVect(operandKey);
   cdp->fromGlobal = 0;
   cdp->fromAddrTaken = 0;
 
@@ -76,6 +75,21 @@ newCseDef (operand * sym, iCode * ic)
 }
 
 void
+freeLocalCseDef (void *item)
+{
+  cseDef * cse = (cseDef *)item;
+
+  /* If this CSE definition being deleted is not visible outside */
+  /* its defining eBBlock, we can safely deallocate it completely */
+  if (!cse->nonLocalCSE)
+    {
+      freeBitVect(cse->ancestors);
+      Safe_free(cse);
+    }
+}
+
+
+void
 updateCseDefAncestors(cseDef *cdp, set * cseSet)
 {
   cseDef *loop;
@@ -92,7 +106,7 @@ updateCseDefAncestors(cseDef *cdp, set * cseSet)
               loop = sl->item;
               if (loop->sym->key == IC_LEFT (ic)->key)
                 {
-                  cdp->ancestors = bitVectUnion (cdp->ancestors, loop->ancestors);
+                  cdp->ancestors = bitVectInplaceUnion (cdp->ancestors, loop->ancestors);
                   cdp->fromGlobal |= loop->fromGlobal;
                   cdp->fromAddrTaken |= loop->fromAddrTaken;
                   break;
@@ -107,7 +121,7 @@ updateCseDefAncestors(cseDef *cdp, set * cseSet)
               loop = sl->item;
               if (loop->sym->key == IC_RIGHT (ic)->key)
                 {
-                  cdp->ancestors = bitVectUnion (cdp->ancestors, loop->ancestors);
+                  cdp->ancestors = bitVectInplaceUnion (cdp->ancestors, loop->ancestors);
                   cdp->fromGlobal |= loop->fromGlobal;
                   cdp->fromAddrTaken |= loop->fromAddrTaken;
                   break;
@@ -321,7 +335,7 @@ DEFSETFUNC (removeFromInExprs)
 }
 
 /*-----------------------------------------------------------------*/
-/* isGlobalInNearSpace - return TRUE if valriable is a globalin data */
+/* isGlobalInNearSpace - return TRUE if variable is a globalin data */
 /*-----------------------------------------------------------------*/
 static bool
 isGlobalInNearSpace (operand * op)
@@ -629,6 +643,8 @@ DEFSETFUNC (ifFromAddrTaken)
 {
   cseDef *cdp = item;
 
+  if (OP_SYMBOL(cdp->sym)->addrtaken)
+    return 1;
   return cdp->fromAddrTaken;
 }
 
@@ -659,9 +675,9 @@ DEFSETFUNC (ifAnyUnrestrictedGetPointer)
       ptype = operandType (IC_LEFT (cdp->diCode));
       if (!IS_PTR_RESTRICT (ptype))
         {
-	  if (DCL_TYPE (ptype) == decl || IS_GENPTR (ptype))
+    if (DCL_TYPE (ptype) == decl || IS_GENPTR (ptype))
             return 1;
-	}
+  }
     }
   return 0;
 }
@@ -680,9 +696,9 @@ DEFSETFUNC (ifAnyUnrestrictedSetPointer)
       ptype = operandType (IC_RESULT (cdp->diCode));
       if (!IS_PTR_RESTRICT (ptype))
         {
-	  if (DCL_TYPE (ptype) == decl || IS_GENPTR (ptype))
+    if (DCL_TYPE (ptype) == decl || IS_GENPTR (ptype))
             return 1;
-	}
+  }
     }
   return 0;
 }
@@ -838,7 +854,7 @@ DEFSETFUNC (ifDiCodeIsX)
 }
 
 /*-----------------------------------------------------------------*/
-/* findBackwardDef - scan backwards to find deinition of operand   */
+/* findBackwardDef - scan backwards to find definition of operand  */
 /*-----------------------------------------------------------------*/
 iCode *findBackwardDef(operand *op,iCode *ic)
 {
@@ -926,8 +942,6 @@ algebraicOpts (iCode * ic, eBBlock * ebp)
 
       if (IS_ITEMP (IC_LEFT (ic)) &&
           IS_ITEMP (IC_RESULT (ic)) &&
-/*      !OP_SYMBOL(IC_RESULT(ic))->isreqv && */
-/*      !OP_SYMBOL(IC_LEFT(ic))->isreqv && */
           !IC_LEFT (ic)->isaddr)
         {
           ic->op = '=';
@@ -946,6 +960,7 @@ algebraicOpts (iCode * ic, eBBlock * ebp)
     case '+':
       /* if adding the same thing change to left shift by 1 */
       if (IC_LEFT (ic)->key == IC_RIGHT (ic)->key &&
+          !IS_OP_VOLATILE (IC_LEFT (ic)) &&
           !(IS_FLOAT (operandType (IC_RESULT (ic)))
             || IS_FIXED(operandType (IC_RESULT (ic)))))
         {
@@ -1012,8 +1027,9 @@ algebraicOpts (iCode * ic, eBBlock * ebp)
       break;
     case '-':
       /* if subtracting the same thing then zero     */
-      if (IC_LEFT (ic)->key == IC_RIGHT (ic)->key)
-        {
+      if (IC_LEFT (ic)->key == IC_RIGHT (ic)->key &&
+        !IS_OP_VOLATILE (IC_LEFT (ic)))
+        {printf("Sub. at %d\n", ic->key);
           ic->op = '=';
           IC_RIGHT (ic) = operandFromLit (0);
           IC_LEFT (ic) = NULL;
@@ -1221,7 +1237,8 @@ algebraicOpts (iCode * ic, eBBlock * ebp)
     case EQ_OP:
     case LE_OP:
     case GE_OP:
-      if (isOperandEqual (IC_LEFT (ic), IC_RIGHT (ic)))
+      if (isOperandEqual (IC_LEFT (ic), IC_RIGHT (ic)) &&
+        !IS_OP_VOLATILE (IC_LEFT (ic)))
         {
           ic->op = '=';
           IC_RIGHT (ic) = operandFromLit (1);
@@ -1232,7 +1249,8 @@ algebraicOpts (iCode * ic, eBBlock * ebp)
     case NE_OP:
     case '>':
     case '<':
-      if (isOperandEqual (IC_LEFT (ic), IC_RIGHT (ic)))
+      if (isOperandEqual (IC_LEFT (ic), IC_RIGHT (ic)) &&
+        !IS_OP_VOLATILE (IC_LEFT (ic)))
         {
           ic->op = '=';
           IC_RIGHT (ic) = operandFromLit (0);
@@ -1261,7 +1279,7 @@ algebraicOpts (iCode * ic, eBBlock * ebp)
                   litval = gpVal;
                 }
               ic->op = '=';
-              IC_RIGHT (ic) = operandFromValue (valCastLiteral (operandType (IC_LEFT (ic)), litval));
+              IC_RIGHT (ic) = operandFromValue (valCastLiteral (operandType (IC_LEFT (ic)), litval, litval));
               IC_LEFT (ic) = NULL;
               SET_ISADDR (IC_RESULT (ic), 0);
             }
@@ -1335,9 +1353,12 @@ algebraicOpts (iCode * ic, eBBlock * ebp)
             }
           /* if BITWISEAND then check if one of them is 0xff... */
           /* if yes turn it into assignment */
+          if (IS_BOOLEAN (operandType (IC_RIGHT (ic)))) /* Special handling since _Bool is stored in 8 bits */
+            goto boolcase;
           switch (bitsForType (operandType (IC_RIGHT (ic))))
             {
             case 1:
+            boolcase:
               val = 0x01;
               break;
             case 8:
@@ -1597,13 +1618,17 @@ setUsesDefs (operand * op, bitVect * bdefs,
 
   /* of these definitions find the ones that are */
   /* for this operand */
-  adefs = bitVectIntersect (adefs, OP_DEFS (op));
+  adefs = bitVectInplaceIntersect (adefs, OP_DEFS (op));
 
   /* these are the definitions that this operand can use */
-  op->usesDefs = adefs;
+  /* Nothing uses op->usesDefs, so why? EEP - 2018-06-10 */
+  //op->usesDefs = adefs;
 
   /* the out defs is an union */
-  *oud = bitVectUnion (*oud, adefs);
+  *oud = bitVectInplaceUnion (*oud, adefs);
+  
+  /* If not assigning op->usesDefs, we can safely free adefs */
+  freeBitVect(adefs);
 }
 
 /*-----------------------------------------------------------------*/
@@ -1660,6 +1685,45 @@ ifxOptimize (iCode * ic, set * cseSet,
         {
           ReplaceOpWithCheaperOp(&IC_COND (ic), pdop);
           (*change)++;
+        }
+      else if(ic->prev &&  /* Remove unnecessary casts */
+        (ic->prev->op == '=' || ic->prev->op == CAST || ic->prev->op == '!') && IS_ITEMP (IC_RESULT (ic->prev)) &&
+        IC_RESULT (ic->prev)->key == IC_COND (ic)->key && bitVectnBitsOn (OP_USES (IC_RESULT (ic->prev))) <= 1)
+        {
+          sym_link *type = operandType (IC_RESULT (ic->prev));
+          if (ic->prev->op != CAST || IS_BOOL (type) || bitsForType (operandType (IC_RIGHT (ic->prev))) < bitsForType (type))
+          {
+            if (!isOperandVolatile (ic->prev->op == '!' ? IC_LEFT (ic->prev) : IC_RIGHT (ic->prev), FALSE))
+              {
+                if (ic->prev->op =='!') /* Invert jump logic */
+                  {
+                    symbol *tmp = IC_TRUE (ic);
+                    IC_TRUE (ic) = IC_FALSE (ic);
+                    IC_FALSE (ic) = tmp;
+                  }
+                bitVectUnSetBit (OP_USES (IC_COND (ic)), ic->key);
+                ReplaceOpWithCheaperOp(&IC_COND (ic), ic->prev->op == '!' ? IC_LEFT (ic->prev) : IC_RIGHT (ic->prev));
+                (*change)++;
+              }
+/* There's an optimization opportunity here, but OP_USES doesn't seem to be */
+/* initialized properly at this point. - EEP 2016-08-04 */
+#if 0
+            else if (bitVectnBitsOn (OP_USES(IC_COND (ic))) == 1)
+              {
+                /* We can replace the iTemp with the original volatile symbol */
+                /* but we must make sure the volatile symbol is still accessed */
+                /* only once. */
+                bitVectUnSetBit (OP_USES (IC_COND (ic)), ic->key);
+                ReplaceOpWithCheaperOp(&IC_COND (ic), IC_RIGHT (ic->prev));
+                (*change)++;
+                /* Make previous assignment an assignment to self. */
+                /* killDeadCode() will eliminiate it. */
+                IC_RIGHT (ic->prev) = IC_RESULT (ic->prev);
+                IC_LEFT (ic->prev) = NULL;
+                ic->prev->op = '=';
+              }
+#endif
+          }
         }
     }
 
@@ -1774,7 +1838,8 @@ constFold (iCode * ic, set * cseSet)
 
   /* deal with only + & - */
   if (ic->op != '+' &&
-      ic->op != '-')
+      ic->op != '-' &&
+      ic->op != BITWISEAND)
     return 0;
 
   /* check if operation with a literal */
@@ -1785,6 +1850,20 @@ constFold (iCode * ic, set * cseSet)
      left hand side */
   if (!(applyToSet (cseSet, diCodeForSym, IC_LEFT (ic), &dic)))
     return 0;
+
+  if (ic->op == BITWISEAND) /* Optimize out bitwise and of comparion results */
+    {
+      /* check that this results in 0 or 1 only */
+      if(dic->op != EQ_OP && dic->op != NE_OP && dic->op != LE_OP && dic->op != GE_OP && dic->op != '<' && dic->op != '>' && dic->op != '!')
+        return 0;
+
+      IC_RIGHT (ic) = (operandLitValueUll (IC_RIGHT (ic)) & 1) ? IC_LEFT (ic) : operandFromLit (0);
+
+      ic->op = '=';
+      IC_LEFT (ic) = 0;
+
+      return 1;
+    }
 
   /* check that this is also a +/-  */
   if (dic->op != '+' && dic->op != '-')
@@ -1926,6 +2005,7 @@ deleteGetPointers (set ** cseSet, set ** pss, operand * op, eBBlock * ebb)
       deleteItemIf (cseSet, ifDefSymIsX, cop);
       deleteItemIf (pss, ifPointerSet, cop);
     }
+  deleteSet (&compItems);
 }
 
 /*-----------------------------------------------------------------*/
@@ -2055,27 +2135,36 @@ cseBBlock (eBBlock * ebb, int computeOnly, ebbIndex * ebbi)
   eBBlock ** ebbs = ebbi->bbOrder;
   int count = ebbi->count;
   set *cseSet;
+  set *setnode;
   iCode *ic;
   int change = 0;
   int i;
   set *ptrSetSet = NULL;
   cseDef *expr;
+  int replaced;
+  int recomputeDataFlow = 0;
 
   /* if this block is not reachable */
   if (ebb->noPath)
     return 0;
 
+  /* Mark incoming subexpressions as non-local */
+  for (setnode = ebb->inExprs; setnode; setnode = setnode->next)
+    {
+      expr = (cseDef *)setnode->item;
+      expr->nonLocalCSE = 1;
+    }
   /* set of common subexpressions */
   cseSet = setFromSet (ebb->inExprs);
+ 
 
   /* these will be computed by this routine */
-  setToNull ((void *) &ebb->outDefs);
-  setToNull ((void *) &ebb->defSet);
-  setToNull ((void *) &ebb->usesDefs);
-  setToNull ((void *) &ebb->ptrsSet);
-  setToNull ((void *) &ebb->addrOf);
-  setToNull ((void *) &ebb->ldefs);
-
+  freeBitVect(ebb->outDefs); ebb->outDefs = NULL;
+  freeBitVect(ebb->defSet); ebb->defSet = NULL;
+  freeBitVect(ebb->usesDefs); ebb->usesDefs = NULL;
+  freeBitVect(ebb->ptrsSet); ebb->ptrsSet = NULL;
+  deleteSet(&ebb->addrOf);
+  freeBitVect(ebb->ldefs); ebb->ldefs = NULL;
   ebb->outDefs = bitVectCopy (ebb->inDefs);
   bitVectDefault = iCodeKey;
   ebb->defSet = newBitVect (iCodeKey);
@@ -2099,7 +2188,7 @@ cseBBlock (eBBlock * ebb, int computeOnly, ebbIndex * ebbi)
       if (ic->op == '=' && !POINTER_SET (ic) &&
           IS_PTR (operandType (IC_RESULT (ic))))
         {
-          ptrPostIncDecOpt (ic);
+          ptrPostIncDecOpt (ic, ebb);
         }
 
       /* clear the def & use chains for the operands involved */
@@ -2117,19 +2206,19 @@ cseBBlock (eBBlock * ebb, int computeOnly, ebbIndex * ebbi)
           setUsesDefs (IC_RESULT (ic), ebb->defSet, ebb->outDefs, &ebb->usesDefs);
           /* delete global variables from the cseSet
              since they can be modified by the function call */
-          deleteItemIf (&cseSet, ifDefGlobal);
+          destructItemIf (&cseSet, freeLocalCseDef, ifDefGlobal);
 
           /* and also iTemps derived from globals */
-          deleteItemIf (&cseSet, ifFromGlobal);
+          destructItemIf (&cseSet, freeLocalCseDef, ifFromGlobal);
 
           /* Delete iTemps derived from symbols whose address */
           /* has been taken */
-          deleteItemIf (&cseSet, ifFromAddrTaken);
+          destructItemIf (&cseSet, freeLocalCseDef, ifFromAddrTaken);
 
           /* delete all getpointer iCodes from cseSet, this should
              be done only for global arrays & pointers but at this
              point we don't know if globals, so to be safe do all */
-          deleteItemIf (&cseSet, ifAnyGetPointer);
+          destructItemIf (&cseSet, freeLocalCseDef, ifAnyGetPointer);
 
           /* can't cache pointer set/get operations across a call */
           deleteSet (&ptrSetSet);
@@ -2266,6 +2355,7 @@ cseBBlock (eBBlock * ebb, int computeOnly, ebbIndex * ebbi)
         }
 
       checkSign = isSignedOp(ic);
+      replaced = 0;
 
       /* do the operand lookup i.e. for both the */
       /* right & left operand : check the cseSet */
@@ -2291,7 +2381,7 @@ cseBBlock (eBBlock * ebb, int computeOnly, ebbIndex * ebbi)
                       if (bitVectBitValue (ebb->ndompset, IC_LEFT (ic)->key))
                           ebb->ptrsSet = bitVectSetBit (ebb->ptrsSet, pdop->key);
                       ReplaceOpWithCheaperOp (&IC_LEFT (ic), pdop);
-                      change = 1;
+                      change = replaced = 1;
                     }
                   /* check if there is a pointer set
                      for the same pointer visible if yes
@@ -2304,12 +2394,13 @@ cseBBlock (eBBlock * ebb, int computeOnly, ebbIndex * ebbi)
                       IC_LEFT (ic) = NULL;
                       ReplaceOpWithCheaperOp (&IC_RIGHT (ic), pdop);
                       SET_ISADDR (IC_RESULT (ic), 0);
+                      replaced = 1;
                     }
                 }
               else
                 {
                   ReplaceOpWithCheaperOp (&IC_LEFT (ic), pdop);
-                  change = 1;
+                  change = replaced = 1;
                 }
             }
         }
@@ -2322,7 +2413,7 @@ cseBBlock (eBBlock * ebb, int computeOnly, ebbIndex * ebbi)
           if (pdop)
             {
               ReplaceOpWithCheaperOp (&IC_RIGHT (ic), pdop);
-              change = 1;
+              change = replaced = 1;
             }
         }
 
@@ -2406,7 +2497,7 @@ cseBBlock (eBBlock * ebb, int computeOnly, ebbIndex * ebbi)
       if (!(POINTER_SET (ic)) && IC_RESULT (ic))
         {
           cseDef *csed;
-          deleteItemIf (&cseSet, ifDefSymIsX, IC_RESULT (ic));
+          destructItemIf (&cseSet, freeLocalCseDef, ifDefSymIsX, IC_RESULT (ic));
           csed = newCseDef (IC_RESULT (ic), ic);
           updateCseDefAncestors (csed, cseSet);
           addSetHead (&cseSet, csed);
@@ -2448,7 +2539,7 @@ cseBBlock (eBBlock * ebb, int computeOnly, ebbIndex * ebbi)
       /* except in case of pointer access         */
       if (!(POINTER_SET (ic)) && IS_SYMOP (IC_RESULT (ic)))
         {
-          deleteItemIf (&cseSet, ifOperandsHave, IC_RESULT (ic));
+          destructItemIf (&cseSet, freeLocalCseDef, ifOperandsHave, IC_RESULT (ic));
           deleteItemIf (&ptrSetSet, ifOperandsHave, IC_RESULT (ic));
           /* delete any previous definitions */
           ebb->defSet = bitVectCplAnd (ebb->defSet, OP_DEFS (IC_RESULT (ic)));
@@ -2458,7 +2549,7 @@ cseBBlock (eBBlock * ebb, int computeOnly, ebbIndex * ebbi)
          if (isOperandGlobal (IC_RESULT (ic)))
            {
              memmap *map = SPEC_OCLS (getSpec (operandType (IC_RESULT (ic))));
-             deleteItemIf (&cseSet, ifAnyUnrestrictedGetPointer, map->ptrType);
+             destructItemIf (&cseSet, freeLocalCseDef, ifAnyUnrestrictedGetPointer, map->ptrType);
              deleteItemIf (&ptrSetSet, ifAnyUnrestrictedSetPointer, map->ptrType);
            }
         }
@@ -2481,7 +2572,7 @@ cseBBlock (eBBlock * ebb, int computeOnly, ebbIndex * ebbi)
       /* for the result it is special case, put the result */
       /* in the defuseSet if it is a pointer or array access */
       if (POINTER_SET (defic) &&
-		  (IS_SYMOP (IC_RESULT (ic)) || IS_OP_LITERAL (IC_RESULT (ic))))
+      (IS_SYMOP (IC_RESULT (ic)) || IS_OP_LITERAL (IC_RESULT (ic))))
         {
           sym_link *ptype = operandType (IC_RESULT (ic));
 
@@ -2509,14 +2600,14 @@ cseBBlock (eBBlock * ebb, int computeOnly, ebbIndex * ebbi)
           /* and any derived symbols from cseSet. */
           if (!IS_PTR_RESTRICT (ptype))
             {
-              deleteItemIf (&cseSet, ifDefGlobalAliasableByPtr);
-              deleteItemIf (&cseSet, ifFromGlobalAliasableByPtr, DCL_TYPE(ptype));
+              destructItemIf (&cseSet, freeLocalCseDef, ifDefGlobalAliasableByPtr, DCL_TYPE(ptype));
+              destructItemIf (&cseSet, freeLocalCseDef, ifFromGlobalAliasableByPtr, DCL_TYPE(ptype));
             }
 
           /* This could be made more specific for better optimization, but */
           /* for safety, delete anything this write may have modified. */
-          deleteItemIf (&cseSet, ifFromAddrTaken);
-          deleteItemIf (&cseSet, ifAnyGetPointer);
+          destructItemIf (&cseSet, freeLocalCseDef, ifFromAddrTaken);
+          destructItemIf (&cseSet, freeLocalCseDef, ifAnyGetPointer);
         }
       else
         {
@@ -2537,8 +2628,15 @@ cseBBlock (eBBlock * ebb, int computeOnly, ebbIndex * ebbi)
       if (defic->op == ADDRESS_OF)
         {
           addSetHead (&ebb->addrOf, IC_LEFT (ic));
-          deleteItemIf (&cseSet, ifDefSymIsX, IC_LEFT (ic));
+          destructItemIf (&cseSet, freeLocalCseDef, ifDefSymIsX, IC_LEFT (ic));
         }
+
+      /* If this was previously in the out expressions in the  */
+      /* original form, it might need to be killed by another block */
+      /* in the new form if we have replaced operands, so recompute */
+      /* the data flow after we finish this block */
+      if (replaced && ifDiCodeIs (ebb->outExprs, ic))
+        recomputeDataFlow = 1;
     }
 
   for (expr=setFirstItem (ebb->inExprs); expr; expr=setNextItem (ebb->inExprs))
@@ -2547,10 +2645,22 @@ cseBBlock (eBBlock * ebb, int computeOnly, ebbIndex * ebbi)
       {
         addSetHead (&ebb->killedExprs, expr);
       }
-  setToNull ((void *) &ebb->outExprs);
+
+  deleteSet (&ptrSetSet);
+  deleteSet (&ebb->outExprs);
   ebb->outExprs = cseSet;
-  ebb->outDefs = bitVectUnion (ebb->outDefs, ebb->defSet);
-  ebb->ptrsSet = bitVectUnion (ebb->ptrsSet, ebb->inPtrsSet);
+  ebb->outDefs = bitVectInplaceUnion (ebb->outDefs, ebb->defSet);
+  ebb->ptrsSet = bitVectInplaceUnion (ebb->ptrsSet, ebb->inPtrsSet);
+
+  for (setnode = ebb->outExprs; setnode; setnode = setnode->next)
+    {
+      expr = (cseDef *)setnode->item;
+      expr->nonLocalCSE = 1;
+    }
+
+  if (recomputeDataFlow)
+    computeDataFlow (ebbi);
+
   return change;
 }
 
@@ -2573,3 +2683,41 @@ cseAllBlocks (ebbIndex * ebbi, int computeOnly)
   return change;
 }
 
+
+/*------------------------------------------------------------------*/
+/* freeCSEdata - free data created by cseBBlock                     */
+/*------------------------------------------------------------------*/
+void
+freeCSEdata (eBBlock * ebb)
+{
+  set * s;
+
+  /* We should really free the cseDefs too, but I haven't */
+  /* found a good way to do this yet. For the moment, at */
+  /* least free up the associated bitVects - EEP */
+  for (s = ebb->outExprs; s; s = s->next)
+    {
+      cseDef *cdp = s->item;
+      if (!cdp) continue;
+      if (cdp->ancestors)
+        {
+          freeBitVect (cdp->ancestors);
+          cdp->ancestors = NULL;
+        }
+    }
+  
+  deleteSet (&ebb->inExprs);
+  deleteSet (&ebb->outExprs);
+  deleteSet (&ebb->killedExprs);
+
+  freeBitVect (ebb->inDefs);
+  freeBitVect (ebb->outDefs);
+  freeBitVect (ebb->defSet);
+  freeBitVect (ebb->ldefs);
+  freeBitVect (ebb->usesDefs);
+  freeBitVect (ebb->ptrsSet);
+  freeBitVect (ebb->inPtrsSet);
+  freeBitVect (ebb->ndompset);
+  deleteSet (&ebb->addrOf);
+
+}

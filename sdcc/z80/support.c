@@ -16,7 +16,7 @@ convertFloat (Z80_FLOAT * f, double native)
       mantissa &= 0xffffff;
       exponent = (unsigned long) (f2 + 0x40) ;
       if (native < 0)
-	exponent |= 0x80;
+  exponent |= 0x80;
     }
   else
     {

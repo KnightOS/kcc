@@ -29,7 +29,7 @@
 #if OPT_ENABLE_LIBGC
 #include <gc/gc.h>
 
-#define MALLOC	GC_malloc
+#define MALLOC  GC_malloc
 #define REALLOC GC_realloc
 /* PENDING: This is a mild hack.  If we try to GC_free something
    allocated with malloc() then the program will segfault.  Might as
@@ -39,13 +39,13 @@
 
 #else
 
-#define MALLOC	malloc
+#define MALLOC  malloc
 #define REALLOC realloc
-#define FREE	free
+#define FREE  free
 
 #endif
 
-#define TRACEMALLOC	0
+#define TRACEMALLOC 0
 
 #if TRACEMALLOC
 enum

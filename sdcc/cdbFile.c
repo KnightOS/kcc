@@ -12,7 +12,7 @@ int cdbOpenFile (const char *file);
 int cdbCloseFile (void);
 int cdbWriteFunction (symbol *pSym, iCode *ic);
 int cdbWriteEndFunction (symbol *pSym, iCode *ic, int offset);
-int cdbWriteLabel (symbol *pSym, iCode *ic);
+int cdbWriteLabel (symbol *pSym, const iCode *ic);
 int cdbWriteScope (iCode *ic);
 int cdbWriteSymbol (symbol *pSym);
 int cdbWriteType (structdef *sdef, int block, int inStruct, const char *tag);
@@ -152,9 +152,9 @@ cdbWriteEndFunction (symbol *pSym, iCode *ic, int offset)
 
   if (ic)
     {
-      sprintf (debugSym, "C$%s$%d$%d$%d",
+      sprintf (debugSym, "C$%s$%d$%ld_%ld$%d",
                FileBaseName (ic->filename), pSym->lastLine,
-               ic->level, ic->block);
+               ic->level / LEVEL_UNIT, ic->level % LEVEL_UNIT, ic->block);
       spacesToUnderscores (debugSym, debugSym, sizeof (debugSym));
       emitDebuggerSymbol (debugSym);
     }
@@ -176,7 +176,7 @@ cdbWriteEndFunction (symbol *pSym, iCode *ic, int offset)
  *****************************************************************/
 
 int
-cdbWriteLabel (symbol *pSym, iCode *ic)
+cdbWriteLabel (symbol *pSym, const iCode *ic)
 {
   if (getenv ("SDCC_DEBUG_FUNCTION_POINTERS"))
     fprintf (stderr, "cdbFile.c:cdbWriteLabel()\n");
@@ -295,9 +295,9 @@ cdbWriteCLine (iCode *ic)
   
   if (!cdbFilePtr) return 0;
 
-  sprintf (debugSym, "C$%s$%d$%d$%d", 
+  sprintf (debugSym, "C$%s$%d$%ld_%ld$%d",
            FileBaseName (ic->filename), ic->lineno,
-           ic->level, ic->block);
+           ic->level / LEVEL_UNIT, ic->level % LEVEL_UNIT, ic->block);
   spacesToUnderscores (debugSym, debugSym, sizeof (debugSym));
   emitDebuggerSymbol (debugSym);
 
@@ -386,7 +386,7 @@ cdbWriteBasicSymbol (symbol *sym, int isStructSym, int isFunc)
     }
 
   /* print the name, & mangled name */
-  fprintf (cdbFilePtr, "%s$%d$%d(", sym->name, sym->level, sym->block);
+  fprintf (cdbFilePtr, "%s$%ld_%ld$%d(", sym->name, sym->level / LEVEL_UNIT, sym->level % LEVEL_UNIT, sym->block);
 
   cdbTypeInfo (sym->type);
 

@@ -57,6 +57,7 @@ outputDebugSymbols (void)
 {
   if (getenv ("SDCC_DEBUG_VAR_STORAGE"))
     {
+      dumpSymInfo ("Initialized", initialized);
       dumpSymInfo ("Code", code);
       dumpSymInfo ("Data", data);
       dumpSymInfo ("PData", pdata);
@@ -79,6 +80,12 @@ outputDebugSymbols (void)
     {
       symbol *sym;
            
+      if(initialized)
+        {
+          for (sym = setFirstItem (initialized->syms); sym; sym = setNextItem (initialized->syms))
+            debugFile->writeSymbol (sym);
+        }
+
       if (data) 
         {
           for (sym = setFirstItem (data->syms); sym; sym = setNextItem (data->syms))
@@ -170,7 +177,7 @@ dumpSymInfo(const char *pcName, memmap *memItem)
   for (sym = setFirstItem (memItem->syms); sym; sym = setNextItem (memItem->syms))
     {          
       printf ("   %s, isReqv:%d, reqv:0x%p, onStack:%d, Stack:%d, nRegs:%d, [", 
-              sym->rname, sym->isreqv, sym->reqv, sym->onStack, sym->stack, sym->nRegs);
+              sym->rname, sym->isreqv, (void*)(sym->reqv), sym->onStack, sym->stack, sym->nRegs);
 
       if (sym->reqv)
         {       

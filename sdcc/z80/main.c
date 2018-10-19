@@ -24,6 +24,7 @@
 
 #include <sys/stat.h>
 #include "z80.h"
+#include "SDCCsymt.h"
 #include "SDCCsystem.h"
 #include "SDCCutil.h"
 #include "SDCCargs.h"
@@ -33,6 +34,7 @@
 #define OPTION_BA              "-ba"
 #define OPTION_CODE_SEG        "--codeseg"
 #define OPTION_CONST_SEG       "--constseg"
+#define OPTION_DATA_SEG        "--dataseg"
 #define OPTION_CALLEE_SAVES_BC "--callee-saves-bc"
 #define OPTION_PORTMODE        "--portmode="
 #define OPTION_ASM             "--asm="
@@ -40,6 +42,7 @@
 #define OPTION_RESERVE_IY      "--reserve-regs-iy"
 #define OPTION_OLDRALLOC       "--oldralloc"
 #define OPTION_FRAMEPOINTER    "--fno-omit-frame-pointer"
+#define OPTION_EMIT_EXTERNS    "--emit-externs"
 
 static char _z80_defaultRules[] = {
 #include "peeph.rul"
@@ -51,12 +54,16 @@ Z80_OPTS z80_opts;
 
 static OPTION _z80_options[] = {
   {0, OPTION_CALLEE_SAVES_BC, &z80_opts.calleeSavesBC, "Force a called function to always save BC"},
+  {0, OPTION_PORTMODE,        NULL, "Determine PORT I/O mode (z80/z180)"},
+  {0, OPTION_ASM,             NULL, "Define assembler name (rgbds/asxxxx/isas/z80asm)"},
   {0, OPTION_CODE_SEG,        &options.code_seg, "<name> use this name for the code segment", CLAT_STRING},
   {0, OPTION_CONST_SEG,       &options.const_seg, "<name> use this name for the const segment", CLAT_STRING},
-  {0, OPTION_NO_STD_CRT0,     &options.no_std_crt0, "For the z80 do not link default crt0.rel"},
+  {0, OPTION_DATA_SEG,        &options.data_seg, "<name> use this name for the data segment", CLAT_STRING},
+  {0, OPTION_NO_STD_CRT0,     &options.no_std_crt0, "For the z80/gbz80 do not link default crt0.rel"},
   {0, OPTION_RESERVE_IY,      &z80_opts.reserveIY, "Do not use IY (incompatible with --fomit-frame-pointer)"},
   {0, OPTION_OLDRALLOC,       &options.oldralloc, "Use old register allocator"},
   {0, OPTION_FRAMEPOINTER,    &z80_opts.noOmitFramePtr, "Do not omit frame pointer"},
+  {0, OPTION_EMIT_EXTERNS,    NULL, "Emit externs list in generated asm"},
   {0, NULL}
 };
 
@@ -75,6 +82,7 @@ static struct
   ASM_TYPE asmType;
   /* determine if we can register a parameter */
   int regParams;
+  bool z88dk_fastcall;
 }
 _G;
 
@@ -82,25 +90,27 @@ static char *_keywords[] = {
   "sfr",
   "nonbanked",
   "banked",
-  "at",                         //.p.t.20030714 adding support for 'sfr at ADDR' construct
-  "_naked",                     //.p.t.20030714 adding support for '_naked' functions
+  "at",
+  "_naked",
   "critical",
   "interrupt",
+  "z88dk_fastcall",
+  "z88dk_callee",
+  "smallc",
   NULL
 };
 
+
 extern PORT z80_port;
-extern PORT r2k_port;
-extern PORT gbz80_port;
 
 #include "mappings.i"
 
 static builtins _z80_builtins[] = {
-  {"__builtin_memcpy", "vg*", 3, {"vg*", "Cvg*", "ui"}},
+  {"__builtin_memcpy", "vg*", 3, {"vg*", "Cvg*", "Ui"}},
   {"__builtin_strcpy", "cg*", 2, {"cg*", "Ccg*"}},
-  {"__builtin_strncpy", "cg*", 3, {"cg*", "Ccg*", "ui"}},
+  {"__builtin_strncpy", "cg*", 3, {"cg*", "Ccg*", "Ui"}},
   {"__builtin_strchr", "cg*", 2, {"Ccg*", "i"}},
-  {"__builtin_memset", "vg*", 3, {"vg*", "i", "ui"}},
+  {"__builtin_memset", "vg*", 3, {"vg*", "i", "Ui"}},
   {NULL, NULL, 0, {NULL}}
 };
 
@@ -112,7 +122,7 @@ _z80_init (void)
 }
 
 static void
-_reset_regparm (void)
+_reset_regparm (struct sym_link *funcType)
 {
   _G.regParams = 0;
 }
@@ -141,6 +151,7 @@ _reg_parm (sym_link * l, bool reentrant)
         }
     }
 }
+
 
 enum
 {
@@ -240,6 +251,18 @@ do_pragma (int id, const char *name, const char *cp)
         if (!strcmp (str, "z80"))
           {
             z80_opts.port_mode = 80;
+          }
+        else if (!strcmp (str, "z180"))
+          {
+            z80_opts.port_mode = 180;
+          }
+        else if (!strcmp (str, "save"))
+          {
+            z80_opts.port_back = z80_opts.port_mode;
+          }
+        else if (!strcmp (str, "restore"))
+          {
+            z80_opts.port_mode = z80_opts.port_back;
           }
         else
           err = 1;
@@ -382,7 +405,7 @@ _setValues (void)
   Safe_free ((void *) s);
 
   setMainValue ("z80outputtypeflag", "-i");
-  setMainValue ("z80outext", ".bin");
+  setMainValue ("z80outext", ".ihx");
 
   setMainValue ("stdobjdstfilename", "{dstfilename}{objext}");
   setMainValue ("stdlinkdstfilename", "{dstfilename}{z80outext}");
@@ -416,17 +439,18 @@ static void
 _setDefaultOptions (void)
 {
   /* SirCmpwn NOTE: We may want to change these defaults at some point, particular with respect to code locations */
+
   options.nopeep = 0;
   options.stackAuto = 1;
   /* first the options part */
   options.intlong_rent = 1;
   options.float_rent = 1;
-  options.noRegParams = 1;
+  options.noRegParams = 0;
   /* Default code and data locations. */
   options.code_loc = 0x200;
 
   options.data_loc = 0x8000;
-  options.out_fmt = '\0';        /* Default output format is ihx */
+  options.out_fmt = 'i';        /* Default output format is ihx */
 }
 
 static const char *
@@ -438,6 +462,30 @@ _getRegName (const struct reg_info *reg)
     }
   /*  assert (0); */
   return "err";
+}
+
+static int
+_getRegByName (const char *name)
+{
+  if (!strcmp (name, "a"))
+    return 0;
+  if (!strcmp (name, "c"))
+    return 1;
+  if (!strcmp (name, "b"))
+    return 2;
+  if (!strcmp (name, "e"))
+    return 3;
+  if (!strcmp (name, "d"))
+    return 4;
+  if (!strcmp (name, "l"))
+    return 5;
+  if (!strcmp (name, "h"))
+    return 6;
+  if (!strcmp (name, "iyl"))
+    return 7;
+  if (!strcmp (name, "iyh"))
+    return 8;
+  return -1;
 }
 
 static bool
@@ -457,12 +505,12 @@ _hasNativeMulFor (iCode *ic, sym_link *left, sym_link *right)
     test = right;
   /* 8x8 unsigned multiplication code is shorter than
      call overhead for the multiplication routine. */
-  else if (IS_CHAR (right) && IS_UNSIGNED (right) && IS_CHAR (left) && IS_UNSIGNED (left))
+  else if (IS_CHAR (right) && IS_UNSIGNED (right) && IS_CHAR (left) && IS_UNSIGNED (left) && !IS_GB)
     {
       return TRUE;
     }
   /* Same for any multiplication with 8 bit result. */
-  else if (result_size == 1)
+  else if (result_size == 1 && !IS_GB)
     {
       return TRUE;
     }
@@ -522,7 +570,6 @@ static const char *_z80AsmCmd[] = {
 };
 
 static const char *const _crt[] = { "knightos-crt0.o", NULL, };
-
 static const char *const _libs_z80[] = { "z80", NULL, };
 
 /* Globals */

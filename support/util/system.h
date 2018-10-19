@@ -32,6 +32,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#define	xstrdup(_str) strdup(_str)
+#define xstrdup(_str) strdup(_str)
 
 #endif  /* _SYSTEM_H */
