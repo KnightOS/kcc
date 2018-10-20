@@ -1636,12 +1636,12 @@ createInterruptVect (struct dbuf_s *vBuf)
 }
 
 char *iComments1 = {
-  ";--------------------------------------------------------\n"
-  "; File Created by SDCC : free open source ANSI-C Compiler\n"
+  ";-------------------------------------------------------\n"
+  "; File Created by KCC : free open source ANSI-C Compiler\n"
 };
 
 char *iComments2 = {
-  ";--------------------------------------------------------\n"
+  ";-------------------------------------------------------\n"
 };
 
 
