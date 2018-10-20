@@ -61,7 +61,7 @@ void cleanupFile(const char *file) {
 	std::string line, o_line;
 	bool dirty = false;
 	// Keep the first five lines
-	for (int i = 0; i < 5; i++) {
+	for (int i = 0; i < 4; i++) {
 		std::getline(asm_file, o_line);
 		buffer.push_back(o_line);
 	}
