@@ -67,19 +67,9 @@ static OPTION _z80_options[] = {
   {0, NULL}
 };
 
-typedef enum
-{
-  /* Must be first */
-  ASM_TYPE_ASXXXX,
-  ASM_TYPE_RGBDS,
-  ASM_TYPE_ISAS,
-  ASM_TYPE_Z80ASM
-}
-ASM_TYPE;
 
 static struct
 {
-  ASM_TYPE asmType;
   /* determine if we can register a parameter */
   int regParams;
   bool z88dk_fastcall;
@@ -118,7 +108,7 @@ static void
 _z80_init (void)
 {
   z80_opts.sub = SUB_Z80;
-  asm_addTree (&_asxxxx_z80);
+  asm_addTree (&_scas_z80);
 }
 
 static void
@@ -187,24 +177,7 @@ do_pragma (int id, const char *name, const char *cp)
             break;
 
           case TOKEN_INT:
-            switch (_G.asmType)
-              {
-              case ASM_TYPE_ASXXXX:
-                dbuf_printf (&buffer, "CODE_%d", token.val.int_val);
-                break;
-
-              case ASM_TYPE_RGBDS:
-                dbuf_printf (&buffer, "CODE,BANK[%d]", token.val.int_val);
-                break;
-
-              case ASM_TYPE_ISAS:
-                /* PENDING: what to use for ISAS? */
-                dbuf_printf (&buffer, "CODE,BANK(%d)", token.val.int_val);
-                break;
-
-              default:
-                wassert (0);
-              }
+            dbuf_printf (&buffer, "CODE_%d", token.val.int_val);
             break;
 
           default:

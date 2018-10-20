@@ -400,7 +400,7 @@ err_no_line:
   return dbuf_detach_c_str (&line);
 }
 
-static const ASM_MAPPING _asxxxx_mapping[] = {
+static const ASM_MAPPING _scas_mapping[] = {
   {"labeldef", "%s::"},
   {"slabeldef", "%s:"},
   {"tlabeldef", "%05d$:"},
@@ -452,114 +452,8 @@ static const ASM_MAPPING _asxxxx_mapping[] = {
   {NULL, NULL}
 };
 
-#if 0
-/* not used */
-static const ASM_MAPPING _gas_mapping[] = {
-  {"labeldef", "%s::"},
-  {"slabeldef", "%s:"},
-  {"tlabeldef", "%05d$:"},
-  {"tlabel", "%05d$"},
-  {"immed", "#"},
-  {"zero", "#0x00"},
-  {"one", "#0x01"},
-  {"area", ".section %s"},
-  {"areacode", ".section %s"},
-  {"areadata", ".section %s"},
-  {"areahome", ".section %s"},
-  {"ascii", ".ascii \"%s\""},
-  {"ds", ".ds %d"},
-  {"db", ".db"},
-  {"dbs", ".db %s"},
-  {"dw", ".dw"},
-  {"dws", ".dw %s"},
-  {"constbyte", "0x%02X"},
-  {"constword", "0x%04X"},
-  {"immedword", "#0x%04X"},
-  {"immedbyte", "#0x%02X"},
-  {"hashedstr", "#%s"},
-  {"lsbimmeds", "#<%s"},
-  {"msbimmeds", "#>%s"},
-  {"module", ".file \"%s.c\""},
-  {"global", ".globl %s"},
-  {"extern", ".globl %s"},
-  {"fileprelude", ""},
-  {"functionheader",
-   "; ---------------------------------\n"
-   "; Function %s\n"
-   "; ---------------------------------"},
-  {"functionlabeldef", "%s:"},
-  {"globalfunctionlabeldef", "%s::"},
-  {"bankimmeds", "0     ; PENDING: bank support"},
-  {NULL, NULL}
-};
-#endif
 
-static const ASM_MAPPING _a390_mapping[] = {
-  {"labeldef", "%s:"},
-  {"slabeldef", "%s:"},
-  {"tlabeldef", "L%05d:"},
-  {"tlabel", "L%05d"},
-  {"immed", "#"},
-  {"zero", "#0"},
-  {"one", "#1"},
-  {"area", "; SECTION NOT SUPPORTED"},
-  {"areacode", "; SECTION NOT SUPPORTED"},
-  {"areadata", "; SECTION NOT SUPPORTED"},
-  {"areahome", "; SECTION NOT SUPPORTED"},
-  {"ascii", "db \"%s\""},
-  {"ds", "; STORAGE NOT SUPPORTED"},
-  {"db", "db"},
-  {"dbs", "db \"%s\""},
-  {"dw", "dw"},
-  {"dws", "dw %s"},
-  {"constbyte", "0%02xh"},
-  {"constword", "0%04xh"},
-  {"immedword", "#0%04Xh"},
-  {"immedbyte", "#0%02Xh"},
-  {"hashedstr", "#%s"},
-  {"lsbimmeds", "#<%s"},
-  {"msbimmeds", "#>%s"},
-  {"module", "; .file \"%s.c\""},
-  {"global", "; .globl %s"},
-  {"fileprelude", ""},
-  {"functionheader",
-   "; ---------------------------------\n"
-   "; Function %s\n"
-   "; ---------------------------------"},
-  {"functionlabeldef", "%s:"},
-  {"globalfunctionlabeldef", "%s::"},
-  {"bankimmeds", "0     ; PENDING: bank support"},
-  {"los", "(%s & 0FFh)"},
-  {"his", "((%s / 256) & 0FFh)"},
-  {"hihis", "((%s / 65536) & 0FFh)"},
-  {"hihihis", "((%s / 16777216) & 0FFh)"},
-  {"lod", "(%d & 0FFh)"},
-  {"hid", "((%d / 256) & 0FFh)"},
-  {"hihid", "((%d / 65536) & 0FFh)"},
-  {"hihihid", "((%d / 16777216) & 0FFh)"},
-  {"lol", "(L%05d & 0FFh)"},
-  {"hil", "((L%05d / 256) & 0FFh)"},
-  {"hihil", "((L%05d / 65536) & 0FFh)"},
-  {"hihihil", "((L%09d / 16777216) & 0FFh)"},
-  {"equ", " equ"},
-  {"org", ".org 0x%04X"},
-  {NULL, NULL}
-};
-
-const ASM_MAPPINGS asm_asxxxx_mapping = {
+const ASM_MAPPINGS asm_scas_mapping = {
   NULL,
-  _asxxxx_mapping
-};
-
-#if 0
-/* not used */
-const ASM_MAPPINGS asm_gas_mapping = {
-  NULL,
-  _gas_mapping
-};
-#endif
-
-const ASM_MAPPINGS asm_a390_mapping = {
-  NULL,
-  _a390_mapping
+  _scas_mapping
 };

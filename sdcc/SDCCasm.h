@@ -44,14 +44,9 @@ struct _ASM_MAPPINGS
   const ASM_MAPPING *pMappings;
 };
 
-/* The default asxxxx token mapping.
+/* The default scas token mapping.
  */
-extern const ASM_MAPPINGS asm_asxxxx_mapping;
-#if 0
-/* not used */
-extern const ASM_MAPPINGS asm_gas_mapping;
-#endif
-extern const ASM_MAPPINGS asm_a390_mapping;
+extern const ASM_MAPPINGS asm_scas_mapping;
 
 /** Last entry has szKey = NULL.
  */
