@@ -7,6 +7,8 @@ find_package(BISON REQUIRED)
 find_package(FLEX REQUIRED)
 find_package(Boost REQUIRED)
 
+set(CMAKE_CXX_STANDARD 11)
+
 set(LIBS ${LIBS})
 
 include_directories(
