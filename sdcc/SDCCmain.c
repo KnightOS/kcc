@@ -1515,7 +1515,7 @@ linkEdit (char **envp)
 
   tb = setPrefixSuffix (buf);
   if (options.verbose)
-    printf ("sdcc: %s\n", tb);
+    printf ("kcc: %s\n", tb);
   system_ret = sdcc_system (tb);
 
   dbuf_destroy (&binFileName);
@@ -1574,7 +1574,7 @@ assemble (char **envp)
       tb = setPrefixSuffix (buf);
 
       if (options.verbose)
-        printf ("sdcc: %s\n", tb);
+        printf ("kcc: %s\n", tb);
       if (sdcc_system (tb))
         {
           Safe_free (buf);
@@ -1781,11 +1781,11 @@ preProcess (char **envp)
         }
       
       if (options.verbose)
-        printf ("sdcc: Calling preprocessor...\n");
+        printf ("kcc: Calling preprocessor...\n");
       buf = buildMacros (_preCmd);
       buf = setPrefixSuffix (buf);
       if (options.verbose)
-        printf ("sdcc: %s\n", buf);
+        printf ("kcc: %s\n", buf);
 
       if (preProcOnly)
         {
@@ -2177,7 +2177,7 @@ main (int argc, char **argv, char **envp)
       initPeepHole ();
 
       if (options.verbose)
-        printf ("sdcc: Generating code...\n");
+        printf ("kcc: Generating code...\n");
 
       yyparse ();
 
@@ -2204,7 +2204,7 @@ main (int argc, char **argv, char **envp)
       if (!options.c1mode && !noAssemble)
         {
           if (options.verbose)
-            printf ("sdcc: Calling assembler...\n");
+            printf ("kcc: Calling assembler...\n");
           assemble (envp);
         }
     }
@@ -2216,7 +2216,7 @@ main (int argc, char **argv, char **envp)
   if (!options.cc_only && !fatalError && !noAssemble && !options.c1mode && (fullSrcFileName || peekSet (relFilesSet) != NULL))
     {
       if (options.verbose)
-        printf ("sdcc: Calling linker...\n");
+        printf ("kcc: Calling linker...\n");
 
       if (port->linker.do_link)
         port->linker.do_link ();
