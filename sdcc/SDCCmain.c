@@ -161,7 +161,7 @@ char buffer[PATH_MAX * 2];
 static const OPTION optionsTable[] = {
   {0,   NULL, NULL, "General options"},
   {0,   OPTION_HELP, NULL, "Display this help"},
-  {'v', OPTION_VERSION, NULL, "Display sdcc's version"},
+  {'v', OPTION_VERSION, NULL, "Display kcc's version"},
   {0,   "--verbose", &options.verbose, "Trace calls to the preprocessor, assembler, and linker"},
   {'V', NULL, &options.verboseExec, "Execute verbosely. Show sub commands as they are run"},
   {'d', NULL, NULL, "Output list of mcaro definitions in effect. Use with -E"},
