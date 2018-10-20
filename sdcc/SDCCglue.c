@@ -1432,12 +1432,7 @@ printIvalFuncPtr (sym_link * type, initList * ilist, struct dbuf_s *oBuf)
 
   if (size == FUNCPTRSIZE)
     {
-      if (TARGET_IS_STM8 && FUNCPTRSIZE == 3)
-        {
-          _printPointerType (oBuf, name, size);
-          dbuf_printf (oBuf, "\n");
-        }
-      else if (port->use_dw_for_init)
+      if (port->use_dw_for_init)
         {
           dbuf_tprintf (oBuf, "\t!dws\n", name);
         }
@@ -1675,10 +1670,7 @@ printIvalPtr (symbol * sym, sym_link * type, initList * ilist, struct dbuf_s *oB
             dbuf_printf (oBuf, ",%s\n", aopLiteral (val, 2));
           break;
         case 4:
-          if (TARGET_IS_DS390 || TARGET_IS_DS400)
-            dbuf_printf (oBuf, "\t.byte %s,%s,%s,%s\n", aopLiteral (val, 0), aopLiteral (val, 1), aopLiteral (val, 2), aopLiteral (val, 3));
-          else
-            wassertl(0, "Printing pointer of invalid size");
+          wassertl(0, "Printing pointer of invalid size");
           break;
        default:
           wassertl(0, "Printing pointer of invalid size");
@@ -1944,8 +1936,6 @@ void
 emitMaps (void)
 {
   namedspacemap *nm;
-  int publicsfr = TARGET_IS_MCS51;      /* Ideally, this should be true for all  */
-                                        /* ports but let's be conservative - EEP */
 
   inInitMode++;
   /* no special considerations for the following
@@ -1971,8 +1961,8 @@ emitMaps (void)
     {
       emitRegularMap (xidata, TRUE, TRUE);
     }
-  emitRegularMap (sfr, publicsfr, FALSE);
-  emitRegularMap (sfrbit, publicsfr, FALSE);
+  emitRegularMap (sfr, TRUE, FALSE);
+  emitRegularMap (sfrbit, TRUE, FALSE);
   emitRegularMap (home, TRUE, FALSE);
   emitRegularMap (code, TRUE, FALSE);
 
@@ -2184,14 +2174,10 @@ glue (void)
   struct dbuf_s ovrBuf;
   struct dbuf_s asmFileName;
   FILE *asmFile;
-  int mcs51_like;
   namedspacemap *nm;
 
   dbuf_init (&vBuf, 4096);
   dbuf_init (&ovrBuf, 4096);
-
-  mcs51_like = (port->general.glue_up_main &&
-                (TARGET_IS_MCS51 || TARGET_IS_DS390 || TARGET_IS_DS400));
 
   /* print the global struct definitions */
   if (options.debug)
@@ -2237,57 +2223,9 @@ glue (void)
   /* initial comments */
   initialComments (asmFile);
 
-  if (TARGET_IS_S08)
-    fprintf (asmFile, "\t.cs08\n");
-  else if (TARGET_IS_Z180)
-    fprintf (asmFile, "\t.hd64\n");
-  else if (TARGET_IS_R3KA)
-    fprintf (asmFile, "\t.r3k\n");
-
   /* print module name */
   tfprintf (asmFile, "\t!module\n", moduleName);
-  if (mcs51_like)
-    {
-      if(!options.noOptsdccInAsm)
-        fprintf (asmFile, "\t.optsdcc -m%s", port->target);
-
-      switch (options.model)
-        {
-        case MODEL_SMALL:
-          fprintf (asmFile, " --model-small");
-          break;
-        case MODEL_COMPACT:
-          fprintf (asmFile, " --model-compact");
-          break;
-        case MODEL_MEDIUM:
-          fprintf (asmFile, " --model-medium");
-          break;
-        case MODEL_LARGE:
-          fprintf (asmFile, " --model-large");
-          break;
-        case MODEL_FLAT24:
-          fprintf (asmFile, " --model-flat24");
-          break;
-        case MODEL_HUGE:
-          fprintf (asmFile, " --model-huge");
-          break;
-        default:
-          break;
-        }
-      /*if(options.stackAuto)      fprintf (asmFile, " --stack-auto"); */
-      if (options.useXstack)
-        fprintf (asmFile, " --xstack");
-      /*if(options.intlong_rent)   fprintf (asmFile, " --int-long-rent"); */
-      /*if(options.float_rent)     fprintf (asmFile, " --float-rent"); */
-      if (options.noRegParams)
-        fprintf (asmFile, " --no-reg-params");
-      if (options.parms_in_bank1)
-        fprintf (asmFile, " --parms-in-bank1");
-      if (options.all_callee_saves)
-        fprintf (asmFile, " --all-callee-saves");
-      fprintf (asmFile, "\n");
-    }
-  else if (!TARGET_PIC_LIKE && !options.noOptsdccInAsm)
+  if (!options.noOptsdccInAsm)
     {
       fprintf (asmFile, "\t.optsdcc -m%s\n", port->target);
     }
@@ -2305,59 +2243,15 @@ glue (void)
   if (port->assembler.externGlobal)
     printExterns (asmFile);
 
-  if ((mcs51_like) || (TARGET_IS_Z80 || TARGET_IS_GBZ80 || TARGET_IS_Z180 || TARGET_IS_RABBIT))  /*.p.t.20030924 need to output SFR table for Z80 as well */
-    {
-      /* copy the sfr segment */
-      fprintf (asmFile, "%s", iComments2);
-      fprintf (asmFile, "; special function registers\n");
-      fprintf (asmFile, "%s", iComments2);
-      dbuf_write_and_destroy (&sfr->oBuf, asmFile);
-    }
-
-  if (mcs51_like)
-    {
-      /* copy the sbit segment */
-      fprintf (asmFile, "%s", iComments2);
-      fprintf (asmFile, "; special function bits\n");
-      fprintf (asmFile, "%s", iComments2);
-      dbuf_write_and_destroy (&sfrbit->oBuf, asmFile);
-
-      /*JCF: Create the areas for the register banks */
-      if (RegBankUsed[0] || RegBankUsed[1] || RegBankUsed[2] || RegBankUsed[3])
-        {
-          fprintf (asmFile, "%s", iComments2);
-          fprintf (asmFile, "; overlayable register banks\n");
-          fprintf (asmFile, "%s", iComments2);
-          if (RegBankUsed[0])
-            fprintf (asmFile, "\t.area REG_BANK_0\t(REL,OVR,DATA)\n\t.ds 8\n");
-          if (RegBankUsed[1] || options.parms_in_bank1)
-            fprintf (asmFile, "\t.area REG_BANK_1\t(REL,OVR,DATA)\n\t.ds 8\n");
-          if (RegBankUsed[2])
-            fprintf (asmFile, "\t.area REG_BANK_2\t(REL,OVR,DATA)\n\t.ds 8\n");
-          if (RegBankUsed[3])
-            fprintf (asmFile, "\t.area REG_BANK_3\t(REL,OVR,DATA)\n\t.ds 8\n");
-        }
-      if (BitBankUsed)
-        {
-          fprintf (asmFile, "%s", iComments2);
-          fprintf (asmFile, "; overlayable bit register bank\n");
-          fprintf (asmFile, "%s", iComments2);
-          fprintf (asmFile, "\t.area BIT_BANK\t(REL,OVR,DATA)\n");
-          fprintf (asmFile, "bits:\n\t.ds 1\n");
-          fprintf (asmFile, "\tb0 = bits[0]\n");
-          fprintf (asmFile, "\tb1 = bits[1]\n");
-          fprintf (asmFile, "\tb2 = bits[2]\n");
-          fprintf (asmFile, "\tb3 = bits[3]\n");
-          fprintf (asmFile, "\tb4 = bits[4]\n");
-          fprintf (asmFile, "\tb5 = bits[5]\n");
-          fprintf (asmFile, "\tb6 = bits[6]\n");
-          fprintf (asmFile, "\tb7 = bits[7]\n");
-        }
-    }
+  /* copy the sfr segment */
+  fprintf (asmFile, "%s", iComments2);
+  fprintf (asmFile, "; special function registers\n");
+  fprintf (asmFile, "%s", iComments2);
+  dbuf_write_and_destroy (&sfr->oBuf, asmFile);
 
   /* copy the data segment */
   fprintf (asmFile, "%s", iComments2);
-  fprintf (asmFile, ";%s ram data\n", mcs51_like ? " internal" : "");
+  fprintf (asmFile, ";%s ram data\n", "");
   fprintf (asmFile, "%s", iComments2);
   dbuf_write_and_destroy (&data->oBuf, asmFile);
 
@@ -2365,7 +2259,7 @@ glue (void)
   if (initialized)
     {
       fprintf (asmFile, "%s", iComments2);
-      fprintf (asmFile, ";%s ram data\n", mcs51_like ? " internal" : "");
+      fprintf (asmFile, ";%s ram data\n", "");
       fprintf (asmFile, "%s", iComments2);
       dbuf_write_and_destroy (&initialized->oBuf, asmFile);
     }
@@ -2383,7 +2277,7 @@ glue (void)
   if (overlay)
     {
       fprintf (asmFile, "%s", iComments2);
-      fprintf (asmFile, "; overlayable items in%s ram \n", mcs51_like ? " internal" : "");
+      fprintf (asmFile, "; overlayable items in%s ram \n", "");
       fprintf (asmFile, "%s", iComments2);
       dbuf_write_and_destroy (&ovrBuf, asmFile);
     }
@@ -2410,7 +2304,7 @@ glue (void)
   if (d_abs || i_abs)
     {
       fprintf (asmFile, "%s", iComments2);
-      fprintf (asmFile, "; absolute%s ram data\n", mcs51_like ? " internal" : "");
+      fprintf (asmFile, "; absolute%s ram data\n", "");
       fprintf (asmFile, "%s", iComments2);
       if (d_abs)
         dbuf_write_and_destroy (&d_abs->oBuf, asmFile);
@@ -2443,15 +2337,6 @@ glue (void)
       fprintf (asmFile, "; external stack \n");
       fprintf (asmFile, "%s", iComments2);
       fprintf (asmFile, "\t.area XSTK (PAG,XDATA)\n" "__start__xstack:\n\t.ds\t1\n\n");
-    }
-
-  /* copy external ram data */
-  if (xdata && mcs51_like)
-    {
-      fprintf (asmFile, "%s", iComments2);
-      fprintf (asmFile, "; external ram data\n");
-      fprintf (asmFile, "%s", iComments2);
-      dbuf_write_and_destroy (&xdata->oBuf, asmFile);
     }
 
   /* create the absolute xdata segment */
@@ -2525,10 +2410,7 @@ glue (void)
        * by the ugly shucking and jiving about 20 lines ago.
        */
       tfprintf (asmFile, "\t!area\n", port->mem.post_static_name);
-      if(TARGET_IS_STM8)
-        fprintf (asmFile, "\tjp\t__sdcc_program_startup\n");
-      else
-        fprintf (asmFile, "\t%cjmp\t__sdcc_program_startup\n", options.acall_ajmp ? 'a' : 'l');
+      fprintf (asmFile, "\t%cjmp\t__sdcc_program_startup\n", options.acall_ajmp ? 'a' : 'l');
     }
 
   fprintf (asmFile, "%s" "; Home\n" "%s", iComments2, iComments2);
@@ -2546,10 +2428,7 @@ glue (void)
       fprintf (asmFile, "__sdcc_program_startup:\n");
 
       /* put in jump or call to main */
-      if(TARGET_IS_STM8)
-        fprintf (asmFile, options.model == MODEL_LARGE ? "\tjpf\t_main\n" : "\tjp\t_main\n");
-      else
-        fprintf (asmFile, "\t%cjmp\t_main\n", options.acall_ajmp ? 'a' : 'l');        /* needed? */
+      fprintf (asmFile, "\t%cjmp\t_main\n", options.acall_ajmp ? 'a' : 'l');        /* needed? */
       fprintf (asmFile, ";\treturn from main will return to caller\n");
     }
   /* copy over code */
