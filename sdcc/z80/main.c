@@ -505,12 +505,12 @@ _hasNativeMulFor (iCode *ic, sym_link *left, sym_link *right)
     test = right;
   /* 8x8 unsigned multiplication code is shorter than
      call overhead for the multiplication routine. */
-  else if (IS_CHAR (right) && IS_UNSIGNED (right) && IS_CHAR (left) && IS_UNSIGNED (left) && !IS_GB)
+  else if (IS_CHAR (right) && IS_UNSIGNED (right) && IS_CHAR (left) && IS_UNSIGNED (left))
     {
       return TRUE;
     }
   /* Same for any multiplication with 8 bit result. */
-  else if (result_size == 1 && !IS_GB)
+  else if (result_size == 1)
     {
       return TRUE;
     }
@@ -572,95 +572,91 @@ static const char *_z80AsmCmd[] = {
 static const char *const _crt[] = { "knightos-crt0.o", NULL, };
 static const char *const _libs_z80[] = { "z80", NULL, };
 
-/* Globals */
-PORT z80_port = {
+
+PORT z80_port =
+{
   3 /* SirCmpwn NOTE: This was TARGET_ID_Z80, which isn't in use in theory. We should eventually get rid of port targets. */,
   "z80",
   "Zilog Z80",                  /* Target name */
   NULL,                         /* Processor name */
   {
-   glue,
-   FALSE,
-   NO_MODEL,
-   NO_MODEL,
-   NULL,                        /* model == target */
-   },
+    glue,
+    FALSE,
+    NO_MODEL,
+    NO_MODEL,
+    NULL,                       /* model == target */
+  },
   {                             /* Assembler */
-   _z80AsmCmd,
-   NULL,
-   "-o",                /* Options with debug */
-   "-o",                 /* Options without debug */
-   0,
-   ".asm"},
+    _z80AsmCmd,
+    NULL,
+    "-plosgffwy",               /* Options with debug */
+    "-plosgffw",                /* Options without debug */
+    0,
+    ".asm"
+  },
   {                             /* Linker */
-   _z80LinkCmd,                 //NULL,
-   NULL,                        //LINKCMD,
-   NULL,
-   "",
-   1,
-   _crt,                        /* crt */
-   _libs_z80,                   /* libs */
-   },
+    _z80LinkCmd,                //NULL,
+    NULL,                       //LINKCMD,
+    NULL,
+    "",
+    1,                          /* needLinkerScript */
+    _crt,                       /* crt */
+    _libs_z80,                  /* libs */
+  },
   {                             /* Peephole optimizer */
-   _z80_defaultRules,
-   z80instructionSize,
-   0,
-   0,
-   0,
-   z80notUsed,
-   z80canAssign,
-   z80notUsedFrom,
-   },
-  {
-   /* Sizes: char, short, int, long, long long, ptr, fptr, gptr, bit, float, max */
-   1, 2, 2, 4, 8, 2, 2, 2, 1, 4, 4},
+    _z80_defaultRules,
+    z80instructionSize,
+    0,
+    0,
+    0,
+    z80notUsed,
+    z80canAssign,
+    z80notUsedFrom,
+    z80symmParmStack,
+  },
+  /* Sizes: char, short, int, long, long long, near ptr, far ptr, gptr, func ptr, banked func ptr, bit, float */
+  { 1, 2, 2, 4, 8, 2, 2, 2, 2, 2, 1, 4 },
   /* tags for generic pointers */
-  {0x00, 0x40, 0x60, 0x80},     /* far, near, xstack, code */
+  { 0x00, 0x40, 0x60, 0x80 },   /* far, near, xstack, code */
   {
-   "XSEG",
-   "STACK",
-   "CODE",
-   "DATA",
-   NULL,                        /* idata */
-   NULL,                        /* pdata */
-   NULL,                        /* xdata */
-   NULL,                        /* bit */
-   "RSEG (ABS)",
-   "GSINIT",                    /* static initialization */
-   NULL,                        /* overlay */
-   "GSFINAL",
-   "CODE",
-   NULL,                        /* xidata */
-   NULL,                        /* xinit */
-   NULL,                        /* const_name */
-   "CABS (ABS)",                /* cabs_name */
-   "DABS (ABS)",                /* xabs_name */
-   NULL,                        /* iabs_name */
-   "INITIALIZED",               /* name of segment for initialized variables */
-   "INITIALIZER",               /* name of segment for copies of initialized variables in code space */
-   NULL,
-   NULL,
-   1,                           /* CODE  is read-only */
-   1                            /* No fancy alignments supported. */
-   },
-  {NULL, NULL},
+    "XSEG",
+    "STACK",
+    "CODE",
+    "DATA",
+    NULL,                       /* idata */
+    NULL,                       /* pdata */
+    NULL,                       /* xdata */
+    NULL,                       /* bit */
+    "RSEG (ABS)",
+    "GSINIT",                   /* static initialization */
+    NULL,                       /* overlay */
+    "GSFINAL",
+    "HOME",
+    NULL,                       /* xidata */
+    NULL,                       /* xinit */
+    NULL,                       /* const_name */
+    "CABS (ABS)",               /* cabs_name */
+    "DABS (ABS)",               /* xabs_name */
+    NULL,                       /* iabs_name */
+    "INITIALIZED",              /* name of segment for initialized variables */
+    "INITIALIZER",              /* name of segment for copies of initialized variables in code space */
+    NULL,
+    NULL,
+    1,                          /* CODE  is read-only */
+    1                           /* No fancy alignments supported. */
+  },
+  { NULL, NULL },
+  { -1, 0, 0, 4, 0, 2, 0 },
+  { -1, FALSE },
+  { z80_emitDebuggerSymbol },
   {
-   -1, 0, 0, 4, 0, 2},
-  /* Z80 has no native mul/div commands */
-  {
-   0, -1},
-  {
-   z80_emitDebuggerSymbol},
-  {
-   255,                         /* maxCount */
-   3,                           /* sizeofElement */
-   /* The rest of these costs are bogus. They approximate */
-   /* the behavior of src/SDCCicode.c 1.207 and earlier.  */
-   {4, 4, 4},                   /* sizeofMatchJump[] */
-   {0, 0, 0},                   /* sizeofRangeCompare[] */
-   0,                           /* sizeofSubtract */
-   3,                           /* sizeofDispatch */
-   },
+    256,                        /* maxCount */
+    3,                          /* sizeofElement */
+    {6, 7, 8},                  /* sizeofMatchJump[] - Assumes operand allocated to registers */
+    {6, 9, 15},                 /* sizeofRangeCompare[] - Assumes operand allocated to registers*/
+    1,                          /* sizeofSubtract - Assumes use of a singel inc or dec */
+    9,                          /* sizeofDispatch - Assumes operand allocated to register e or c*/
+  },
   "_",
   _z80_init,
   _parseOptions,
@@ -670,6 +666,7 @@ PORT z80_port = {
   _setDefaultOptions,
   z80_assignRegisters,
   _getRegName,
+  _getRegByName,
   NULL,
   _keywords,
   0,                            /* no assembler preamble */
