@@ -734,7 +734,7 @@ mergeSpec (sym_link * dest, sym_link * src, const char *name)
   if ((SPEC_SHORT (src)  || SPEC_LONG (src)  || SPEC_LONGLONG (src)) &&
       (SPEC_SHORT (dest) || SPEC_LONG (dest) || SPEC_LONGLONG (dest)))
     {
-      if (!(options.std_c99 && SPEC_LONG (src) && SPEC_LONG (dest) && !TARGET_PIC_LIKE)) /* C99 has long long */
+      if (!(options.std_c99 && SPEC_LONG (src) && SPEC_LONG (dest))) /* C99 has long long */
         werror (E_SHORTLONG, name);
     }
 
@@ -1632,27 +1632,12 @@ compStructSize (int su, structdef * sdef)
                 }
               else
                 {
-                  if (TARGET_IS_PIC16 && getenv ("PIC16_PACKED_BITFIELDS"))
-                    {
-                      /* if PIC16 && enviroment variable is set, then
-                       * tightly pack bitfields, this means that when a
-                       * bitfield goes beyond byte alignment, do not
-                       * automatically start allocatint from next byte,
-                       * but also use the available bits first */
-                      fprintf (stderr, ": packing bitfields in structures\n");
-                      SPEC_BSTR (loop->etype) = bitOffset;
-                      bitOffset += loop->bitVar;
-                      loop->offset = (su == UNION ? sum = 0 : sum);
-                    }
-                  else
-                    {
-                      /* does not fit; need to realign first */
-                      sum++;
-                      loop->offset = (su == UNION ? sum = 0 : sum);
-                      bitOffset = 0;
-                      SPEC_BSTR (loop->etype) = bitOffset;
-                      bitOffset += loop->bitVar;
-                    }
+                  /* does not fit; need to realign first */
+                  sum++;
+                  loop->offset = (su == UNION ? sum = 0 : sum);
+                  bitOffset = 0;
+                  SPEC_BSTR (loop->etype) = bitOffset;
+                  bitOffset += loop->bitVar;
                 }
               while (bitOffset > 8)
                 {
@@ -1835,33 +1820,8 @@ checkSClass (symbol *sym, int isProto)
   /* if absolute address given then it mark it as
      volatile -- except in the PIC port */
 
-#if !OPT_DISABLE_PIC14 || !OPT_DISABLE_PIC16
-  /* The PIC port uses a different peep hole optimizer based on "pCode" */
-  if (!TARGET_PIC_LIKE)
-#endif
-
     if (IS_ABSOLUTE (sym->etype))
       SPEC_VOLATILE (sym->etype) = 1;
-
-  if (TARGET_IS_MCS51 && IS_ABSOLUTE (sym->etype) && SPEC_SCLS (sym->etype) == S_SFR)
-    {
-      int n, size;
-      unsigned addr;
-
-      if (SPEC_NOUN (sym->etype) == V_CHAR)
-        size = 8;
-      else if (SPEC_LONG (sym->etype) == 0)
-        size = 16;
-      else if (SPEC_LONGLONG (sym->etype) == 0)
-        size = 32;
-      else
-        size = 64;
-
-      addr = SPEC_ADDR (sym->etype);
-      for (n = 0; n < size; n += 8)
-        if (((addr >> n) & 0xFF) < 0x80)
-          werror (W_SFR_ABSRANGE, sym->name);
-    }
 
   /* If code memory is read only, then pointers to code memory */
   /* implicitly point to constants -- make this explicit       */
@@ -2300,8 +2260,6 @@ computeType (sym_link * type1, sym_link * type2, RESULT_TYPE resultType, int op)
   switch (resultType)
     {
     case RESULT_TYPE_IFX:
-      if (TARGET_HC08_LIKE)
-        break;
       //fallthrough
     case RESULT_TYPE_BOOL:
       if (op == ':')
@@ -2839,7 +2797,7 @@ compareTypeExact (sym_link * dest, sym_link * src, long level)
           if (srcScls == S_FIXED)
             srcScls = (options.useXstack ? S_XSTACK : S_STACK);
         }
-      else if (TARGET_IS_DS390 || TARGET_IS_DS400 || options.useXstack || TARGET_IS_HC08 || TARGET_IS_S08)
+      else if (options.useXstack)
         {
           if (destScls == S_FIXED)
             destScls = S_XDATA;
@@ -4314,7 +4272,7 @@ initCSupport (void)
           dbuf_init (&dbuf, 128);
           dbuf_printf (&dbuf, "_%s%s%s", smuldivmod[muldivmod], ssu[su], sbwd[bwd]);
           muldiv[muldivmod][bwd][su] =
-            funcOfType (_mangleFunctionName (dbuf_c_str (&dbuf)), multypes[(TARGET_IS_PIC16 && muldivmod == 1 && bwd == 0 && su == 0 || (TARGET_IS_STM8 || TARGET_Z80_LIKE) && bwd == 0) ? 1 : bwd][su % 2], multypes[bwd][su / 2], 2,
+            funcOfType (_mangleFunctionName (dbuf_c_str (&dbuf)), multypes[bwd][su % 2], multypes[bwd][su / 2], 2,
                         options.intlong_rent);
           dbuf_destroy (&dbuf);
         }
@@ -4331,7 +4289,7 @@ initCSupport (void)
               dbuf_init (&dbuf, 128);
               dbuf_printf (&dbuf, "_%s%s%s", smuldivmod[muldivmod], ssu[su * 3], sbwd[bwd]);
               muldiv[muldivmod][bwd][su] =
-                funcOfType (_mangleFunctionName (dbuf_c_str (&dbuf)), multypes[(TARGET_IS_PIC16 && muldivmod == 1 && bwd == 0 && su == 0 || (TARGET_IS_STM8 || TARGET_Z80_LIKE) && bwd == 0) ? 1 : bwd][su], multypes[bwd][su], 2,
+                funcOfType (_mangleFunctionName (dbuf_c_str (&dbuf)), multypes[bwd][su], multypes[bwd][su], 2,
                             options.intlong_rent);
               dbuf_destroy (&dbuf);
             }

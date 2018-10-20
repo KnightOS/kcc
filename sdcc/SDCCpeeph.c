@@ -322,8 +322,6 @@ FBYNAME (labelIsReturnOnly)
     ;
 
   retInst = "ret";
-  if (TARGET_HC08_LIKE)
-    retInst = "rts";
   if (strcmp(p, retInst) == 0)
     return TRUE;
   return FALSE;
@@ -401,26 +399,9 @@ FBYNAME (labelIsUncondJump)
   while (*p && ISCHARSPACE(*p))
     p++;
 
-  if (TARGET_MCS51_LIKE)
-    {
-      jpInst = "ljmp";
-      jpInst2 = "sjmp";
-    }
-  else if (TARGET_HC08_LIKE)
-    {
-      jpInst = "jmp";
-      jpInst2 = "bra";
-    }
-  else if (TARGET_Z80_LIKE)
-    {
-      jpInst = "jp";
-      jpInst2 = "jr";
-    }
-  else if (TARGET_IS_STM8)
-    {
-      jpInst = (options.model == MODEL_LARGE ? "jpf" : "jp");
-      jpInst2 = "jra";
-    }
+  jpInst = "jp";
+  jpInst2 = "jr";
+
   len = strlen(jpInst);
   if (strncmp(p, jpInst, len))
     {
@@ -442,13 +423,10 @@ FBYNAME (labelIsUncondJump)
   if (len == 0)
     return FALSE; /* no destination? */
 
-  if (TARGET_Z80_LIKE)
-    {
-      while (q>p && *q!=',')
-        q--;
-      if (*q==',')
-        return FALSE; /* conditional jump */
-    }
+  while (q>p && *q!=',')
+    q--;
+  if (*q==',')
+    return FALSE; /* conditional jump */
 
   /* now put the destination in %6 */
   bindVar (6, &p, &vars);
@@ -683,50 +661,21 @@ notVolatileVariable(const char *var, lineNode *currPl, lineNode *endPl)
   /* Can't tell if indirect accesses are volatile or not, so
   ** assume they are, just to be safe.
   */
-  if (TARGET_IS_MCS51 || TARGET_IS_DS390 || TARGET_IS_DS400)
-    {
-      if (*var=='@')
-        return false;
-    }
-  if (TARGET_Z80_LIKE)
-    {
-      if (var[0] == '#')
-        return true;
-      if (var[0] == '(')
-        return false;
-      if (strstr (var, "(bc)"))
-        return false;
-      if (strstr (var, "(de)"))
-        return false;
-      if (strstr (var, "(hl)"))
-        return false;
-      if (strstr (var, "(ix"))
-        return false;
-      if (strstr (var, "(iy"))
-        return false;
-    }
 
-  if (TARGET_IS_STM8)
-    {
-      if (var[0] == '#')
-        return true;
-      if (var[0] == '(')
-        return false;
-      if (strstr (var, "(x)"))
-        return false;
-      if (strstr (var, "(y)"))
-        return false;
-      if (strstr (var, ", x)"))
-        return false;
-      if (strstr (var, ", y)"))
-        return false;
-      if (strstr (var, ", sp)"))
-        return false;
-      if (strchr (var, '[') && strchr (var, ']'))
-        return false;
-      if (strstr(var, "0x") || strstr(var, "0X") || isdigit(var[0]))
-        return false;
-    }
+  if (var[0] == '#')
+    return true;
+  if (var[0] == '(')
+    return false;
+  if (strstr (var, "(bc)"))
+    return false;
+  if (strstr (var, "(de)"))
+    return false;
+  if (strstr (var, "(hl)"))
+    return false;
+  if (strstr (var, "(ix"))
+    return false;
+  if (strstr (var, "(iy"))
+    return false;
 
   /* Extract a symbol name from the variable */
   while (*vp && (*vp!='_'))
@@ -973,31 +922,19 @@ error:
 static const char *
 operandBaseName (const char *op)
 {
-  if (TARGET_IS_MCS51 || TARGET_IS_DS390 || TARGET_IS_DS400)
-    {
-      if (!strcmp (op, "acc") || !strncmp (op, "acc.", 4))
-        return "a";
-      if (!strncmp (op, "ar", 2) && ISCHARDIGIT(*(op+2)) && !*(op+3))
-        return op+1;
-      // bug 1739475, temp fix
-      if (op[0] == '@')
-        return operandBaseName(op+1);
-    }
-  if (TARGET_Z80_LIKE)
-    {
-      if (!strcmp (op, "d") || !strcmp (op, "e") || !strcmp (op, "(de)"))
-        return "de";
-      if (!strcmp (op, "b") || !strcmp (op, "c") || !strcmp (op, "(bc)"))
-        return "bc";
-      if (!strcmp (op, "h") || !strcmp (op, "l") || !strcmp (op, "(hl)") || !strcmp (op, "(hl+)")  || !strcmp (op, "(hl-)"))
-        return "hl";
-      if (!strcmp (op, "iyh") || !strcmp (op, "iyl") || strstr (op, "iy"))
-        return "iy";
-      if (!strcmp (op, "ixh") || !strcmp (op, "ixl") || strstr (op, "ix"))
-        return "ix";
-      if (!strcmp (op, "a"))
-        return "af";
-    }
+  if (!strcmp (op, "d") || !strcmp (op, "e") || !strcmp (op, "(de)"))
+    return "de";
+  if (!strcmp (op, "b") || !strcmp (op, "c") || !strcmp (op, "(bc)"))
+    return "bc";
+  if (!strcmp (op, "h") || !strcmp (op, "l") || !strcmp (op, "(hl)") || !strcmp (op, "(hl+)")  || !strcmp (op, "(hl-)"))
+    return "hl";
+  if (!strcmp (op, "iyh") || !strcmp (op, "iyl") || strstr (op, "iy"))
+    return "iy";
+  if (!strcmp (op, "ixh") || !strcmp (op, "ixl") || strstr (op, "ix"))
+    return "ix";
+  if (!strcmp (op, "a"))
+    return "af";
+
 
   return op;
 }
@@ -2394,8 +2331,6 @@ bool
 isLabelReference (const char *line, const char **start, int *len)
 {
   const char *s, *e;
-  if (!TARGET_Z80_LIKE && !TARGET_IS_STM8)
-    return FALSE;
 
   s = line;
   while (ISCHARSPACE (*s))
@@ -2560,12 +2495,6 @@ peepHole (lineNode ** pls)
   lineNode *mtail = NULL;
   bool restart, replaced;
 
-#if !OPT_DISABLE_PIC14 || !OPT_DISABLE_PIC16
-  /* The PIC port uses a different peep hole optimizer based on "pCode" */
-  if (TARGET_PIC_LIKE)
-    return;
-#endif
-
   assert(labelHash == NULL);
 
   do
@@ -2721,23 +2650,6 @@ initPeepHole (void)
       options.nopeep = 0;
     }
 
-#if !OPT_DISABLE_PIC14
-  /* Convert the peep rules into pcode.
-     NOTE: this is only support in the PIC port (at the moment)
-  */
-  if (TARGET_IS_PIC14)
-    peepRules2pCode (rootRules);
-#endif
-
-#if !OPT_DISABLE_PIC16
-  /* Convert the peep rules into pcode.
-     NOTE: this is only support in the PIC port (at the moment)
-       and the PIC16 port (VR 030601)
-  */
-  if (TARGET_IS_PIC16)
-    pic16_peepRules2pCode (rootRules);
-
-#endif
 }
 
 /*-----------------------------------------------------------------*/

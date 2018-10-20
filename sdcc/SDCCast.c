@@ -1527,19 +1527,6 @@ gatherAutoInit (symbol * autoChain)
       if (sym->ival)
         resolveIvalSym (sym->ival, sym->type);
 
-#if 1
-      /* if we are PIC16 port,
-       * and this is a static,
-       * and have initial value,
-       * and not S_CODE, don't emit in gs segment,
-       * but allow glue.c:pic16emitRegularMap to put symbol
-       * in idata section */
-      if (TARGET_IS_PIC16 && IS_STATIC (sym->etype) && sym->ival && SPEC_SCLS (sym->etype) != S_CODE)
-        {
-          SPEC_SCLS (sym->etype) = S_DATA;
-          continue;
-        }
-#endif
 
       /* if this is a static variable & has an */
       /* initial value the code needs to be lifted */
@@ -3168,9 +3155,6 @@ optStdLibCall (ast *tree, RESULT_TYPE resulttype)
   ast *parms = tree->right;
   ast *func = tree->left;
 
-  if (!TARGET_IS_STM8 && !TARGET_Z80_LIKE) // Regression test gcc-torture-execute-20121108-1.c fails to build for hc08 and mcs51 (without --stack-auto)
-    return;
-
   if (!IS_FUNC (func->ftype) || IS_LITERAL (func->ftype) || func->type != EX_VALUE || !func->opval.val->sym)
     return;
 
@@ -3256,10 +3240,7 @@ optStdLibCall (ast *tree, RESULT_TYPE resulttype)
           }
 
       size_t minlength; // Minimum string length for replacement.
-      if (TARGET_IS_STM8)
-        minlength = optimize.codeSize ? SIZE_MAX : 12;
-      else // TODO:Check for other targets when memcpy() is a better choice than strcpy;
-        minlength = SIZE_MAX;
+      minlength = SIZE_MAX;
 
       if (strlength < minlength)
         return;
@@ -3817,7 +3798,7 @@ decorateType (ast *tree, RESULT_TYPE resultType)
         }
 
       /* if bit field then error */
-      if (IS_BITFIELD (tree->left->etype) || (IS_BITVAR (tree->left->etype) && TARGET_MCS51_LIKE))
+      if (IS_BITFIELD (tree->left->etype))
         {
           werrorfl (tree->filename, tree->lineno, E_ILLEGAL_ADDR, "address of bit variable");
           goto errorTreeReturn;
@@ -4766,104 +4747,9 @@ decorateType (ast *tree, RESULT_TYPE resultType)
           LRVAL (tree) = 1;
         }
 #else
-#if 0                           // this is already checked, now this could be explicit
-      /* if pointer to struct then check names */
-      if (IS_PTR (LTYPE (tree)) && IS_STRUCT (LTYPE (tree)->next) &&
-          IS_PTR (RTYPE (tree)) && IS_STRUCT (RTYPE (tree)->next) &&
-          strcmp (SPEC_STRUCT (LETYPE (tree))->tag, SPEC_STRUCT (RETYPE (tree))->tag))
-        {
-          werrorfl (tree->filename, tree->lineno, W_CAST_STRUCT_PTR, SPEC_STRUCT (RETYPE (tree))->tag,
-                    SPEC_STRUCT (LETYPE (tree))->tag);
-        }
-#endif
-#if 0                           // disabled to fix bug 2941749
-      if (IS_ADDRESS_OF_OP (tree->right)
-          && IS_AST_SYM_VALUE (tree->right->left) && SPEC_ABSA (AST_SYMBOL (tree->right->left)->etype))
-        {
-          symbol *sym = AST_SYMBOL (tree->right->left);
-          unsigned int gptype = 0;
-          unsigned int addr = SPEC_ADDR (sym->etype);
-
-          if (IS_GENPTR (LTYPE (tree)) && ((GPTRSIZE > FARPTRSIZE) || TARGET_IS_PIC16))
-            {
-              switch (SPEC_SCLS (sym->etype))
-                {
-                case S_CODE:
-                  gptype = GPTYPE_CODE;
-                  break;
-                case S_XDATA:
-                  gptype = GPTYPE_FAR;
-                  break;
-                case S_DATA:
-                case S_IDATA:
-                  gptype = GPTYPE_NEAR;
-                  break;
-                case S_PDATA:
-                  gptype = GPTYPE_XSTACK;
-                  break;
-                default:
-                  gptype = 0;
-                  if (TARGET_IS_PIC16 && (SPEC_SCLS (sym->etype) == S_FIXED))
-                    gptype = GPTYPE_NEAR;
-                }
-              addr |= gptype << (8 * (GPTRSIZE - 1));
-            }
-
-          tree->type = EX_VALUE;
-          tree->opval.val = valCastLiteral (LTYPE (tree), addr);
-          TTYPE (tree) = tree->opval.val->type;
-          TETYPE (tree) = getSpec (TTYPE (tree));
-          tree->left = NULL;
-          tree->right = NULL;
-          tree->values.cast.literalFromCast = 1;
-          return tree;
-        }
-#endif
-
       /* if the right is a literal replace the tree */
       if (IS_LITERAL (RETYPE (tree)))
         {
-#if 0
-          if (IS_PTR (LTYPE (tree)) && !IS_GENPTR (LTYPE (tree)))
-            {
-              /* rewrite      (type *)litaddr
-                 as           &temp
-                 and define   type at litaddr temp
-                 (but only if type's storage class is not generic)
-               */
-              ast *newTree = newNode ('&', NULL, NULL);
-              symbol *sym;
-
-              TTYPE (newTree) = LTYPE (tree);
-              TETYPE (newTree) = getSpec (LTYPE (tree));
-
-              /* define a global symbol at the casted address */
-              sym = newSymbol (genSymName (0), 0);
-              sym->type = LTYPE (tree)->next;
-              if (!sym->type)
-                sym->type = newLink (V_VOID);
-              sym->etype = getSpec (sym->type);
-              SPEC_SCLS (sym->etype) = sclsFromPtr (LTYPE (tree));
-              sym->lineDef = tree->lineno;
-              sym->cdef = 1;
-              sym->isref = 1;
-              SPEC_STAT (sym->etype) = 1;
-              SPEC_ADDR (sym->etype) = floatFromVal (valFromType (RTYPE (tree)));
-              SPEC_ABSA (sym->etype) = 1;
-              addSym (SymbolTab, sym, sym->name, 0, 0, 0);
-              allocGlobal (sym);
-
-              newTree->left = newAst_VALUE (symbolVal (sym));
-              newTree->left->filename = tree->filename;
-              newTree->left->lineno = tree->lineno;
-              LTYPE (newTree) = sym->type;
-              LETYPE (newTree) = sym->etype;
-              LLVAL (newTree) = 1;
-              LRVAL (newTree) = 0;
-              TLVAL (newTree) = 1;
-              return newTree;
-            }
-#endif
           if (!IS_PTR (LTYPE (tree)))
             {
               tree->type = EX_VALUE;

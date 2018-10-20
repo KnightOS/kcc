@@ -589,8 +589,8 @@ PORT z80_port =
   {                             /* Assembler */
     _z80AsmCmd,
     NULL,
-    "-plosgffwy",               /* Options with debug */
-    "-plosgffw",                /* Options without debug */
+    "-o",               /* Options with debug */
+    "-o",                /* Options without debug */
     0,
     ".asm"
   },
