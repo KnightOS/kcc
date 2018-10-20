@@ -36,6 +36,7 @@
 #include "SDCCerr.h"
 #include "SDCCmacro.h"
 #include "SDCCargs.h"
+#include "KCCCleanup.h"
 
 #ifdef _WIN32
 #include <process.h>
@@ -2200,7 +2201,16 @@ main (int argc, char **argv, char **envp)
 
       if (fatalError)
         exit (EXIT_FAILURE);
+      
+      // Figure out which file to cleanup
+      struct dbuf_s asmName;
 
+      /* build assembler output filename */
+      dbuf_init (&asmName, PATH_MAX);
+      dbuf_printf (&asmName, "%s%s", dstFileName, port->assembler.file_ext);
+      cleanupFile(dbuf_c_str(&asmName));
+      dbuf_destroy (&asmName);
+      
       if (!options.c1mode && !noAssemble)
         {
           if (options.verbose)
