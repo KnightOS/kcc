@@ -12,7 +12,10 @@ std::vector<std::string> allowed_commands = {
 	".globl",
 	".area",
 	".org",
-	".map"
+	".map",
+	".db",
+	".ascii",
+	".asciiz",
 };
 
 std::string trim(const std::string& str,

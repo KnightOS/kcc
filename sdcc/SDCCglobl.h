@@ -329,6 +329,7 @@ struct options
     bool noOptsdccInAsm;        /* Do not emit .optsdcc in asm */
     bool oldralloc;             /* Use old register allocator */
     char *preprocessor;         /* Use a custom preprocessor */
+    bool noCleanup;               /* Don't clean up the generated asm */
   };
 
 /* forward definition for variables accessed globally */

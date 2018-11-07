@@ -158,6 +158,7 @@ char buffer[PATH_MAX * 2];
 #define OPTION_DUMP_I_CODE          "--dump-i-code"
 #define OPTION_DUMP_GRAPHS          "--dump-graphs"
 #define OPTION_CPP                  "--cpp"
+#define OPTION_NO_CLEANUP           "--no-cleanup"
 
 static const OPTION optionsTable[] = {
   {0,   NULL, NULL, "General options"},
@@ -269,6 +270,9 @@ static const OPTION optionsTable[] = {
 
   {0,   OPTION_NO_OPTSDCC_IN_ASM, &options.noOptsdccInAsm, "Do not emit .optsdcc in asm"},
   {0,   OPTION_CPP, NULL, "Use custom preprocessor", CLAT_STRING},
+  
+  {0,   OPTION_NO_CLEANUP, &options.noCleanup, "Don't clean up the generated asm" },
+  
   /* End of options */
   {0,   NULL}
 };
@@ -2208,7 +2212,9 @@ main (int argc, char **argv, char **envp)
       /* build assembler output filename */
       dbuf_init (&asmName, PATH_MAX);
       dbuf_printf (&asmName, "%s%s", dstFileName, port->assembler.file_ext);
-      cleanupFile(dbuf_c_str(&asmName));
+      if (!options.noCleanup) {
+        cleanupFile(dbuf_c_str(&asmName));
+      }
       dbuf_destroy (&asmName);
       
       if (!options.c1mode && !noAssemble)
