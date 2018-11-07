@@ -14,6 +14,8 @@ std::vector<std::string> allowed_commands = {
 	".org",
 	".map",
 	".db",
+	".ds",
+	".dw",
 	".ascii",
 	".asciiz",
 };
