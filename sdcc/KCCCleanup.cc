@@ -6,6 +6,9 @@
 #include <algorithm>
 #include <stdio.h>
 #include <string.h>
+#include "SDCCglobl.h"
+
+extern struct options options;
 
 std::vector<std::string> allowed_commands = {
 	".equ",
@@ -17,7 +20,17 @@ std::vector<std::string> allowed_commands = {
 	".ds",
 	".dw",
 	".ascii",
+	".asciip",
 	".asciiz",
+    ".if",
+    ".ifdef",
+    ".ifndef",
+    ".elif",
+    ".elseif",
+    ".end",
+    ".module",
+    ".optsdcc",
+    ".function"
 };
 
 std::string trim(const std::string& str,
@@ -88,6 +101,9 @@ void cleanupFile(const char *file) {
 				}
 				keep = true;
 			}
+            else if (options.verbose) {
+                fprintf(stderr, "Discarded: %s\n", o_line.c_str());
+            }
 		}
 		if (keep) {
 			buffer.push_back(o_line);
