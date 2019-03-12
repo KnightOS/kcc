@@ -4233,10 +4233,6 @@ emitCall (const iCode *ic, bool ispcall)
 
   if (ispcall)
     {
-      if (IFFUNC_ISBANKEDCALL (dtype))
-        {
-          werror (W_INDIR_BANKED);
-        }
       aopOp (IC_LEFT (ic), ic, FALSE, FALSE);
 
       if (isLitWord (AOP (IC_LEFT (ic))))
@@ -4254,29 +4250,18 @@ emitCall (const iCode *ic, bool ispcall)
     }
   else
     {
-      /* make the call */
-      if (IFFUNC_ISBANKEDCALL (dtype))
+
+      if (IS_LITERAL (etype))
         {
-          char *name = OP_SYMBOL (IC_LEFT (ic))->rname[0] ? OP_SYMBOL (IC_LEFT (ic))->rname : OP_SYMBOL (IC_LEFT (ic))->name;
-          emit2 ("call banked_call");
-          emit2 ("!dws", name);
-          emit2 ("!dw !bankimmeds", name);
-          regalloc_dry_run_cost += 6;
+          emit2 ("call 0x%04X", ulFromVal (OP_VALUE (IC_LEFT (ic))));
+          regalloc_dry_run_cost += 3;
         }
       else
         {
-          if (IS_LITERAL (etype))
-            {
-              emit2 ("call 0x%04X", ulFromVal (OP_VALUE (IC_LEFT (ic))));
-              regalloc_dry_run_cost += 3;
-            }
-          else
-            {
-              bool jump = (!ic->parmBytes && IFFUNC_ISNORETURN (OP_SYMBOL (IC_LEFT (ic))->type));
-              emit2 ("%s %s", jump ? "jp" : "call",
-                (OP_SYMBOL (IC_LEFT (ic))->rname[0] ? OP_SYMBOL (IC_LEFT (ic))->rname : OP_SYMBOL (IC_LEFT (ic))->name));
-              regalloc_dry_run_cost += 3;
-            }
+          bool jump = (!ic->parmBytes && IFFUNC_ISNORETURN (OP_SYMBOL (IC_LEFT (ic))->type));
+          emit2 ("%s %s", jump ? "jp" : "call",
+            (OP_SYMBOL (IC_LEFT (ic))->rname[0] ? OP_SYMBOL (IC_LEFT (ic))->rname : OP_SYMBOL (IC_LEFT (ic))->name));
+          regalloc_dry_run_cost += 3;
         }
     }
   spillCached ();

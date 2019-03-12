@@ -1061,7 +1061,7 @@ getSize (sym_link * p)
     case FPOINTER:
     case CPOINTER:
     case FUNCTION:
-      return (IFFUNC_ISBANKEDCALL (p) ? GPTRSIZE : FPTRSIZE);
+      return (FPTRSIZE);
     case GPOINTER:
       return (GPTRSIZE);
 
@@ -1895,8 +1895,7 @@ changePointer (sym_link * p)
       if (IS_DECL (p) && DCL_TYPE (p) == UPOINTER)
         DCL_TYPE (p) = port->unqualified_pointer;
       if (IS_PTR (p) && IS_FUNC (p->next))
-        if (!IFFUNC_ISBANKEDCALL (p->next))
-          DCL_TYPE (p) = CPOINTER;
+        DCL_TYPE (p) = CPOINTER;
     }
 }
 
@@ -3333,8 +3332,6 @@ dbuf_printTypeChain (sym_link * start, struct dbuf_s *dbuf)
                   dbuf_printf (&dbuf2, " __using(%d)", FUNC_REGBANK (type));
                   dbuf_append_str (dbuf, dbuf_c_str (&dbuf2));
                 }
-              if (IFFUNC_ISBANKEDCALL (type))
-                dbuf_append_str (dbuf, " __banked");
               break;
             case GPOINTER:
               dbuf_append_str (dbuf, "generic*");

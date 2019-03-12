@@ -534,9 +534,6 @@ PORT z80_port = {
   {
    glue,
    FALSE,
-   NO_MODEL,
-   NO_MODEL,
-   NULL,                        /* model == target */
    },
   {                             /* Assembler */
    _z80AsmCmd,

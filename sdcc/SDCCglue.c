@@ -631,7 +631,7 @@ _printPointerType (struct dbuf_s *oBuf, const char *name, int size)
 static void
 printPointerType (struct dbuf_s *oBuf, const char *name)
 {
-  _printPointerType (oBuf, name, (options.model == MODEL_FLAT24) ? 3 : 2);
+  _printPointerType (oBuf, name, 2);
   dbuf_printf (oBuf, "\n");
 }
 
@@ -642,7 +642,7 @@ static void
 printGPointerType (struct dbuf_s *oBuf, const char *iname, const char *oname, int type)
 {
   int byte = pointerTypeToGPByte (type, iname, oname);
-  int size = (options.model == MODEL_FLAT24) ? 3 : 2;
+  int size = 2;
   if (byte == -1)
     {
       _printPointerType (oBuf, iname, size + 1);

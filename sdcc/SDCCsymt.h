@@ -443,11 +443,6 @@ extern sym_link *validateLink (sym_link * l,
 #define FUNC_ISSMALLC(x) (x->funcAttrs.smallc)
 #define IFFUNC_ISSMALLC(x) (IS_FUNC(x) && FUNC_ISSMALLC(x))
 
-#define BANKED_FUNCTIONS        ( options.model == MODEL_HUGE || \
-                                  ( (options.model == MODEL_LARGE || options.model == MODEL_MEDIUM) ) )
-#define IFFUNC_ISBANKEDCALL(x)  ( IS_FUNC(x) && \
-                                  ( FUNC_BANKED(x) || ( BANKED_FUNCTIONS && !FUNC_NONBANKED(x) ) ) )
-
 #define SPEC_NOUN(x) validateLink(x, "SPEC_NOUN", #x, SPECIFIER, __FILE__, __LINE__)->select.s.noun
 #define SPEC_LONG(x) validateLink(x, "SPEC_LONG", #x, SPECIFIER, __FILE__, __LINE__)->select.s.b_long
 #define SPEC_LONGLONG(x) validateLink(x, "SPEC_LONGLONG", #x, SPECIFIER, __FILE__, __LINE__)->select.s.b_longlong

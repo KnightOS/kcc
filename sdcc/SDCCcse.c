@@ -1958,13 +1958,6 @@ fixUpTypes (iCode * ic)
 {
   sym_link *t1 = operandType (IC_LEFT (ic)), *t2;
 
-  /* if (TARGET_IS_DS390) */
-  if (options.model == MODEL_FLAT24)
-    {
-      /* hack-o-matic! */
-      return;
-    }
-
   /* for pointer_gets if the types of result & left r the
      same then change it type of result to next */
   if (IS_PTR (t1) &&

@@ -6776,9 +6776,6 @@ createFunction (symbol * name, ast * body)
         stackPtr -= port->stack.direction * port->stack.reent_overhead;
     }
 
-  if (IFFUNC_ISBANKEDCALL (name->type))
-    stackPtr -= port->stack.direction * port->stack.banked_overhead;
-
   fetype = getSpec (name->type);        /* get the specifier for the function */
   /* if this is a reentrant function then */
   if (IFFUNC_ISREENT (name->type))

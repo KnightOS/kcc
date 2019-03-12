@@ -141,14 +141,6 @@ FBYNAME (portIsDS390)
 }
 
 /*-----------------------------------------------------------------*/
-/* flat24bitMode - will check to see if we are in flat24 mode      */
-/*-----------------------------------------------------------------*/
-FBYNAME (flat24bitMode)
-{
-  return (options.model == MODEL_FLAT24);
-}
-
-/*-----------------------------------------------------------------*/
 /* xramMovcOption - check if using movc to read xram               */
 /*-----------------------------------------------------------------*/
 FBYNAME (xramMovcOption)
@@ -1301,9 +1293,6 @@ ftab[] =                                            // sorted on the number of t
   },
   {
     "labelJTInRange", labelJTInRange                // 13
-  },
-  {
-    "24bitMode", flat24bitMode                      // 9
   },
   {
     "canAssign", canAssign                          // 8

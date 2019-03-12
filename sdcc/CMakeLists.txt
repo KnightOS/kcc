@@ -65,4 +65,6 @@ target_link_libraries(kcc m ${BOOST_LIBRARIES} ${LIBS})
 install(PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/kcc
     DESTINATION bin)
 
-set(CMAKE_BUILD_TYPE Release)
+if (NOT DEFINED CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "")
+endif()

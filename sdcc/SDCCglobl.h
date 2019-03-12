@@ -240,22 +240,6 @@ struct optimize
     int lospre_unsafe_read;
   };
 
-/** Build model.
-    Used in options.model.A bit each as port.supported_models is an OR
-    of these.
-*/
-enum
-  {
-    NO_MODEL = 0,     /* no model applicable */
-    MODEL_SMALL = 1,
-    MODEL_COMPACT = 2,
-    MODEL_MEDIUM = 4,
-    MODEL_LARGE = 8,
-    MODEL_FLAT24 = 16,
-//  MODEL_PAGE0 = 32, /* disabled, was for the xa51 port */
-    MODEL_HUGE = 64   /* for banked support */
-  };
-
 /* overlay segment name and the functions
    that belong to it. used by pragma overlay */
 typedef struct {
@@ -271,7 +255,6 @@ typedef struct {
  */
 struct options
   {
-    int model;                  /* see MODEL_* defines above */
     int stackAuto;              /* Stack Automatic  */
     int useXstack;              /* use Xternal Stack */
     int stack10bit;             /* use 10 bit stack (flat24 model only) */

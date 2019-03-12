@@ -167,7 +167,9 @@ addSet (set ** list, void *item)
   else
     {
       /* go to the end of the list */
-      for (lp = *list; lp->next; lp = lp->next);
+      for (lp = *list; lp->next; lp = lp->next) {
+          //~ fprintf(stderr, "");
+      }
       lp = lp->next = newSet ();
     }
   if (!list)

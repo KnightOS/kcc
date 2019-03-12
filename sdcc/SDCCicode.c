@@ -1605,7 +1605,7 @@ operandFromSymbol (symbol * sym)
   /* under the following conditions create a
      register equivalent for a local symbol */
   if (sym->level && sym->etype && SPEC_OCLS (sym->etype) &&
-      (IN_FARSPACE (SPEC_OCLS (sym->etype)) && (!(options.model == MODEL_FLAT24))) && options.stackAuto == 0)
+      (IN_FARSPACE (SPEC_OCLS (sym->etype))) && options.stackAuto == 0)
     {
       ok = 0;
     }
@@ -1911,7 +1911,7 @@ geniCodeRValue (operand * op, bool force)
     }
 
   if (IS_SPEC (type) &&
-      IS_TRUE_SYMOP (op) && (!(IN_FARSPACE (SPEC_OCLS (etype))) || (options.model == MODEL_FLAT24)))
+      IS_TRUE_SYMOP (op) && (!(IN_FARSPACE (SPEC_OCLS (etype)))))
     {
       op = operandFromOperand (op);
       op->isaddr = 0;
@@ -3450,7 +3450,7 @@ geniCodeReceive (value * args, operand * func)
             {
 
               if ((IN_FARSPACE (SPEC_OCLS (sym->etype))) &&
-                  options.stackAuto == 0 && (!(options.model == MODEL_FLAT24)))
+                  options.stackAuto == 0)
                 {
                 }
               else

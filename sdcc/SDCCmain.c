@@ -166,8 +166,6 @@ static const OPTION optionsTable[] = {
   {0,   OPTION_PRINT_SEARCH_DIRS, &options.printSearchDirs, "display the directories in the compiler's search path"},
   {0,   OPTION_MSVC_ERROR_STYLE, &options.vc_err_style, "messages are compatible with Micro$oft visual studio"},
   {0,   OPTION_USE_STDOUT, NULL, "send errors to stdout instead of stderr"},
-  {0,   "--nostdlib", &options.nostdlib, "Do not include the standard library directory in the search path"},
-  {0,   "--nostdinc", &options.nostdinc, "Do not include the standard include directory in the search path"},
   {0,   OPTION_LESS_PEDANTIC, NULL, "Disable some of the more pedantic warnings"},
   {0,   OPTION_DISABLE_WARNING, NULL, "<nnnn> Disable specific warning"},
   {0,   OPTION_WERROR, NULL, "Treat the warnings as errors"},
@@ -180,15 +178,8 @@ static const OPTION optionsTable[] = {
   {0,   OPTION_STD_C11, NULL, "Use C11 standard (very incomplete)"},
   {0,   OPTION_DOLLARS_IN_IDENT, &options.dollars_in_ident, "Permit '$' as an identifier character"},
   {0,   OPTION_UNSIGNED_CHAR, &options.unsigned_char, "Make \"char\" unsigned by default"},
-  {0,   OPTION_USE_NON_FREE, &options.use_non_free, "Search / include non-free licensed libraries and header files"},
 
   {0,   NULL, NULL, "Code generation options"},
-  {'m', NULL, NULL, "Set the port to use e.g. -mz80."},
-  {'p', NULL, NULL, "Select port specific processor e.g. -mpic14 -p16f84"},
-  {0,   OPTION_SMALL_MODEL, NULL, "internal data space is used (default)"},
-  {0,   OPTION_MEDIUM_MODEL, NULL, "external paged data space is used"},
-  {0,   OPTION_LARGE_MODEL, NULL, "external data space is used"},
-  {0,   OPTION_HUGE_MODEL, NULL, "functions are banked, data in external space"},
   {0,   "--stack-auto", &options.stackAuto, "Stack automatic variables"},
   {0,   "--xstack", &options.useXstack, "Use external stack"},
   {0,   "--int-long-reent", &options.intlong_rent, "Use reentrant calls on the int and long support functions"},
@@ -402,7 +393,6 @@ setDefaultOptions (void)
   options.xdata_loc = 1;        /* MB: Do not use address 0 by default as it equals NULL */
   options.idata_loc = 0;        /* MB: No need to limit idata to 0x80-0xFF */
   options.nopeep = 0;
-  options.model = port->general.default_model;
   options.nostdlib = 0;
   options.nostdinc = 0;
   options.verbose = 0;
@@ -532,15 +522,6 @@ processFile (char *s)
   dbuf_destroy (&path);
 
   werror (W_UNKNOWN_FEXT, s);
-}
-
-static void
-_setModel (int model, const char *sz)
-{
-  if (port->general.supported_models & model)
-    options.model = model;
-  else
-    werror (W_UNSUPPORTED_MODEL, sz, port->target);
 }
 
 /** Gets the string argument to this option.  If the option is '--opt'
@@ -810,31 +791,6 @@ parseCmdLine (int argc, char **argv)
               options.out_fmt = 's';
               continue;
             }
-
-          if (strcmp (argv[i], OPTION_SMALL_MODEL) == 0)
-            {
-              _setModel (MODEL_SMALL, argv[i]);
-              continue;
-            }
-
-          if (strcmp (argv[i], OPTION_MEDIUM_MODEL) == 0)
-            {
-              _setModel (MODEL_MEDIUM, argv[i]);
-              continue;
-            }
-
-          if (strcmp (argv[i], OPTION_LARGE_MODEL) == 0)
-            {
-              _setModel (MODEL_LARGE, argv[i]);
-              continue;
-            }
-
-          if (strcmp (argv[i], OPTION_HUGE_MODEL) == 0)
-            {
-              _setModel (MODEL_HUGE, argv[i]);
-              continue;
-            }
-
           if (strcmp (argv[i], OPTION_VERSION) == 0)
             {
               printVersionInfo (stdout);
@@ -1490,24 +1446,6 @@ preProcess (char **envp)
       if (options.dollars_in_ident)
         addSet (&preArgvSet, Safe_strdup ("-fdollars-in-identifiers"));
 
-      /* if using external stack define the macro */
-      if (options.useXstack)
-        addSet (&preArgvSet, Safe_strdup ("-D__SDCC_USE_XSTACK"));
-      if (options.std_sdcc && options.useXstack)
-        addSet (&preArgvSet, Safe_strdup ("-DSDCC_USE_XSTACK"));
-
-      /* set the macro for stack autos  */
-      if (options.stackAuto)
-        addSet (&preArgvSet, Safe_strdup ("-D__SDCC_STACK_AUTO"));
-      if (options.std_sdcc && options.stackAuto)
-        addSet (&preArgvSet, Safe_strdup ("-DSDCC_STACK_AUTO"));
-
-      /* set the macro for stack autos  */
-      if (options.stack10bit)
-        addSet (&preArgvSet, Safe_strdup ("-D__SDCC_STACK_TENBIT"));
-      if (options.std_sdcc && options.stack10bit)
-        addSet (&preArgvSet, Safe_strdup ("-DSDCC_STACK_TENBIT"));
-
       /* set the macro for no overlay  */
       if (options.noOverlay)
         addSet (&preArgvSet, Safe_strdup ("-D__SDCC_NOOVERLAY"));
@@ -1519,59 +1457,6 @@ preProcess (char **envp)
         addSet (&preArgvSet, Safe_strdup ("-D__SDCC_CHAR_UNSIGNED"));
       if (options.std_sdcc && options.unsigned_char)
         addSet (&preArgvSet, Safe_strdup ("-DSDCC_CHAR_UNSIGNED"));
-
-      /* set the macro for non-free  */
-      if (options.use_non_free)
-        addSet (&preArgvSet, Safe_strdup ("-D__SDCC_USE_NON_FREE"));
-      if (options.std_sdcc && options.use_non_free)
-        addSet (&preArgvSet, Safe_strdup ("-DSDCC_USE_NON_FREE"));
-
-      /* set the macro for large model  */
-      switch (options.model)
-        {
-        case MODEL_LARGE:
-          addSet (&preArgvSet, Safe_strdup ("-D__SDCC_MODEL_LARGE"));
-          if (options.std_sdcc)
-            addSet (&preArgvSet, Safe_strdup ("-DSDCC_MODEL_LARGE"));
-          break;
-
-        case MODEL_SMALL:
-          addSet (&preArgvSet, Safe_strdup ("-D__SDCC_MODEL_SMALL"));
-          if (options.std_sdcc)
-            addSet (&preArgvSet, Safe_strdup ("-DSDCC_MODEL_SMALL"));
-          break;
-
-        case MODEL_COMPACT:
-          addSet (&preArgvSet, Safe_strdup ("-D__SDCC_MODEL_COMPACT"));
-          if (options.std_sdcc)
-            addSet (&preArgvSet, Safe_strdup ("-DSDCC_MODEL_COMPACT"));
-          break;
-
-        case MODEL_MEDIUM:
-          addSet (&preArgvSet, Safe_strdup ("-D__SDCC_MODEL_MEDIUM"));
-          if (options.std_sdcc)
-            addSet (&preArgvSet, Safe_strdup ("-DSDCC_MODEL_MEDIUM"));
-          break;
-
-        case MODEL_HUGE:
-          addSet (&preArgvSet, Safe_strdup ("-D__SDCC_MODEL_HUGE"));
-          if (options.std_sdcc)
-            addSet (&preArgvSet, Safe_strdup ("-DSDCC_MODEL_HUGE"));
-          break;
-
-        case MODEL_FLAT24:
-          addSet (&preArgvSet, Safe_strdup ("-D__SDCC_MODEL_FLAT24"));
-          if (options.std_sdcc)
-            addSet (&preArgvSet, Safe_strdup ("-DSDCC_MODEL_FLAT24"));
-          break;
-
-        case NO_MODEL:
-          break;
-
-        default:
-          werror (W_UNKNOWN_MODEL, __FILE__, __LINE__);
-          break;
-        }
 
       /* set macro corresponding to compiler option */
       if (options.intlong_rent)
@@ -1635,14 +1520,7 @@ preProcess (char **envp)
       addSet (&preArgvSet, Safe_strdup ("-D__STDC_NO_THREADS__"));
       addSet (&preArgvSet, Safe_strdup ("-D__STDC_NO_ATOMICS__"));
       addSet (&preArgvSet, Safe_strdup ("-D__STDC_NO_VLA__"));
-
-      /* standard include path */
-      if (!options.nostdinc)
-        {
-          inclList = processStrSet (includeDirsSet, "-isystem ", NULL, shell_escape);
-          mergeSets (&preArgvSet, inclList);
-        }
-
+      
       setMainValue ("cppextraopts", (s = joinStrSet (preArgvSet)));
       Safe_free ((void *) s);
       if (inclList != NULL)
@@ -1808,13 +1686,13 @@ setLibPath (void)
 
       targetname = port->target;
 
-      dbuf_makePath (&dbuf, LIB_DIR_SUFFIX, port->general.get_model ? port->general.get_model () : targetname);
+      dbuf_makePath (&dbuf, LIB_DIR_SUFFIX, targetname);
       libDirsSet = processStrSet (dataDirsSet, NULL, dbuf_c_str (&dbuf), NULL);
 
       if (options.use_non_free)
         {
           dbuf_set_length (&dbuf, 0);
-          dbuf_makePath (&dbuf, NON_FREE_LIB_DIR_SUFFIX, port->general.get_model ? port->general.get_model () : targetname);
+          dbuf_makePath (&dbuf, NON_FREE_LIB_DIR_SUFFIX, targetname);
           mergeSets (&libDirsSet, processStrSet (dataDirsSet, NULL, dbuf_c_str (&dbuf), NULL));
         }
 
@@ -1823,7 +1701,7 @@ setLibPath (void)
           addSetHead (&libDirsSet, Safe_strdup (p));
 
           dbuf_set_length (&dbuf, 0);
-          dbuf_makePath (&dbuf, p, port->general.get_model ? port->general.get_model () : targetname);
+          dbuf_makePath (&dbuf, p, targetname);
           addSetHead (&libDirsSet, dbuf_detach (&dbuf));
         }
       else
