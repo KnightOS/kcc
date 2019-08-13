@@ -281,6 +281,11 @@ cnvToFloatCast (iCode * ic, eBBlock * ebp)
       goto found;
     }
 
+  if (IS_BOOL(type)) {
+	  func = conv[0][0][1];
+	  goto found;
+  }
+
   assert (0);
 found:
 
