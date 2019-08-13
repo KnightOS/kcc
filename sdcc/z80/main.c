@@ -37,8 +37,7 @@
 #define OPTION_DATA_SEG        "--dataseg"
 #define OPTION_CALLEE_SAVES_BC "--callee-saves-bc"
 #define OPTION_PORTMODE        "--portmode="
-#define OPTION_ASM             "--asm="
-#define OPTION_NO_STD_CRT0     "--no-std-crt0"
+#define OPTION_NO_CRT0         "--no-crt0"
 #define OPTION_RESERVE_IY      "--reserve-regs-iy"
 #define OPTION_OLDRALLOC       "--oldralloc"
 #define OPTION_FRAMEPOINTER    "--fno-omit-frame-pointer"
@@ -46,20 +45,18 @@
 
 static char _z80_defaultRules[] = {
 #include "peeph.rul"
-#include "peeph-z80.rul"
 };
-
 
 Z80_OPTS z80_opts;
 
 static OPTION _z80_options[] = {
   {0, OPTION_CALLEE_SAVES_BC, &z80_opts.calleeSavesBC, "Force a called function to always save BC"},
-  {0, OPTION_PORTMODE,        NULL, "Determine PORT I/O mode (z80/z180)"},
-  {0, OPTION_ASM,             NULL, "Define assembler name (rgbds/asxxxx/isas/z80asm)"},
+  //~ {0, OPTION_PORTMODE,        NULL, "Determine PORT I/O mode (z80/z180)"},
+  //~ {0, OPTION_ASM,             NULL, "Define assembler name (rgbds/asxxxx/isas/z80asm)"},
   {0, OPTION_CODE_SEG,        &options.code_seg, "<name> use this name for the code segment", CLAT_STRING},
   {0, OPTION_CONST_SEG,       &options.const_seg, "<name> use this name for the const segment", CLAT_STRING},
   {0, OPTION_DATA_SEG,        &options.data_seg, "<name> use this name for the data segment", CLAT_STRING},
-  {0, OPTION_NO_STD_CRT0,     &options.no_std_crt0, "For the z80/gbz80 do not link default crt0.rel"},
+  {0, OPTION_NO_CRT0,         &options.no_crt0, "Do not link in the default crt0.asm"},
   {0, OPTION_RESERVE_IY,      &z80_opts.reserveIY, "Do not use IY (incompatible with --fomit-frame-pointer)"},
   {0, OPTION_OLDRALLOC,       &options.oldralloc, "Use old register allocator"},
   {0, OPTION_FRAMEPOINTER,    &z80_opts.noOmitFramePtr, "Do not omit frame pointer"},
@@ -319,56 +316,12 @@ _setValues (void)
   const char *s;
   struct dbuf_s dbuf;
 
-  if (options.nostdlib == FALSE)
+  if (options.no_crt0 == FALSE)
     {
-      const char *s;
-      char *path;
-      struct dbuf_s dbuf;
-
-      dbuf_init (&dbuf, PATH_MAX);
-
-      for (s = setFirstItem (libDirsSet); s != NULL; s = setNextItem (libDirsSet))
-        {
-          path = buildCmdLine2 ("-k\"%s" DIR_SEPARATOR_STRING "{port}\" ", s);
-          dbuf_append_str (&dbuf, path);
-          Safe_free (path);
-        }
-      path = buildCmdLine2 ("-l\"{port}.lib\"", s);
-      dbuf_append_str (&dbuf, path);
-      Safe_free (path);
-
-      setMainValue ("z80libspec", dbuf_c_str (&dbuf));
-      dbuf_destroy (&dbuf);
-
-      for (s = setFirstItem (libDirsSet); s != NULL; s = setNextItem (libDirsSet))
-        {
-          struct stat stat_buf;
-
-          path = buildCmdLine2 ("%s" DIR_SEPARATOR_STRING "{port}" DIR_SEPARATOR_STRING "crt0{objext}", s);
-          if (stat (path, &stat_buf) == 0)
-            {
-              Safe_free (path);
-              break;
-            }
-          else
-            Safe_free (path);
-        }
-
-      if (s == NULL)
-        setMainValue ("z80crt0", "\"crt0{objext}\"");
-      else
-        {
-          struct dbuf_s dbuf;
-
-          dbuf_init (&dbuf, 128);
-          dbuf_printf (&dbuf, "\"%s\"", path);
-          setMainValue ("z80crt0", dbuf_c_str (&dbuf));
-          dbuf_destroy (&dbuf);
-        }
+      setMainValue ("z80crt0", "\"crt0.asm\"");
     }
   else
     {
-      setMainValue ("z80libspec", "");
       setMainValue ("z80crt0", "");
     }
 
@@ -533,9 +486,7 @@ oclsExpense (struct memmap *oclass)
     " {z80extraobj}"
 */
 
-static const char *_z80LinkCmd[] = {
-  "scas", "-o", "$1", "$2", NULL
-};
+static const char *const _z80LinkCmd = "scas {z80crt0} {z80extraobj} \"{dstfilename}.o\" -o \"{linkdstfilename}\"";
 
 /* $3 is replaced by assembler.debug_opts resp. port->assembler.plain_opts */
 static const char *_z80AsmCmd[] = {
@@ -568,10 +519,10 @@ PORT z80_port =
     ".asm"
   },
   {                             /* Linker */
-    _z80LinkCmd,                //NULL,
-    NULL,                       //LINKCMD,
+    NULL,                //NULL,
+    _z80LinkCmd,                     //LINKCMD,
     NULL,
-    "",
+    ".o",
     1,                          /* needLinkerScript */
     _crt,                       /* crt */
     _libs_z80,                  /* libs */

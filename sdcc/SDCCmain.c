@@ -81,13 +81,6 @@ static const char *dstPath = "";          /* path for the output files; */
 static const char *moduleNameBase = NULL; /* module name base is source file without path and extension */
                                           /* can be NULL while linking without compiling */
 
-/* uncomment JAMIN_DS390 to always override and use ds390 port
-  for mcs51 work.  This is temporary, for compatibility testing. */
-/* #define JAMIN_DS390 */
-#ifdef JAMIN_DS390
-static int ds390_jammed = 0;
-#endif
-
 /* Globally accessible scratch buffer for file names.
    TODO: replace them with local buffers */
 char buffer[PATH_MAX * 2];
@@ -167,23 +160,20 @@ static const OPTION optionsTable[] = {
   {'d', NULL, NULL, "Output list of mcaro definitions in effect. Use with -E"},
   {'D', NULL, NULL, "Define macro as in -Dmacro"},
   {'I', NULL, NULL, "Add to the include (*.h) path, as in -Ipath"},
-  {'A', NULL, NULL, NULL},
   {'U', NULL, NULL, "Undefine macro as in -Umacro"},
   {'M', NULL, NULL, "Preprocessor option"},
   {'W', NULL, NULL, "Pass through options to the pre-processor (p), assembler (a) or linker (l)"},
   {'S', NULL, &noAssemble, "Compile only; do not assemble or link"},
   {'c', "--compile-only", &options.cc_only, "Compile and assemble, but do not link"},
-  {'E', "--preprocessonly", &preProcOnly, "Preprocess only, do not compile"},
+  {'E', "--preprocess-only", &preProcOnly, "Preprocess only, do not compile"},
   {0,   "--c1mode", &options.c1mode, "Act in c1 mode.  The standard input is preprocessed code, the output is assembly code."},
   {'o', NULL, NULL, "Place the output into the given path resp. file"},
   {0,   OPTION_PRINT_SEARCH_DIRS, &options.printSearchDirs, "display the directories in the compiler's search path"},
   {0,   OPTION_MSVC_ERROR_STYLE, &options.vc_err_style, "messages are compatible with Micro$oft visual studio"},
   {0,   OPTION_USE_STDOUT, NULL, "send errors to stdout instead of stderr"},
-  {0,   "--nostdlib", &options.nostdlib, "Do not include the standard library directory in the search path"},
-  {0,   "--nostdinc", &options.nostdinc, "Do not include the standard include directory in the search path"},
   {0,   OPTION_LESS_PEDANTIC, NULL, "Disable some of the more pedantic warnings"},
   {0,   OPTION_DISABLE_WARNING, NULL, "<nnnn> Disable specific warning"},
-  {0,   OPTION_WERROR, NULL, "Treat the warnings as errors"},
+  {0,   OPTION_WERROR, NULL, "Treat warnings as errors"},
   {0,   OPTION_DEBUG, NULL, "Enable debugging symbol output"},
   {0,   "--cyclomatic", &options.cyclomatic, "Display complexity of compiled functions"},
   {0,   OPTION_STD_C89, NULL, "Use ISO C90 (aka ANSI C89) standard (slightly incomplete)"},
@@ -197,26 +187,16 @@ static const OPTION optionsTable[] = {
   {0,   OPTION_STD_SDCC2X, NULL, "Use ISO C2X standard with SDCC extensions"},
   {0,   OPTION_DOLLARS_IN_IDENT, &options.dollars_in_ident, "Permit '$' as an identifier character"},
   {0,   OPTION_SIGNED_CHAR, &options.signed_char, "Make \"char\" signed by default"},
-  {0,   OPTION_USE_NON_FREE, &options.use_non_free, "Search / include non-free licensed libraries and header files"},
-
+  
   {0,   NULL, NULL, "Code generation options"},
-  {'m', NULL, NULL, "Set the port to use e.g. -mz80."},
-  {'p', NULL, NULL, "Select port specific processor e.g. -mpic14 -p16f84"},
-  {0,   OPTION_SMALL_MODEL, NULL, "internal data space is used (default)"},
-  {0,   OPTION_MEDIUM_MODEL, NULL, "external paged data space is used"},
-  {0,   OPTION_LARGE_MODEL, NULL, "external data space is used"},
-  {0,   OPTION_HUGE_MODEL, NULL, "functions are banked, data in external space"},
   {0,   "--stack-auto", &options.stackAuto, "Stack automatic variables"},
-  {0,   "--xstack", &options.useXstack, "Use external stack"},
   {0,   "--int-long-reent", &options.intlong_rent, "Use reentrant calls on the int and long support functions"},
   {0,   "--float-reent", &options.float_rent, "Use reentrant calls on the float support functions"},
-  {0,   "--xram-movc", &options.xram_movc, "Use movc instead of movx to read xram (xdata)"},
   {0,   OPTION_CALLEE_SAVES, &options.calleeSavesSet, "<func[,func,...]> Cause the called function to save registers instead of the caller", CLAT_SET},
-  {0,   "--profile", &options.profile, "On supported ports, generate extra profiling information"},
-  {0,   "--fomit-frame-pointer", &options.omitFramePtr, "Leave out the frame pointer."},
+  {0,   "--profile", &options.profile, "Generate extra profiling information"},
+  {0,   "--fomit-frame-pointer", &options.omitFramePtr, "Leave out the frame pointer"},
   {0,   "--all-callee-saves", &options.all_callee_saves, "callee will always save registers used"},
   {0,   "--stack-probe", &options.stack_probe, "insert call to function __stack_probe at each function prologue"},
-  {0,   OPTION_NO_XINIT_OPT, &options.noXinitOpt, "don't memcpy initialized xram from code"},
   {0,   OPTION_NO_CCODE_IN_ASM, &options.noCcodeInAsm, "don't include c-code as comments in the asm file"},
   {0,   OPTION_NO_PEEP_COMMENTS, &options.noPeepComments, "don't include peephole optimizer comments"},
   {0,   OPTION_CODE_SEG, NULL, "<name> use this name for the code segment"},
@@ -231,7 +211,7 @@ static const OPTION optionsTable[] = {
   {0,   OPTION_NO_LOOP_IND, NULL, "Disable loop variable induction"},
   {0,   "--noloopreverse", &optimize.noLoopReverse, "Disable the loop reverse optimisation"},
   {0,   "--no-peep", &options.nopeep, "Disable the peephole assembly file optimisation"},
-  {0,   "--no-reg-params", &options.noRegParams, "On some ports, disable passing some parameters in registers"},
+  {0,   "--no-reg-params", &options.noRegParams, "Disable passing some parameters in registers"},
   {0,   "--peep-asm", &options.asmpeep, "Enable peephole optimization on inline assembly"},
   {0,   OPTION_PEEP_RETURN, NULL, "Enable peephole optimization for return instructions"},
   {0,   OPTION_NO_PEEP_RETURN, NULL, "Disable peephole optimization for return instructions"},
@@ -459,6 +439,8 @@ setDefaultOptions (void)
   options.max_allocs_per_node = 3000;
   optimize.lospre = 1;
   optimize.allow_unsafe_read = 0;
+  
+  options.noPeepComments = 0;
 
   /* now for the ports */
   port->setDefaultOptions ();
@@ -1456,17 +1438,8 @@ getOutFmtExt (void)
     default:
       return "";
 
-    case 'i':
-      return ".ihx";
-
     case 'o':
       return ".o";
-
-    case 's':
-      return ".s19";
-
-    case 'E':
-      return ".elf";
     }
 }
 
@@ -1629,10 +1602,6 @@ preProcess (char **envp)
       if (options.dollars_in_ident)
         addSet (&preArgvSet, Safe_strdup ("-fdollars-in-identifiers"));
 
-      /* if using external stack define the macro */
-      if (options.useXstack)
-        addSet (&preArgvSet, Safe_strdup ("-D__SDCC_USE_XSTACK"));
-
       /* set the macro for stack autos  */
       if (options.stackAuto)
         addSet (&preArgvSet, Safe_strdup ("-D__SDCC_STACK_AUTO"));
@@ -1650,45 +1619,6 @@ preProcess (char **envp)
         addSet (&preArgvSet, Safe_strdup ("-D__SDCC_CHAR_SIGNED"));
       else
         addSet (&preArgvSet, Safe_strdup ("-D__SDCC_CHAR_UNSIGNED"));
-
-      /* set the macro for non-free  */
-      if (options.use_non_free)
-        addSet (&preArgvSet, Safe_strdup ("-D__SDCC_USE_NON_FREE"));
-
-      /* set the macro for large model  */
-      switch (options.model)
-        {
-        case MODEL_LARGE:
-          addSet (&preArgvSet, Safe_strdup ("-D__SDCC_MODEL_LARGE"));
-          break;
-
-        case MODEL_SMALL:
-          addSet (&preArgvSet, Safe_strdup ("-D__SDCC_MODEL_SMALL"));
-          break;
-
-        case MODEL_COMPACT:
-          addSet (&preArgvSet, Safe_strdup ("-D__SDCC_MODEL_COMPACT"));
-          break;
-
-        case MODEL_MEDIUM:
-          addSet (&preArgvSet, Safe_strdup ("-D__SDCC_MODEL_MEDIUM"));
-          break;
-
-        case MODEL_HUGE:
-          addSet (&preArgvSet, Safe_strdup ("-D__SDCC_MODEL_HUGE"));
-          break;
-
-        case MODEL_FLAT24:
-          addSet (&preArgvSet, Safe_strdup ("-D__SDCC_MODEL_FLAT24"));
-          break;
-
-        case NO_MODEL:
-          break;
-
-        default:
-          werror (W_UNKNOWN_MODEL, __FILE__, __LINE__);
-          break;
-        }
 
       /* set macro corresponding to compiler option */
       if (options.intlong_rent)
@@ -1740,21 +1670,11 @@ preProcess (char **envp)
         addSet (&preArgvSet, dbuf_detach_c_str (&dbuf));
       }
 
-      /* add port (processor information to processor */
-      addSet (&preArgvSet, Safe_strdup ("-D__SDCC_{port}"));
-
       /* Optional C features not (yet) supported by SDCC */
       addSet (&preArgvSet, Safe_strdup ("-D__STDC_NO_COMPLEX__=1"));
       addSet (&preArgvSet, Safe_strdup ("-D__STDC_NO_THREADS__=1"));
       addSet (&preArgvSet, Safe_strdup ("-D__STDC_NO_ATOMICS__=1"));
       addSet (&preArgvSet, Safe_strdup ("-D__STDC_NO_VLA__=1"));
-
-      /* standard include path */
-      if (!options.nostdinc)
-        {
-          inclList = processStrSet (includeDirsSet, "-isystem ", NULL, shell_escape);
-          mergeSets (&preArgvSet, inclList);
-        }
 
       setMainValue ("cppextraopts", (s = joinStrSet (preArgvSet)));
       Safe_free ((void *) s);
@@ -1839,113 +1759,6 @@ setBinPaths (const char *argv0)
     }
 }
 
-/* Set system include path */
-static void
-setIncludePath (void)
-{
-  /*
-   * Search logic:
-   *
-   *  1. - $SDCC_INCLUDE/target
-   *  2. - $SDCC_INCLUDE
-   *  3. - $SDCC_HOME/PREFIX2DATA_DIR/INCLUDE_DIR_SUFFIX/target
-   *  4. - path(argv[0])/BIN2DATA_DIR/INCLUDE_DIR_SUFFIX/target
-   *  5. - DATADIR/INCLUDE_DIR_SUFFIX/target (only on *nix)
-   *  6. - $SDCC_HOME/PREFIX2DATA_DIR/INCLUDE_DIR_SUFFIX
-   *  7. - path(argv[0])/BIN2DATA_DIR/INCLUDE_DIR_SUFFIX
-   *  8. - DATADIR/INCLUDE_DIR_SUFFIX (only on *nix)
-   *  9. - $SDCC_HOME/PREFIX2DATA_DIR/NON_FREE_INCLUDE_DIR_SUFFIX/target
-   * 10. - path(argv[0])/BIN2DATA_DIR/NON_FREE_INCLUDE_DIR_SUFFIX/target
-   * 11. - DATADIR/NON_FREE_INCLUDE_DIR_SUFFIX/target (only on *nix)
-   * 12. - $SDCC_HOME/PREFIX2DATA_DIR/NON_FREE_INCLUDE_DIR_SUFFIX
-   * 13. - path(argv[0])/BIN2DATA_DIR/NON_FREE_INCLUDE_DIR_SUFFIX
-   * 14. - DATADIR/NON_FREE_INCLUDE_DIR_SUFFIX (only on *nix)
-   */
-
-  if (!options.nostdinc)
-    {
-      char *p;
-      set *tempSet;
-
-      tempSet = processStrSet (dataDirsSet, NULL, INCLUDE_DIR_SUFFIX, NULL);
-      includeDirsSet = processStrSet (tempSet, NULL, DIR_SEPARATOR_STRING, NULL);
-      includeDirsSet = processStrSet (includeDirsSet, NULL, port->target, NULL);
-      mergeSets (&includeDirsSet, tempSet);
-
-      if (options.use_non_free)
-        {
-          set *tempSet1;
-
-          tempSet = processStrSet (dataDirsSet, NULL, NON_FREE_INCLUDE_DIR_SUFFIX, NULL);
-          tempSet1 = processStrSet (tempSet, NULL, DIR_SEPARATOR_STRING, NULL);
-          tempSet1 = processStrSet (tempSet1, NULL, port->target, NULL);
-          mergeSets (&tempSet1, tempSet);
-          mergeSets (&includeDirsSet, tempSet1);
-        }
-
-      if ((p = getenv (SDCC_INCLUDE_NAME)) != NULL)
-        {
-          struct dbuf_s dbuf;
-
-          dbuf_init (&dbuf, PATH_MAX);
-          addSetHead (&includeDirsSet, p);
-          dbuf_makePath (&dbuf, p, port->target);
-          addSetHead (&includeDirsSet, dbuf_detach (&dbuf));
-        }
-    }
-}
-
-/* Set system lib path */
-static void
-setLibPath (void)
-{
-  /*
-   * Search logic:
-   *
-   * 1. - $SDCC_LIB/<model>
-   * 2. - $SDCC_LIB
-   * 3. - $SDCC_HOME/PREFIX2DATA_DIR/LIB_DIR_SUFFIX/<model>
-   * 4. - path(argv[0])/BIN2DATA_DIR/LIB_DIR_SUFFIX/<model>
-   * 5. - DATADIR/LIB_DIR_SUFFIX/<model> (only on *nix)
-   * 6. - $SDCC_HOME/PREFIX2DATA_DIR/NON_FREE_LIB_DIR_SUFFIX/<model>
-   * 7. - path(argv[0])/BIN2DATA_DIR/NON_FREE_LIB_DIR_SUFFIX/<model>
-   * 8. - DATADIR/NON_FREE_LIB_DIR_SUFFIX/<model> (only on *nix)
-   */
-
-  if (!options.nostdlib)
-    {
-      char *p;
-      const char *targetname;
-
-      struct dbuf_s dbuf;
-
-      dbuf_init (&dbuf, PATH_MAX);
-
-      targetname = port->target;
-
-      dbuf_makePath (&dbuf, LIB_DIR_SUFFIX, port->general.get_model ? port->general.get_model () : targetname);
-      libDirsSet = processStrSet (dataDirsSet, NULL, dbuf_c_str (&dbuf), NULL);
-
-      if (options.use_non_free)
-        {
-          dbuf_set_length (&dbuf, 0);
-          dbuf_makePath (&dbuf, NON_FREE_LIB_DIR_SUFFIX, port->general.get_model ? port->general.get_model () : targetname);
-          mergeSets (&libDirsSet, processStrSet (dataDirsSet, NULL, dbuf_c_str (&dbuf), NULL));
-        }
-
-      if ((p = getenv (SDCC_LIB_NAME)) != NULL)
-        {
-          addSetHead (&libDirsSet, Safe_strdup (p));
-
-          dbuf_set_length (&dbuf, 0);
-          dbuf_makePath (&dbuf, p, port->general.get_model ? port->general.get_model () : targetname);
-          addSetHead (&libDirsSet, dbuf_detach (&dbuf));
-        }
-      else
-        dbuf_destroy (&dbuf);
-    }
-}
-
 /* Set data path */
 static void
 setDataPaths (const char *argv0)
@@ -1989,9 +1802,6 @@ setDataPaths (const char *argv0)
 #else
   addSet (&dataDirsSet, Safe_strdup (DATADIR));
 #endif
-
-  setIncludePath ();
-  setLibPath ();
 }
 
 static void

@@ -29,25 +29,12 @@ FILE(GLOB sdcc_cxx ${PROJECT_SOURCE_DIR}/*.cc)
 FILE(GLOB z80 ${PROJECT_SOURCE_DIR}/z80/*.c)
 FILE(GLOB z80_cxx ${PROJECT_SOURCE_DIR}/z80/*.cc)
 FILE(GLOB support ${PROJECT_SOURCE_DIR}/../support/util/*.c)
-FILE(GLOB peep_defs ${PROJECT_SOURCE_DIR}/z80/*.def)
 FILE(GLOB peep_rules ${PROJECT_SOURCE_DIR}/z80/*.rul)
 file(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/gen)
 
 BISON_TARGET(SDCCy ${PROJECT_SOURCE_DIR}/SDCC.y ${PROJECT_BINARY_DIR}/gen/SDCCy.c)
 
 FLEX_TARGET(SDCClex ${PROJECT_SOURCE_DIR}/SDCC.lex ${PROJECT_BINARY_DIR}/gen/SDCClex.c)
-
-foreach(peep ${peep_defs})
-    execute_process(COMMAND sh -c "basename '${peep}' .def | tr -d '\\n'"
-        OUTPUT_VARIABLE rules
-    )
-    set(rules ${PROJECT_SOURCE_DIR}/z80/${rules}.rul)
-    add_custom_command(OUTPUT ${rules}
-        COMMAND awk -f ${PROJECT_SOURCE_DIR}/SDCCpeeph.awk ${peep} > ${rules}
-        DEPENDS ${peep_defs}
-    )
-    list(APPEND peep_rules ${rules})
-endforeach()
 
 add_executable(kcc
     ${BISON_SDCCy_OUTPUTS}

@@ -4349,12 +4349,19 @@ genFunction (const iCode * ic)
 
   emitDebug (z80_assignment_optimal ? "; Register assignment is optimal." : "; Register assignment might be sub-optimal.");
   emitDebug ("; Stack space usage: %d bytes.", sym->stack);
-
-  if (IS_STATIC (sym->etype))
-    emit2 ("!functionlabeldef", sym->rname);
-  else
-    emit2 ("!globalfunctionlabeldef", sym->rname);
- 
+  
+  if (!IS_STATIC(sym->etype))
+    {
+      struct dbuf_s dbuf;
+      dbuf_init (&dbuf, 128);
+      dbuf_printf (&dbuf, "%s_start", sym->rname);
+      emit2 ("!labeldef", dbuf_c_str (&dbuf));
+      dbuf_detach (&dbuf);
+      if (!regalloc_dry_run)
+        genLine.lineCurr->isLabel = 1;
+    }
+  emit2 ("!functionlabeldef", sym->rname);
+  
   if (!regalloc_dry_run)
     genLine.lineCurr->isLabel = 1;
 
@@ -4370,9 +4377,12 @@ genFunction (const iCode * ic)
      then save all potentially used registers. */
   if (IFFUNC_ISISR (sym->type))
     {
-      if (!IFFUNC_ISCRITICAL (sym->type))
+
+      /* If critical function then turn interrupts off */
+      /* except when no interrupt number is given then it implies the NMI handler */
+      if (IFFUNC_ISCRITICAL (sym->type) && (FUNC_INTNO (sym->type) != INTNO_UNSPEC))
         {
-          emit2 ("!ei");
+          emit2 ("!di");
         }
 
       emit2 ("!pusha");
@@ -4511,6 +4521,17 @@ genEndFunction (iCode * ic)
   if (IFFUNC_ISNAKED (sym->type) || IFFUNC_ISNORETURN (sym->type))
     {
       emitDebug (IFFUNC_ISNAKED (sym->type) ? "; naked function: No epilogue." : "; _Noreturn function: No epilogue.");
+      if (!IS_STATIC (sym->etype))
+        {
+          struct dbuf_s dbuf;
+
+          dbuf_init (&dbuf, 128);
+          dbuf_printf (&dbuf, "%s_end", sym->rname);
+          emit2 ("!labeldef", dbuf_c_str (&dbuf));
+          dbuf_destroy (&dbuf);
+          emit2 (".function %s, %s_start, %s_end", sym->rname, sym->rname, sym->rname);
+          genLine.lineCurr->isLabel = 1;
+        }
       return;
     }
 
@@ -4547,7 +4568,16 @@ genEndFunction (iCode * ic)
   /* if this is an interrupt service routine
      then save all potentially used registers. */
   if (IFFUNC_ISISR (sym->type))
-    emit2 ("!popa");
+    {
+      emit2 ("!popa");
+
+      /* If critical function then turn interrupts back on */
+      /* except when no interrupt number is given then it implies the NMI handler */
+      if (IFFUNC_ISCRITICAL (sym->type) && (FUNC_INTNO (sym->type) != INTNO_UNSPEC))
+        {
+          emit2 ("!ei");
+        }
+    }
   else
     {
       /* This is a non-ISR function.
@@ -4600,6 +4630,18 @@ genEndFunction (iCode * ic)
     {
       /* Both banked and non-banked just ret */
       emit2 ("ret");
+    }
+
+  if (!IS_STATIC (sym->etype))
+    {
+      struct dbuf_s dbuf;
+
+      dbuf_init (&dbuf, 128);
+      dbuf_printf (&dbuf, "%s_end", sym->rname);
+      emit2 ("!labeldef", dbuf_c_str (&dbuf));
+      dbuf_destroy (&dbuf);
+      emit2 (".function %s, %s_start, %s_end", sym->rname, sym->rname, sym->rname);
+      genLine.lineCurr->isLabel = 1;
     }
 
   _G.flushStatics = 1;
@@ -5556,7 +5598,7 @@ genPlus (iCode * ic)
 
           if (!regalloc_dry_run)
             emit2 ("jp NC, !tlabel", labelKey2num (tlbl->key));
-          regalloc_dry_run_cost += 2; // Use cost of jr as the peephole optimizer can typically optimize this jp into jr. Do not emit jr directly to still allow jump-to-jump optimization.
+          regalloc_dry_run_cost += 3;
           emit2 ("inc %s", _pairs[pair].name);
           regalloc_dry_run_cost += (1 + (pair == PAIR_IY));
           i += 2;
@@ -5576,7 +5618,7 @@ genPlus (iCode * ic)
 
           if (!regalloc_dry_run)
             emit2 ("jp NC, !tlabel", labelKey2num (tlbl->key));
-          regalloc_dry_run_cost += 2; // Use cost of jr as the peephole optimizer can typically optimize this jp into jr. Do not emit jr directly to still allow jump-to-jump optimization.
+          regalloc_dry_run_cost += 3;
           emit3_o (A_INC, leftop, i, 0, 0);
           i++;
         }
@@ -8879,7 +8921,7 @@ genLeftShift (const iCode * ic)
         {
           emit2 ("dec %s", countreg == A_IDX ? "a" : regsZ80[countreg].name);
           if (!regalloc_dry_run)
-            emit2 ("jr NZ,!tlabel", labelKey2num (tlbl->key));
+            emit2 ("jp NZ,!tlabel", labelKey2num (tlbl->key));
           regalloc_dry_run_cost += 3;
         }
     }
@@ -9252,7 +9294,7 @@ genRightShift (const iCode * ic)
         {
           emit2 ("dec %s", countreg == A_IDX ? "a" : regsZ80[countreg].name);
           if (!regalloc_dry_run)
-            emit2 ("jr NZ, !tlabel", labelKey2num (tlbl->key));
+            emit2 ("jp NZ, !tlabel", labelKey2num (tlbl->key));
           regalloc_dry_run_cost += 3;
         }
     }
@@ -11673,7 +11715,7 @@ genBuiltInMemset (const iCode *ic, int nParams, operand **pparams)
       if (double_loop && size % 2)
         {
           if (!regalloc_dry_run)
-            emit2 ("jr !tlabel", labelKey2num (tlbl2->key));
+            emit2 ("jp !tlabel", labelKey2num (tlbl2->key));
           regalloc_dry_run_cost += 2;
         }
 
@@ -11808,7 +11850,7 @@ genBuiltInStrcpy (const iCode *ic, int nParams, operand **pparams)
       emitLabel (tlbl);
       emit2 ("cp a, (hl)");
       emit2 ("ldi");
-      emit2 ("jr NZ, !tlabel", labelKey2num (tlbl->key));
+      emit2 ("jp NZ, !tlabel", labelKey2num (tlbl->key));
     }
   regalloc_dry_run_cost += 5;
 
@@ -11893,7 +11935,7 @@ genBuiltInStrncpy (const iCode *ic, int nparams, operand **pparams)
       emit2 ("cp a, (hl)");
       emit2 ("ldi");
       emit2 ("jp PO, !tlabel", labelKey2num (tlbl1->key));
-      emit2 ("jr NZ, !tlabel", labelKey2num (tlbl2->key));
+      emit2 ("jp NZ, !tlabel", labelKey2num (tlbl2->key));
       emitLabel (tlbl3);
       emit2 ("dec hl");
       emit2 ("ldi");
@@ -11990,10 +12032,10 @@ genBuiltInStrchr (const iCode *ic, int nParams, operand **pparams)
   emit2 ("or a, a");
   emit2 ("inc %s", _pairs[pair].name);
   if (!regalloc_dry_run)
-    emit2 ("jr NZ, !tlabel", labelKey2num (tlbl2->key));
+    emit2 ("jp NZ, !tlabel", labelKey2num (tlbl2->key));
   emit2 ("ld %s, a", _pairs[pair].l);
   emit2 ("ld %s, a", _pairs[pair].h);
-  regalloc_dry_run_cost += 8; // jp will most likely be optimized into jr.
+  regalloc_dry_run_cost += 9;
   if (!regalloc_dry_run)
     emitLabel (tlbl1);
   if (SomethingReturned)
