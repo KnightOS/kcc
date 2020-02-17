@@ -1,0 +1,15 @@
+image: archlinux
+packages:
+  - flex
+  - bison
+  - boost
+  - cmake
+sources:
+  - https://github.com/KnightOS/kcc
+environment:
+  project: kcc
+tasks:
+  - build: |
+      cd ${project}
+      cmake .
+      make
