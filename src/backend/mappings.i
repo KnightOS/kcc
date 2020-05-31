@@ -49,8 +49,8 @@ static const ASM_MAPPING _asxxxx_z80_mapping[] = {
         { "areacode", ".area _%s" },
         { "areadata", ".area _%s" },
         { "areahome", ".area _%s" },
-        { "*ixx", "%d (ix)" },
-        { "*iyx", "%d (iy)" },
+        { "*ixx", "(ix + %d)" },
+        { "*iyx", "(iy + %d)" },
         { "*hl", "(hl)" },
         { "di", "di" },
         { "ei", "ei" },
@@ -103,8 +103,8 @@ static const ASM_MAPPING _asxxxx_r2k_mapping[] = {
         { "areacode", ".area _%s" },
         { "areadata", ".area _%s" },
         { "areahome", ".area _%s" },
-        { "*ixx", "%d (ix)" },
-        { "*iyx", "%d (iy)" },
+        { "*ixx", "(ix + %d)" },
+        { "*iyx", "(iy + %d)" },
         { "*hl", "(hl)" },
         { "di", "ipset3" },
         { "ei", "ipres" },
@@ -467,9 +467,4 @@ static const ASM_MAPPINGS _z80asm = {
 const ASM_MAPPINGS _z80asm_z80 = {
         &_z80asm,
         _z80asm_z80_mapping
-};
-
-const ASM_MAPPINGS _asxxxx_r2k = {
-        &asm_asxxxx_mapping,
-        _asxxxx_r2k_mapping
 };
