@@ -227,16 +227,16 @@
 #define SDCC_LIB_NAME "SDCC_LIB"
 
 /* XXX */
-#define SDCC_VERSION_HI 3
+#define SDCC_VERSION_HI 4
 
 /* XXX */
-#define SDCC_VERSION_LO 4
+#define SDCC_VERSION_LO 0
 
 /* XXX */
-#define SDCC_VERSION_P 1
+#define SDCC_VERSION_P 0
 
 /* XXX */
-#define SDCC_VERSION_STR "3.4.1"
+#define SDCC_VERSION_STR "4.0.0"
 
 /* The size of `char', as computed by sizeof. */
 #define SIZEOF_CHAR 1
