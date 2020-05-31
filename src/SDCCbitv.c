@@ -28,26 +28,27 @@
 
 int bitVectDefault = 1024;
 
+#define BYTE_SIZEOF_ELEMENT (sizeof(unsigned int))
+#define BIT_SIZEOF_ELEMENT (BYTE_SIZEOF_ELEMENT*8)
+
 /* genernal note about a bitvectors:
-   bit vectors are stored from left to right i.e.
-   bit position 0 is the MS bit of the first byte
-   this also means that bit positions must start from 0 */
+   bit positions must start from 0 */
 /*-----------------------------------------------------------------*/
 /* newBitVect - returns a new bitvector of size                    */
 /*-----------------------------------------------------------------*/
 bitVect *
 newBitVect (int size)
 {
-  bitVect *bvp;
-  int byteSize;
+    bitVect *bvp;
 
-  bvp = Safe_calloc (1, sizeof (bitVect));
+    bvp = Safe_calloc (1, sizeof (bitVect));
 
-  bvp->size = size;
-  bvp->bSize = byteSize = (size / 8) + 1;
-  bvp->vect = Safe_calloc (1, byteSize);
-  return bvp;
+    bvp->size = size;
+    bvp->allocSize = (size+BIT_SIZEOF_ELEMENT-1) / BIT_SIZEOF_ELEMENT;
+    bvp->vect = Safe_calloc (BYTE_SIZEOF_ELEMENT, bvp->allocSize);
+    return bvp;
 }
+
 
 /*-----------------------------------------------------------------*/
 /* freeBitVect - frees the memory used by the bitVector            */
@@ -55,11 +56,11 @@ newBitVect (int size)
 void
 freeBitVect (bitVect * bvp)
 {
-  if (!bvp)
-    return;
+    if (!bvp)
+        return;
 
-  Safe_free (bvp->vect);
-  Safe_free (bvp);
+    Safe_free (bvp->vect);
+    Safe_free (bvp);
 }
 
 /*-----------------------------------------------------------------*/
@@ -68,24 +69,26 @@ freeBitVect (bitVect * bvp)
 bitVect *
 bitVectResize (bitVect * bvp, int size)
 {
-  int bSize = (size / 8) + 1;
+    int allocSize;
 
-  if (!bvp)
-    return newBitVect (size);
+    if (!bvp)
+        return newBitVect (size);
 
-  /* if we already have enough space */
-  if (bvp->bSize >= bSize)
+    allocSize = (size+BIT_SIZEOF_ELEMENT-1) / BIT_SIZEOF_ELEMENT;
+
+    /* if we already have enough space */
+    if (bvp->allocSize >= allocSize)
     {
-      if (size > bvp->size)
-	bvp->size = size;
-      return bvp;
+        if (size > bvp->size)
+            bvp->size = size;
+        return bvp;
     }
 
-  bvp->vect = Clear_realloc (bvp->vect, bvp->bSize, bSize);
-  bvp->size = size;
-  bvp->bSize = bSize;
+    bvp->vect = Clear_realloc (bvp->vect, bvp->allocSize*BYTE_SIZEOF_ELEMENT, allocSize*BYTE_SIZEOF_ELEMENT);
+    bvp->size = size;
+    bvp->allocSize = allocSize;
 
-  return bvp;
+    return bvp;
 }
 
 /*-----------------------------------------------------------------*/
@@ -94,67 +97,65 @@ bitVectResize (bitVect * bvp, int size)
 bitVect *
 bitVectSetBit (bitVect * bvp, int pos)
 {
-  int byteSize;
-  int offset;
+    unsigned int index;
+    unsigned int bitofs;
 
-  assert (pos>=0);
-  /* if set is null then allocate it */
-  if (!bvp)
-    bvp = newBitVect (bitVectDefault);	/* allocate for twice the size */
+    assert (pos>=0);
+    /* if set is null then allocate it */
+    if (!bvp)
+        bvp = newBitVect (bitVectDefault);	/* allocate for twice the size */
 
-  if (bvp->size <= pos)
-    bvp = bitVectResize (bvp, pos + 2);		/* conservatively resize */
+    if (bvp->size <= pos)
+        bvp = bitVectResize (bvp, pos + 2);		/* conservatively resize */
 
-  byteSize = pos / 8;
-  offset = pos % 8;
-  bvp->vect[byteSize] |= (((unsigned char) 1) << (7 - offset));
-  return bvp;
+    index = pos / BIT_SIZEOF_ELEMENT;
+    bitofs = pos % BIT_SIZEOF_ELEMENT;
+    bvp->vect[index] |= 1u << bitofs;
+    return bvp;
 }
 
 /*-----------------------------------------------------------------*/
 /* bitVectUnSetBit - unsets the value of a bit in a bitvector      */
 /*-----------------------------------------------------------------*/
-void 
+void
 bitVectUnSetBit (const bitVect *bvp, int pos)
 {
-  int byteSize;
-  int offset;
+    unsigned int index;
+    unsigned int bitofs;
 
-  assert (pos>=0);
-  if (!bvp)
-    return;
+    assert (pos>=0);
+    if (!bvp)
+        return;
 
-  byteSize = pos / 8;
-  if (bvp->bSize <= byteSize)
-    return;
+    if (bvp->size <= pos)
+        return;
 
-  offset = pos % 8;
-
-  bvp->vect[byteSize] &= ~(((unsigned char) 1) << (7 - offset));
+    index = pos / BIT_SIZEOF_ELEMENT;
+    bitofs = pos % BIT_SIZEOF_ELEMENT;
+    bvp->vect[index] &= ~(1u << bitofs);
 }
 
 /*-----------------------------------------------------------------*/
 /* bitVectBitValue - returns value value at bit position           */
 /*-----------------------------------------------------------------*/
-int 
+int
 bitVectBitValue (const bitVect *bvp, int pos)
 {
-  int byteSize;
-  int offset;
+    unsigned int index;
+    unsigned int bitofs;
 
-  assert (pos>=0);
-  if (!bvp)
-    return 0;
+    assert (pos>=0);
+    if (!bvp)
+        return 0;
 
-  byteSize = pos / 8;
+    index = pos / BIT_SIZEOF_ELEMENT;
+    bitofs = pos % BIT_SIZEOF_ELEMENT;
 
-  if (bvp->bSize <= byteSize)
-    return 0;
+    if (bvp->size <= pos)
+        return 0;
 
-  offset = pos % 8;
 
-  return ((bvp->vect[byteSize] >> (7 - offset)) & ((unsigned char) 1));
-
+    return (bvp->vect[index] >> bitofs) & 1;
 }
 
 /*-----------------------------------------------------------------*/
@@ -163,48 +164,84 @@ bitVectBitValue (const bitVect *bvp, int pos)
 bitVect *
 bitVectUnion (bitVect * bvp1, bitVect * bvp2)
 {
-  int i;
-  bitVect *newBvp;
-  unsigned int *pn, *p1, *p2;
-  int nbits;
+    bitVect *newBvp;
+    unsigned int *pn, *p1, *p2;
+    int elements;
 
-  /* if both null */
-  if (!bvp1 && !bvp2)
-    return NULL;
+    /* if both null */
+    if (!bvp1 && !bvp2)
+        return NULL;
 
-  /* if one of them null then return the other */
-  if (!bvp1 && bvp2)
-    return bitVectCopy (bvp2);
+    /* if one of them null then return the other */
+    if (!bvp1 && bvp2)
+        return bitVectCopy (bvp2);
 
-  if (bvp1 && !bvp2)
-    return bitVectCopy (bvp1);
+    if (bvp1 && !bvp2)
+        return bitVectCopy (bvp1);
 
-  /* if they are not the same size */
-  /* make them the same size */
-  if (bvp1->bSize < bvp2->bSize)
-    bvp1 = bitVectResize (bvp1, bvp2->size);
-  else if (bvp2->bSize < bvp1->bSize)
-    bvp2 = bitVectResize (bvp2, bvp1->size);
+    /* if they are not the same size */
+    /* make them the same size */
+    if (bvp1->size < bvp2->size)
+        bvp1 = bitVectResize (bvp1, bvp2->size);
+    else if (bvp2->size < bvp1->size)
+        bvp2 = bitVectResize (bvp2, bvp1->size);
 
-  newBvp = newBitVect (bvp1->size);
-  nbits = bvp1->bSize;
-  i = 0;
+    newBvp = newBitVect (bvp1->size);
+    elements = bvp1->allocSize;
 
-  pn = (unsigned int *)newBvp->vect; 
-  p1 = (unsigned int *)bvp1->vect;
-  p2 = (unsigned int *)bvp2->vect;
+    pn = newBvp->vect;
+    p1 = bvp1->vect;
+    p2 = bvp2->vect;
 
-  while ((nbits - i) >= sizeof(*pn))
+    while (elements--)
     {
-      *pn++ = *p1++ | *p2++;
-      i += sizeof(*pn);
+        *pn++ = *p1++ | *p2++;
     }
 
-  for (; i < nbits; i++)
-    newBvp->vect[i] = bvp1->vect[i] | bvp2->vect[i];
-
-  return newBvp;
+    return newBvp;
 }
+
+/*-----------------------------------------------------------------*/
+/* bitVectInplaceUnion - unions two bitvectors                     */
+/*-----------------------------------------------------------------*/
+bitVect *
+bitVectInplaceUnion (bitVect * bvp1, bitVect * bvp2)
+{
+    unsigned int *p1, *p2;
+    int elements;
+
+    /* if both null */
+    if (!bvp1 && !bvp2)
+        return NULL;
+
+    /* if one of them null then return the other */
+    if (!bvp1 && bvp2)
+        return bitVectCopy (bvp2);
+
+    if (bvp1 && !bvp2)
+        return bvp1;
+
+    /* if they are not the same size */
+    /* make them the same size */
+    if (bvp1->size < bvp2->size)
+        bvp1 = bitVectResize (bvp1, bvp2->size);
+    else if (bvp2->size < bvp1->size)
+        bvp2 = bitVectResize (bvp2, bvp1->size);
+
+    elements = bvp1->allocSize;
+
+    p1 = bvp1->vect;
+    p2 = bvp2->vect;
+
+    while (elements--)
+    {
+        *p1 |= *p2;
+        p1++; p2++;
+    }
+
+    return bvp1;
+}
+
 
 /*-----------------------------------------------------------------*/
 /* bitVectIntersect - intersect  two bitvectors                    */
@@ -212,74 +249,94 @@ bitVectUnion (bitVect * bvp1, bitVect * bvp2)
 bitVect *
 bitVectIntersect (bitVect * bvp1, bitVect * bvp2)
 {
-  int i;
-  bitVect *newBvp;
-  unsigned int *pn, *p1, *p2;
-  int nbits;
+    bitVect *newBvp;
+    unsigned int *pn, *p1, *p2;
+    int elements;
 
-  if (!bvp2 || !bvp1)
-    return NULL;
+    if (!bvp2 || !bvp1)
+        return NULL;
 
-  /* if they are not the same size */
-  /* make them the same size */
-  if (bvp1->bSize < bvp2->bSize)
-    bvp1 = bitVectResize (bvp1, bvp2->bSize);
-  else if (bvp2->size < bvp1->size)
-    bvp2 = bitVectResize (bvp2, bvp1->size);
+    /* if they are not the same size */
+    /* make them the same size */
+    if (bvp1->size < bvp2->size)
+        bvp1 = bitVectResize (bvp1, bvp2->size);
+    else if (bvp2->size < bvp1->size)
+        bvp2 = bitVectResize (bvp2, bvp1->size);
 
-  newBvp = newBitVect (bvp1->size);
-  nbits = bvp1->bSize;
-  i = 0;
+    newBvp = newBitVect (bvp1->size);
+    elements = bvp1->allocSize;
 
-  pn = (unsigned int *)newBvp->vect; 
-  p1 = (unsigned int *)bvp1->vect;
-  p2 = (unsigned int *)bvp2->vect;
+    pn = newBvp->vect;
+    p1 = bvp1->vect;
+    p2 = bvp2->vect;
 
-  while ((nbits - i) >= sizeof(*pn))
+    while (elements--)
     {
-      *pn++ = *p1++ & *p2++;
-      i += sizeof(*pn);
+        *pn++ = *p1++ & *p2++;
     }
 
-  for (; i < nbits; i++)
-    newBvp->vect[i] = bvp1->vect[i] & bvp2->vect[i];
+    return newBvp;
+}
 
-  return newBvp;
+/*-----------------------------------------------------------------*/
+/* bitVectInplaceIntersect - intersect  two bitvectors             */
+/*-----------------------------------------------------------------*/
+bitVect *
+bitVectInplaceIntersect (bitVect * bvp1, bitVect * bvp2)
+{
+    unsigned int *p1, *p2;
+    int elements;
+
+    if (!bvp2 || !bvp1)
+        return NULL;
+
+    /* if they are not the same size */
+    /* make them the same size */
+    if (bvp1->size < bvp2->size)
+        bvp1 = bitVectResize (bvp1, bvp2->size);
+    else if (bvp2->size < bvp1->size)
+        bvp2 = bitVectResize (bvp2, bvp1->size);
+
+    elements = bvp1->allocSize;
+
+    p1 = bvp1->vect;
+    p2 = bvp2->vect;
+
+    while (elements--)
+    {
+        *p1 &= *p2;
+        p1++; p2++;
+    }
+
+    return bvp1;
 }
 
 /*-----------------------------------------------------------------*/
 /* bitVectBitsInCommon - special case of intersection determines   */
 /*                       if the vectors have any common bits set   */
 /*-----------------------------------------------------------------*/
-int 
+int
 bitVectBitsInCommon (const bitVect * bvp1, const bitVect * bvp2)
 {
-  int i;
-  int nbits;
-  unsigned int *p1, *p2;
+    int elements;
+    unsigned int *p1, *p2;
 
-  if (!bvp1 || !bvp2)
-    return 0;
+    if (!bvp1 || !bvp2)
+        return 0;
 
-  nbits = min (bvp1->bSize, bvp2->bSize);
-  i = 0;
+    elements = min (bvp1->allocSize, bvp2->allocSize);
 
-  p1 = (unsigned int *)bvp1->vect;
-  p2 = (unsigned int *)bvp2->vect;
+    p1 = bvp1->vect;
+    p2 = bvp2->vect;
 
-  while ((nbits-i) >= sizeof(*p1))
+    while (elements--)
     {
-      if (*p1 & *p2)
-        return 1;
-      p1++; p2++;
-      i += sizeof(*p1);
+        if (*p1 & *p2)
+            return 1;
+        p1++; p2++;
     }
 
-  for (; i < nbits; i++)
-    if (bvp1->vect[i] & bvp2->vect[i])
-      return 1;
-
-  return 0;
+    return 0;
 }
 
 /*-----------------------------------------------------------------*/
@@ -288,82 +345,89 @@ bitVectBitsInCommon (const bitVect * bvp1, const bitVect * bvp2)
 bitVect *
 bitVectCplAnd (bitVect * bvp1, bitVect * bvp2)
 {
-  int i;
-  unsigned int *p1, *p2;
-  int nbits;
+    unsigned int *p1, *p2;
+    int elements;
 
-  if (!bvp2)
-    return bvp1;
+    if (!bvp2)
+        return bvp1;
 
-  if (!bvp1)
-    return bvp1;
+    if (!bvp1)
+        return bvp1;
 
-  /* if they are not the same size */
-  /* make them the same size */
-  if (bvp1->bSize < bvp2->bSize)
-    bvp1 = bitVectResize (bvp1, bvp2->bSize);
-  else if (bvp2->size < bvp1->size)
-    bvp2 = bitVectResize (bvp2, bvp1->size);
+    /* if they are not the same size */
+    /* make them the same size */
+    if (bvp1->size < bvp2->size)
+        bvp1 = bitVectResize (bvp1, bvp2->size);
+    else if (bvp2->size < bvp1->size)
+        bvp2 = bitVectResize (bvp2, bvp1->size);
 
-  nbits = bvp1->bSize;
-  i = 0;
+    elements = bvp1->allocSize;
+    p1 = bvp1->vect;
+    p2 = bvp2->vect;
 
-  p1 = (unsigned int *)bvp1->vect;
-  p2 = (unsigned int *)bvp2->vect;
-
-  while ((nbits - i) >= sizeof(*p1))
+    while (elements--)
     {
-      *p1 = *p1 & (~*p2);
-      p2++; p1++;
-      i += sizeof(*p1);
+        *p1 = *p1 & ~ *p2;
+        p2++; p1++;
     }
 
-  for (; i < nbits; i++)
-    bvp1->vect[i] = bvp1->vect[i] & (~bvp2->vect[i]);
-
-  return bvp1;
+    return bvp1;
 }
 
 /*-----------------------------------------------------------------*/
 /* bitVectIsZero - bit vector has all bits turned off              */
 /*-----------------------------------------------------------------*/
-int 
+int
 bitVectIsZero (const bitVect * bvp)
 {
-  int i;
+    int i;
 
-  if (!bvp)
+    if (!bvp)
+        return 1;
+
+    for (i = 0; i < bvp->allocSize; i++)
+        if (bvp->vect[i] != 0)
+            return 0;
+
     return 1;
-
-  for (i = 0; i < bvp->bSize; i++)
-    if (bvp->vect[i] != 0)
-      return 0;
-
-  return 1;
 }
 
 /*-----------------------------------------------------------------*/
 /* bitVectsEqual - returns 1 if the two bit vectors are equal      */
 /*-----------------------------------------------------------------*/
-int 
+int
 bitVectEqual (bitVect * bvp1, bitVect * bvp2)
 {
-  int i;
+    int i;
+    int elements;
 
-  if (!bvp1 || !bvp2)
-    return 0;
+    if (!bvp1 || !bvp2)
+        return 0;
 
-  if (bvp1 == bvp2)
+    if (bvp1 == bvp2)
+        return 1;
+
+    /* elements common to both allocations must match */
+    elements = min (bvp1->allocSize, bvp2->allocSize);
+    for (i = 0; i < elements; i++)
+        if (bvp1->vect[i] != bvp2->vect[i])
+            return 0;
+
+    /* any extra elements allocated must be 0 */
+    if (bvp1->allocSize > elements)
+    {
+        for (i = elements; i < bvp1->allocSize; i++)
+            if (bvp1->vect[i])
+                return 0;
+    }
+    if (bvp2->allocSize > elements)
+    {
+        for (i = elements; i < bvp2->allocSize; i++)
+            if (bvp2->vect[i])
+                return 0;
+    }
+
     return 1;
-
-  if (bvp1->bSize != bvp2->bSize)
-    return 0;
-
-  for (i = 0; i < bvp1->bSize; i++)
-    if (bvp1->vect[i] != bvp2->vect[i])
-      return 0;
-
-  return 1;
 }
 
 /*-----------------------------------------------------------------*/
@@ -372,116 +436,106 @@ bitVectEqual (bitVect * bvp1, bitVect * bvp2)
 bitVect *
 bitVectCopy (const bitVect * bvp)
 {
-  bitVect *newBvp;
-  int i;
+    bitVect *newBvp;
+    int i;
 
-  if (!bvp)
-    return NULL;
+    if (!bvp)
+        return NULL;
 
-  newBvp = newBitVect (bvp->size);
-  for (i = 0; i < bvp->bSize; i++)
-    newBvp->vect[i] = bvp->vect[i];
+    newBvp = newBitVect (bvp->size);
+    for (i = 0; i < bvp->allocSize; i++)
+        newBvp->vect[i] = bvp->vect[i];
 
-  return newBvp;
+    return newBvp;
 }
 
 /*-----------------------------------------------------------------*/
 /* bitVectnBitsOn - returns the number of bits that are on         */
 /*-----------------------------------------------------------------*/
-int 
+int
 bitVectnBitsOn (const bitVect * bvp)
 {
-  int i, j;
-  unsigned char byte;
-  int count = 0;
-  unsigned int *p1;
+    int count = 0;
+    unsigned int *p1;
+    int elements;
 
-  /* The bit vector is highest to lowest.  Interesting. */
-  const unsigned int mask[] = {
-    0, 128, 128+64, 128+64+32, 128+64+32+16,
-    128+64+32+16+8, 128+64+32+16+8+4, 128+64+32+16+8+4+2
-  };
+    if (!bvp)
+        return 0;
 
-  if (!bvp)
-    return 0;
+    p1 = bvp->vect;
+    elements = bvp->allocSize;
 
-  /* j is the number of bytes in the bitvect */
-  j = (bvp->size+7) / 8;
-
-  /* Fix up the highest bits in the top byte so that we can iterate over
-     all of them. */
-  if (bvp->size%8 != 0)
+    while (elements--)
     {
-      bvp->vect[j-1] &= mask[bvp->size&7];
-    }
-
-  /* Take care of things in machine word chunks if possible.  As we
-     are only counting bits it does not matter which order they are
-     counted in.
-  */
-  i = 0;
-  p1 = (unsigned int *)bvp->vect;
-
-  while ((j-i) >= sizeof(*p1))
-    {
-      unsigned int word = *p1++;
-      while (word)
+        unsigned int word = *p1++;
+        while (word)
         {
-          count++;
-          word &= word-1;
-        }
-      i += sizeof(*p1);
-    }
-
-  /* Take care of the rest of the bitvect. */
-  for (; i < j; i++)
-    {
-      byte = bvp->vect[i];
-      while (byte)
-        {
-          count++;
-          byte &= byte-1;
+            count++;
+            word &= word-1;
         }
     }
-  return count;
+
+    return count;
 }
 
 /*-----------------------------------------------------------------*/
 /* bitVectFirstBit - returns the key for the first bit that is on  */
 /*-----------------------------------------------------------------*/
-int 
+int
 bitVectFirstBit (const bitVect * bvp)
 {
-  int i;
+    int i;
+    int index;
 
-  if (!bvp)
+    if (!bvp)
+        return -1;
+
+    for (i = 0, index = 0; i < bvp->size; i+=BIT_SIZEOF_ELEMENT, index++)
+        if (bvp->vect[index])
+            break;
+
+    for (; i < bvp->size; i++)
+        if (bitVectBitValue (bvp, i))
+            return i;
+
     return -1;
-  for (i = 0; i < bvp->size; i++)
-    if (bitVectBitValue (bvp, i))
-      return i;
+}
 
-  return -1;
+/*-----------------------------------------------------------------*/
+/* bitVectClear - clear all bits                                   */
+/*-----------------------------------------------------------------*/
+void
+bitVectClear (bitVect *bvp)
+{
+    int i;
+
+    if (!bvp)
+        return;
+
+    for (i = 0; i < bvp->allocSize; i++)
+        bvp->vect[i] = 0;
 }
 
 /*-----------------------------------------------------------------*/
 /* bitVectDebugOn - prints bits that are on                        */
 /*-----------------------------------------------------------------*/
-void 
+void
 bitVectDebugOn (bitVect * bvp, FILE * of)
 {
-  int i;
+    int i;
 
-  if (of == NULL)
-    of = stdout;
-  if (!bvp)
-    return;
+    if (of == NULL)
+        of = stdout;
+    if (!bvp)
+        return;
 
-  fprintf (of, "bitvector Size = %d bSize = %d\n", bvp->size, bvp->bSize);
-  fprintf (of, "Bits on { ");
-  for (i = 0; i < bvp->size; i++)
+    fprintf (of, "bitvector Size = %d allocSize = %d\n", bvp->size, bvp->allocSize);
+    fprintf (of, "Bits on { ");
+    for (i = 0; i < bvp->size; i++)
     {
-      if (bitVectBitValue (bvp, i))
-	fprintf (of, "(%d) ", i);
+        if (bitVectBitValue (bvp, i))
+            fprintf (of, "(%d) ", i);
     }
-  fprintf (of, "}\n");
+    fprintf (of, "}\n");
 }
+

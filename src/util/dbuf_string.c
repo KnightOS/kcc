@@ -36,19 +36,33 @@
 int
 dbuf_append_str (struct dbuf_s *dbuf, const char *str)
 {
-  size_t len;
-  assert (str != NULL);
+    size_t len;
+    assert (str != NULL);
 
-  len = strlen (str);
-  if (dbuf_append (dbuf, str, len + 1))
+    len = strlen (str);
+    if (dbuf_append (dbuf, str, len + 1))
     {
-      --dbuf->len;
-      return 1;
+        --dbuf->len;
+        return 1;
     }
-  else
-    return 0;
+    else
+        return 0;
 }
 
+/*
+ * Prepend string to the beginning of the buffer.
+ * The buffer is null terminated.
+ */
+
+int
+dbuf_prepend_str (struct dbuf_s *dbuf, const char *str)
+{
+    size_t len;
+    assert (str != NULL);
+
+    len = strlen (str);
+    return (dbuf_prepend (dbuf, str, len));
+}
 
 /*
  * Append single character to the end of the buffer.
@@ -58,16 +72,30 @@ dbuf_append_str (struct dbuf_s *dbuf, const char *str)
 int
 dbuf_append_char (struct dbuf_s *dbuf, char chr)
 {
-  char buf[2];
-  buf[0] = chr;
-  buf[1] = '\0';
-  if (dbuf_append (dbuf, buf, 2))
+    char buf[2];
+    buf[0] = chr;
+    buf[1] = '\0';
+    if (dbuf_append (dbuf, buf, 2))
     {
-      --dbuf->len;
-      return 1;
+        --dbuf->len;
+        return 1;
     }
-  else
-    return 0;
+    else
+        return 0;
+}
+
+/*
+ * Prepend single character to the end of the buffer.
+ * The buffer is null terminated.
+ */
+
+int
+dbuf_prepend_char (struct dbuf_s *dbuf, char chr)
+{
+    char buf[2];
+    buf[0] = chr;
+    buf[1] = '\0';
+    return (dbuf_prepend_str (dbuf, buf));
 }
 
 /*
@@ -79,82 +107,85 @@ dbuf_append_char (struct dbuf_s *dbuf, char chr)
 static int
 calc_result_length (const char *format, va_list args)
 {
-  const char *p = format;
-  /* Add one to make sure that it is never zero, which might cause malloc
-     to return NULL.  */
-  int total_width = strlen (format) + 1;
-  va_list ap;
+    const char *p = format;
+    /* Add one to make sure that it is never zero, which might cause malloc
+       to return NULL.  */
+    int total_width = strlen (format) + 1;
+    va_list ap;
 
 #ifdef va_copy
-  va_copy (ap, args);
+    va_copy (ap, args);
 #else
-  memcpy (&ap, &args, sizeof (va_list));
+    memcpy (&ap, &args, sizeof (va_list));
 #endif
 
-  while (*p != '\0')
+    while (*p != '\0')
     {
-      if (*p++ == '%')
+        if (*p++ == '%')
         {
-          while (strchr ("-+ #0", *p))
-            ++p;
-          if (*p == '*')
+            while (strchr ("-+ #0", *p))
+                ++p;
+            if (*p == '*')
             {
-              ++p;
-              total_width += abs (va_arg (ap, int));
+                ++p;
+                total_width += abs (va_arg (ap, int));
             }
-          else
-            total_width += strtoul (p, (char **) &p, 10);
-          if (*p == '.')
+            else
+                total_width += strtoul (p, (char **) &p, 10);
+            if (*p == '.')
             {
-              ++p;
-              if (*p == '*')
+                ++p;
+                if (*p == '*')
                 {
-                  ++p;
-                  total_width += abs (va_arg (ap, int));
+                    ++p;
+                    total_width += abs (va_arg (ap, int));
                 }
-              else
-              total_width += strtoul (p, (char **) &p, 10);
+                else
+                    total_width += strtoul (p, (char **) &p, 10);
             }
-          while (strchr ("hlL", *p))
-            ++p;
-          /* Should be big enough for any format specifier except %s and floats.  */
-          total_width += 30;
-          switch (*p)
+            while (strchr ("hlL", *p))
+                ++p;
+            /* Should be big enough for any format specifier except %s and floats.  */
+            total_width += 30;
+            switch (*p)
             {
-            case 'd':
-            case 'i':
-            case 'o':
-            case 'u':
-            case 'x':
-            case 'X':
-            case 'c':
-              (void) va_arg (ap, int);
-              break;
-            case 'f':
-            case 'e':
-            case 'E':
-            case 'g':
-            case 'G':
-              (void) va_arg (ap, double);
-              /* Since an ieee double can have an exponent of 307, we'll
-                 make the buffer wide enough to cover the gross case. */
-              total_width += 307;
-              break;
-            case 's':
-              total_width += strlen (va_arg (ap, char *));
-              break;
-            case 'p':
-            case 'n':
-              (void) va_arg (ap, char *);
-              break;
+                case 'd':
+                case 'i':
+                case 'o':
+                case 'u':
+                case 'x':
+                case 'X':
+                case 'c':
+                    (void) va_arg (ap, int);
+                    break;
+                case 'f':
+                case 'e':
+                case 'E':
+                case 'g':
+                case 'G':
+                    (void) va_arg (ap, double);
+                    /* Since an ieee double can have an exponent of 307, we'll
+                       make the buffer wide enough to cover the gross case. */
+                    total_width += 307;
+                    break;
+                case 's':
+                {
+                    const char *p = va_arg (ap, char *);
+                    total_width += strlen (p ? p : "(null)");
+                }
+                    break;
+                case 'p':
+                case 'n':
+                    (void) va_arg (ap, char *);
+                    break;
             }
-          p++;
+            p++;
         }
     }
 #ifdef va_copy
-  va_end (ap);
+    va_end (ap);
 #endif
-  return total_width;
+    return total_width;
 }
 
 
@@ -166,27 +197,27 @@ calc_result_length (const char *format, va_list args)
 int
 dbuf_vprintf (struct dbuf_s *dbuf, const char *format, va_list args)
 {
-  int size = calc_result_length (format, args);
+    int size = calc_result_length (format, args);
 
-  assert (dbuf != NULL);
-  assert (dbuf->alloc != 0);
-  assert (dbuf->buf != NULL);
+    assert (dbuf != NULL);
+    assert (dbuf->alloc != 0);
+    assert (dbuf->buf != NULL);
 
-  if (0 != _dbuf_expand (dbuf, size))
+    if (0 != _dbuf_expand (dbuf, size))
     {
-      int len = vsprintf (&(((char *)dbuf->buf)[dbuf->len]), format, args);
+        int len = vsprintf (&(((char *)dbuf->buf)[dbuf->len]), format, args);
 
-      if (len >= 0)
+        if (len >= 0)
         {
-          /* if written length is greater then the calculated one,
-             we have a buffer overrun! */
-          assert (len <= size);
-          dbuf->len += len;
+            /* if written length is greater then the calculated one,
+               we have a buffer overrun! */
+            assert (len <= size);
+            dbuf->len += len;
         }
-      return len;
+        return len;
     }
 
-  return 0;
+    return 0;
 }
 
 
@@ -198,14 +229,14 @@ dbuf_vprintf (struct dbuf_s *dbuf, const char *format, va_list args)
 int
 dbuf_printf (struct dbuf_s *dbuf, const char *format, ...)
 {
-  va_list arg;
-  int len;
+    va_list arg;
+    int len;
 
-  va_start (arg, format);
-  len = dbuf_vprintf (dbuf, format, arg);
-  va_end (arg);
+    va_start (arg, format);
+    len = dbuf_vprintf (dbuf, format, arg);
+    va_end (arg);
 
-  return len;
+    return len;
 }
 
 
@@ -217,29 +248,29 @@ dbuf_printf (struct dbuf_s *dbuf, const char *format, ...)
 size_t
 dbuf_getline (struct dbuf_s *dbuf, FILE *infp)
 {
-  int c;
-  char chr;
+    int c;
+    char chr;
 
-  while ((c = getc (infp)) != '\n' && c != EOF)
+    while ((c = getc (infp)) != '\n' && c != EOF)
     {
-      chr = c;
+        chr = c;
 
-      dbuf_append (dbuf, &chr, 1);
+        dbuf_append (dbuf, &chr, 1);
     }
 
-  /* add trailing NL */
-  if (c == '\n')
+    /* add trailing NL */
+    if (c == '\n')
     {
-      chr = c;
+        chr = c;
 
-      dbuf_append (dbuf, &chr, 1);
+        dbuf_append (dbuf, &chr, 1);
     }
 
-  /* terminate the line without increasing the length */
-  if (0 != _dbuf_expand (dbuf, 1))
-    ((char *)dbuf->buf)[dbuf->len] = '\0';
+    /* terminate the line without increasing the length */
+    if (0 != _dbuf_expand (dbuf, 1))
+        ((char *)dbuf->buf)[dbuf->len] = '\0';
 
-  return dbuf_get_length (dbuf);
+    return dbuf_get_length (dbuf);
 }
 
 
@@ -252,26 +283,26 @@ dbuf_getline (struct dbuf_s *dbuf, FILE *infp)
 size_t
 dbuf_chomp (struct dbuf_s *dbuf)
 {
-  size_t i = dbuf->len;
-  size_t ret;
+    size_t i = dbuf->len;
+    size_t ret;
 
-  if (i != 0 && '\n' == ((char *)dbuf->buf)[i - 1])
+    if (i != 0 && '\n' == ((char *)dbuf->buf)[i - 1])
     {
-      --i;
-      if (i != 0 && '\r' == ((char *)dbuf->buf)[i - 1])
+        --i;
+        if (i != 0 && '\r' == ((char *)dbuf->buf)[i - 1])
         {
-          --i;
+            --i;
         }
     }
 
-  ret = dbuf->len - i;
-  dbuf->len = i;
+    ret = dbuf->len - i;
+    dbuf->len = i;
 
-  /* terminate the line without increasing the length */
-  if (_dbuf_expand(dbuf, 1) != 0)
-    ((char *)dbuf->buf)[dbuf->len] = '\0';
+    /* terminate the line without increasing the length */
+    if (_dbuf_expand(dbuf, 1) != 0)
+        ((char *)dbuf->buf)[dbuf->len] = '\0';
 
-  return ret;
+    return ret;
 }
 
 
@@ -282,7 +313,7 @@ dbuf_chomp (struct dbuf_s *dbuf)
 void
 dbuf_write (struct dbuf_s *dbuf, FILE *dest)
 {
-  fwrite (dbuf_get_buf (dbuf), 1, dbuf_get_length (dbuf), dest);
+    fwrite (dbuf_get_buf (dbuf), 1, dbuf_get_length (dbuf), dest);
 }
 
 
@@ -293,7 +324,7 @@ dbuf_write (struct dbuf_s *dbuf, FILE *dest)
 void
 dbuf_write_and_destroy (struct dbuf_s *dbuf, FILE *dest)
 {
-  dbuf_write (dbuf, dest);
+    dbuf_write (dbuf, dest);
 
-  dbuf_destroy (dbuf);
+    dbuf_destroy (dbuf);
 }

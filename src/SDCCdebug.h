@@ -23,19 +23,19 @@
 
 typedef struct DebugFile
 {
-  int (*openFile) (const char *file);
-  int (*closeFile) (void);
-  int (*writeModule) (const char *name);
-  int (*writeFunction) (symbol *pSym, iCode *ic);
-  int (*writeEndFunction) (symbol *pSym, iCode *ic, int offset);
-  int (*writeLabel) (symbol *pSym, iCode *ic);
-  int (*writeScope) (iCode *ic);
-  int (*writeSymbol) (symbol *pSym);
-  int (*writeType) (structdef *sdef, int block, int inStruct, const char *tag);
-  int (*writeCLine) (iCode *ic);
-  int (*writeALine) (const char *module, int Line);
-  int (*writeFrameAddress) (const char *variable, struct reg_info *reg, int offset);
-}DEBUGFILE;
+    int (*openFile) (const char *file);
+    int (*closeFile) (void);
+    int (*writeModule) (const char *name);
+    int (*writeFunction) (symbol *pSym, iCode *ic);
+    int (*writeEndFunction) (symbol *pSym, iCode *ic, int offset);
+    int (*writeLabel) (symbol *pSym, const iCode *ic);
+    int (*writeScope) (iCode *ic);
+    int (*writeSymbol) (symbol *pSym);
+    int (*writeType) (structdef *sdef, int block, int inStruct, const char *tag);
+    int (*writeCLine) (iCode *ic);
+    int (*writeALine) (const char *module, int Line);
+    int (*writeFrameAddress) (const char *variable, struct reg_info *reg, int offset);
+} DEBUGFILE;
 
 extern DEBUGFILE *debugFile;
 

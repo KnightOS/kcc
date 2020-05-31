@@ -32,12 +32,12 @@ genLine_t genLine;
 lineNode *
 newLineNode (const char *line)
 {
-  lineNode *pl;
+    lineNode *pl;
 
-  pl = Safe_alloc (sizeof (lineNode));
-  pl->line = Safe_strdup (line);
-  pl->ic = NULL;
-  return pl;
+    pl = Safe_alloc (sizeof (lineNode));
+    pl->line = Safe_strdup (line);
+    pl->ic = NULL;
+    return pl;
 }
 
 /*-----------------------------------------------------------------*/
@@ -46,40 +46,40 @@ newLineNode (const char *line)
 lineNode *
 connectLine (lineNode * pl1, lineNode * pl2)
 {
-  if (!pl1 || !pl2)
+    if (!pl1 || !pl2)
     {
-      fprintf (stderr, "trying to connect null line\n");
-      return NULL;
+        fprintf (stderr, "trying to connect null line\n");
+        return NULL;
     }
 
-  pl2->prev = pl1;
-  pl1->next = pl2;
+    pl2->prev = pl1;
+    pl1->next = pl2;
 
-  return pl2;
+    return pl2;
 }
 
 void
 destroy_line_list (void)
 {
-  lineNode *pl;
+    lineNode *pl;
 
-  pl = genLine.lineCurr;
+    pl = genLine.lineCurr;
 
-  while (pl)
+    while (pl)
     {
-      lineNode *p;
+        lineNode *p;
 
-      if (pl->line)
-        Safe_free (pl->line);
+        if (pl->line)
+            Safe_free (pl->line);
 
-      if (pl->aln)
-        Safe_free (pl->aln);
+        if (pl->aln)
+            Safe_free (pl->aln);
 
-      p = pl;
-      pl = pl->prev;
-      Safe_free (p);
+        p = pl;
+        pl = pl->prev;
+        Safe_free (p);
     }
-  genLine.lineHead = genLine.lineCurr = NULL;
+    genLine.lineHead = genLine.lineCurr = NULL;
 }
 
 /*-----------------------------------------------------------------*/
@@ -88,52 +88,42 @@ destroy_line_list (void)
 static void
 add_line_node (const char *line)
 {
-  lineNode *pl;
+    lineNode *pl;
 
-  pl = Safe_alloc (sizeof (lineNode));
+    pl = Safe_alloc (sizeof (lineNode));
 
-#if 1
-  memcpy (pl, (lineElem_t *) & genLine.lineElement, sizeof (lineElem_t));
-#else
-  pl->ic = genLine.lineElement.ic;
-  pl->isInline = genLine.lineElement.isInline;
-  pl->isComment = genLine.lineElement.isComment;
-  pl->isDebug = genLine.lineElement.isDebug;
-  pl->isLabel = genLine.lineElement.isLabel;
-  pl->visited = genLine.lineElement.visited;
-  pl->aln = genLine.lineElement.aln;
-#endif
+    memcpy (pl, (lineElem_t *) & genLine.lineElement, sizeof (lineElem_t));
 
-  pl->line = Safe_strdup (line);
+    pl->line = Safe_strdup (line);
 
-  if (genLine.lineCurr)
+    if (genLine.lineCurr)
     {
-      pl->next = NULL;
-      genLine.lineCurr->next = pl;
-      pl->prev = genLine.lineCurr;
-      genLine.lineCurr = pl;
+        pl->next = NULL;
+        genLine.lineCurr->next = pl;
+        pl->prev = genLine.lineCurr;
+        genLine.lineCurr = pl;
     }
-  else
+    else
     {
-      pl->prev = pl->next = NULL;
-      genLine.lineCurr = genLine.lineHead = pl;
+        pl->prev = pl->next = NULL;
+        genLine.lineCurr = genLine.lineHead = pl;
     }
 }
 
 void
 emit_raw (const char *line)
 {
-  const char *p = line;
+    const char *p = line;
 
-  while (isspace ((unsigned char) *p))
-    p++;
+    while (isspace ((unsigned char) *p))
+        p++;
 
-  if (*p)
+    if (*p)
     {
-      if (!port->rtrackUpdate || !port->rtrackUpdate(line))
+        if (!port->rtrackUpdate || !port->rtrackUpdate(line))
         {
-          genLine.lineElement.isComment = (*p == ';');
-          add_line_node (line);
+            genLine.lineElement.isComment = (*p == ';');
+            add_line_node (line);
         }
     }
 }
@@ -144,37 +134,37 @@ emit_raw (const char *line)
 const char *
 format_opcode (const char *inst, const char *fmt, va_list ap)
 {
-  struct dbuf_s dbuf;
+    struct dbuf_s dbuf;
 
-  dbuf_init (&dbuf, INITIAL_INLINEASM);
+    dbuf_init (&dbuf, INITIAL_INLINEASM);
 
-  if (inst && *inst)
+    if (inst && *inst)
     {
-      dbuf_append_str (&dbuf, inst);
+        dbuf_append_str (&dbuf, inst);
 
-      if (fmt && *fmt)
+        if (fmt && *fmt)
         {
-          dbuf_append_char (&dbuf, '\t');
-          dbuf_tvprintf (&dbuf, fmt, ap);
+            dbuf_append_char (&dbuf, '\t');
+            dbuf_tvprintf (&dbuf, fmt, ap);
         }
     }
-  else
+    else
     {
-      if (fmt && *fmt)
+        if (fmt && *fmt)
         {
-          dbuf_tvprintf (&dbuf, fmt, ap);
+            dbuf_tvprintf (&dbuf, fmt, ap);
         }
     }
 
-  return dbuf_detach_c_str (&dbuf);
+    return dbuf_detach_c_str (&dbuf);
 }
 
 void
 va_emitcode (const char *inst, const char *fmt, va_list ap)
 {
-  const char *line = format_opcode (inst, fmt, ap);
-  emit_raw (line);
-  dbuf_free (line);
+    const char *line = format_opcode (inst, fmt, ap);
+    emit_raw (line);
+    dbuf_free (line);
 }
 
 /*-----------------------------------------------------------------*/
@@ -183,20 +173,20 @@ va_emitcode (const char *inst, const char *fmt, va_list ap)
 void
 emitcode (const char *inst, const char *fmt, ...)
 {
-  va_list ap;
+    va_list ap;
 
-  va_start (ap, fmt);
-  va_emitcode (inst, fmt, ap);
-  va_end (ap);
+    va_start (ap, fmt);
+    va_emitcode (inst, fmt, ap);
+    va_end (ap);
 }
 
 void
 emitLabel (symbol *tlbl)
 {
-  if (!tlbl)
-    return;
-  emitcode ("", "!tlabeldef", labelKey2num (tlbl->key));
-  genLine.lineCurr->isLabel = 1;
+    if (!tlbl)
+        return;
+    emitcode ("", "!tlabeldef", labelKey2num (tlbl->key));
+    genLine.lineCurr->isLabel = 1;
 }
 
 /*-----------------------------------------------------------------*/
@@ -205,71 +195,94 @@ emitLabel (symbol *tlbl)
 void
 genInline (iCode * ic)
 {
-  char *buf, *bp, *begin;
-  bool inComment = FALSE;
+    char *buf, *bp, *begin;
+    bool inComment = FALSE;
+    bool inLiteral = FALSE;
+    bool inLiteralString = FALSE;
 
-  D (emitcode (";", "genInline"));
+    D (emitcode (";", "genInline"));
 
-  genLine.lineElement.isInline += (!options.asmpeep);
+    genLine.lineElement.isInline += (!options.asmpeep);
 
-  buf = bp = begin = Safe_strdup (IC_INLINE (ic));
+    buf = bp = begin = Safe_strdup (IC_INLINE (ic));
 
-  /* Emit each line as a code */
-  while (*bp)
+    /* Emit each line as a code */
+    while (*bp)
     {
-      switch (*bp)
+        switch (*bp)
         {
-        case ';':
-          inComment = TRUE;
-          ++bp;
-          break;
+            case '\'':
+                inLiteral = !inLiteral;
+                ++bp;
+                break;
 
-        case '\x87':
-        case '\n':
-          inComment = FALSE;
-          *bp++ = '\0';
+            case '"':
+                inLiteralString = !inLiteralString;
+                ++bp;
+                break;
 
-          /* Don't emit leading whitespaces */
-          while (isspace (*begin))
-            ++begin;
+            case ';':
+                if (!inLiteral && !inLiteralString)
+                {
+                    inComment = TRUE;
+                }
+                ++bp;
+                break;
 
-          if (*begin)
-            emitcode (begin, NULL);
+            case ':':
+                /* Add \n for labels, not dirs such as c:\mydir */
+                if (!inComment && !inLiteral && !inLiteralString && (isspace ((unsigned char) bp[1])))
+                {
+                    ++bp;
+                    *bp = '\0';
+                    ++bp;
+                    emitcode (begin, NULL);
+                    begin = bp;
+                }
+                else
+                {
+                    ++bp;
+                }
+                break;
 
-          begin = bp;
-          break;
+            case '\x87':
+            case '\n':
+                inLiteral = FALSE;
+                inLiteralString = FALSE;
+                inComment = FALSE;
+                *bp++ = '\0';
 
-        default:
-          /* Add \n for labels, not dirs such as c:\mydir */
-          if (!inComment && (*bp == ':') && (isspace ((unsigned char) bp[1])))
-            {
-              ++bp;
-              *bp = '\0';
-              ++bp;
-              emitcode (begin, NULL);
-              begin = bp;
-            }
-          else
-            ++bp;
-          break;
+                /* Don't emit leading whitespaces */
+                while (isspace (*begin))
+                    ++begin;
+
+                if (*begin)
+                    emitcode (begin, NULL);
+
+                begin = bp;
+                break;
+
+            default:
+                ++bp;
+                break;
         }
     }
-  if (begin != bp)
+    if (begin != bp)
     {
-      /* Don't emit leading whitespaces */
-      while (isspace (*begin))
-        ++begin;
+        /* Don't emit leading whitespaces */
+        while (isspace (*begin))
+            ++begin;
 
-      if (*begin)
-        emitcode (begin, NULL);
+        if (*begin)
+            emitcode (begin, NULL);
     }
 
-  Safe_free (buf);
+    Safe_free (buf);
 
-  /* consumed; we can free it here */
-  dbuf_free (IC_INLINE (ic));
+    /* consumed; we can free it here */
+    dbuf_free (IC_INLINE (ic));
 
-  genLine.lineElement.isInline -= (!options.asmpeep);
+    genLine.lineElement.isInline -= (!options.asmpeep);
 }
 
 /*-----------------------------------------------------------------*/
@@ -278,38 +291,38 @@ genInline (iCode * ic)
 void
 printLine (lineNode * head, struct dbuf_s *oBuf)
 {
-  iCode *last_ic = NULL;
-  bool debug_iCode_tracking = (getenv ("DEBUG_ICODE_TRACKING") != NULL);
+    iCode *last_ic = NULL;
+    bool debug_iCode_tracking = (getenv ("DEBUG_ICODE_TRACKING") != NULL);
 
-  while (head)
+    while (head)
     {
-      if (head->ic != last_ic)
+        if (head->ic != last_ic)
         {
-          last_ic = head->ic;
-          if (debug_iCode_tracking)
+            last_ic = head->ic;
+            if (debug_iCode_tracking)
             {
-              if (head->ic)
-                dbuf_printf (oBuf, "; block = %d, seq = %d\n", head->ic->block, head->ic->seq);
-              else
-                dbuf_append_str (oBuf, "; iCode lost\n");
+                if (head->ic)
+                    dbuf_printf (oBuf, "; block = %d, seq = %d\n", head->ic->block, head->ic->seq);
+                else
+                    dbuf_append_str (oBuf, "; iCode lost\n");
             }
         }
 
-      /* don't indent comments & labels */
-      if (head->line && (head->isComment || head->isLabel))
+        /* don't indent comments & labels */
+        if (head->line && (head->isComment || head->isLabel))
         {
-          dbuf_printf (oBuf, "%s\n", head->line);
+            dbuf_printf (oBuf, "%s\n", head->line);
         }
-      else
+        else
         {
-          if (head->isInline && *head->line == '#')
+            if (head->isInline && *head->line == '#')
             {
-              /* comment out preprocessor directives in inline asm */
-              dbuf_append_char (oBuf, ';');
+                /* comment out preprocessor directives in inline asm */
+                dbuf_append_char (oBuf, ';');
             }
-          dbuf_printf (oBuf, "\t%s\n", head->line);
+            dbuf_printf (oBuf, "\t%s\n", head->line);
         }
-      head = head->next;
+        head = head->next;
     }
 }
 
@@ -319,23 +332,24 @@ printLine (lineNode * head, struct dbuf_s *oBuf)
 iCode *
 ifxForOp (operand * op, const iCode * ic)
 {
-  iCode *ifxIc;
+    iCode *ifxIc;
 
-  /* if true symbol then needs to be assigned */
-  if (!IS_TRUE_SYMOP (op))
+    /* if true symbol then needs to be assigned */
+    if (!IS_TRUE_SYMOP (op))
     {
-      /* if this has register type condition and
-         while skipping ipop's (see bug 1509084),
-         the next instruction is ifx with the same operand
-         and live to of the operand is upto the ifx only then */
-      for (ifxIc = ic->next; ifxIc && ifxIc->op == IPOP; ifxIc = ifxIc->next)
-        ;
+        /* if this has register type condition and
+           while skipping ipop's (see bug 1509084),
+           the next instruction is ifx with the same operand
+           and live to of the operand is upto the ifx only then */
+        for (ifxIc = ic->next; ifxIc && ifxIc->op == IPOP; ifxIc = ifxIc->next)
+            ;
 
-      if (ifxIc && ifxIc->op == IFX &&
-        IC_COND (ifxIc)->key == op->key &&
-        OP_SYMBOL (op)->liveTo <= ifxIc->seq)
-        return ifxIc;
+        if (ifxIc && ifxIc->op == IFX &&
+            IC_COND (ifxIc)->key == op->key &&
+            OP_SYMBOL (op)->liveFrom >= ic->seq &&
+            OP_SYMBOL (op)->liveTo <= ifxIc->seq)
+            return ifxIc;
     }
 
-  return NULL;
+    return NULL;
 }

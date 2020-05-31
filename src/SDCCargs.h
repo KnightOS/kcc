@@ -31,11 +31,11 @@
 
 /** Specifies option argument types.  */
 enum cl_opt_arg_type {
-  CLAT_BOOLEAN = 0, /* has to be zero! */
-  CLAT_INTEGER,
-  CLAT_STRING,
-  CLAT_SET,
-  CLAT_ADD_SET
+    CLAT_BOOLEAN = 0, /* has to be zero! */
+    CLAT_INTEGER,
+    CLAT_STRING,
+    CLAT_SET,
+    CLAT_ADD_SET
 };
 
 /** Table of all options supported by all ports.
@@ -45,7 +45,7 @@ enum cl_opt_arg_type {
       * Automatic support for setting flags on simple options.
 */
 typedef struct
-  {
+{
     /** The short option character e.g. 'h' for -h.  0 for none. */
     char shortOpt;
     /** Long option e.g. "--help".  Includes the -- prefix.  NULL for
@@ -59,9 +59,9 @@ typedef struct
     const char *help;
     /** Option argument type */
     enum cl_opt_arg_type arg_type;
-  } OPTION;
+} OPTION;
 
 char *getStringArg(const char *szStart, char **argv, int *pi, int argc);
-int getIntArg(const char *szStart, char **argv, int *pi, int argc);
+long getIntArg(const char *szStart, char **argv, int *pi, int argc);
 
 #endif

@@ -38,15 +38,15 @@
 static hashtItem *
 _newHashtItem (int key, void *pkey, void *item)
 {
-  hashtItem *htip;
+    hashtItem *htip;
 
-  htip = Safe_alloc ( sizeof (hashtItem));
+    htip = Safe_alloc ( sizeof (hashtItem));
 
-  htip->key = key;
-  htip->pkey = pkey;
-  htip->item = item;
-  htip->next = NULL;
-  return htip;
+    htip->key = key;
+    htip->pkey = pkey;
+    htip->item = item;
+    htip->next = NULL;
+    return htip;
 }
 
 /*-----------------------------------------------------------------*/
@@ -55,121 +55,121 @@ _newHashtItem (int key, void *pkey, void *item)
 hTab *
 newHashTable (int size)
 {
-  hTab *htab;
+    hTab *htab;
 
-  htab = Safe_alloc ( sizeof (hTab));
+    htab = Safe_alloc ( sizeof (hTab));
 
-  if (!(htab->table = Safe_alloc ((size + 1) * sizeof (hashtItem *))))
+    if (!(htab->table = Safe_alloc ((size + 1) * sizeof (hashtItem *))))
     {
-      fprintf (stderr, "out of virtual memory %s %d\n",
-	       __FILE__, (size + 1) * (int) sizeof (hashtItem *));
-      exit (1);
+        fprintf (stderr, "out of virtual memory %s %d\n",
+                 __FILE__, (size + 1) * (int) sizeof (hashtItem *));
+        exit (1);
     }
-  htab->minKey = htab->size = size;
-  return htab;
+    htab->minKey = htab->size = size;
+    return htab;
 }
 
 
-void 
+void
 hTabAddItemLong (hTab ** htab, int key, void *pkey, void *item)
 {
-  hashtItem *htip;
-  hashtItem *last;
+    hashtItem *htip;
+    hashtItem *last;
 
-  if (!(*htab))
-    *htab = newHashTable (DEFAULT_HTAB_SIZE);
+    if (!(*htab))
+        *htab = newHashTable (DEFAULT_HTAB_SIZE);
 
-  if (key > (*htab)->size)
+    if (key > (*htab)->size)
     {
-      int i;
-      (*htab)->table = Safe_realloc ((*htab)->table,
-				     (key * 2 + 2) * sizeof (hashtItem *));
-      for (i = (*htab)->size + 1; i <= (key * 2 + 1); i++)
-	(*htab)->table[i] = NULL;
-      (*htab)->size = key * 2 + 1;
+        int i;
+        (*htab)->table = Safe_realloc ((*htab)->table,
+                                       (key * 2 + 2) * sizeof (hashtItem *));
+        for (i = (*htab)->size + 1; i <= (key * 2 + 1); i++)
+            (*htab)->table[i] = NULL;
+        (*htab)->size = key * 2 + 1;
     }
 
-  /* update the key */
-  if ((*htab)->maxKey < key)
-    (*htab)->maxKey = key;
+    /* update the key */
+    if ((*htab)->maxKey < key)
+        (*htab)->maxKey = key;
 
-  if ((*htab)->minKey > key)
-    (*htab)->minKey = key;
+    if ((*htab)->minKey > key)
+        (*htab)->minKey = key;
 
-  /* create the item */
-  htip = _newHashtItem (key, pkey, item);
+    /* create the item */
+    htip = _newHashtItem (key, pkey, item);
 
-  /* if there is a clash then goto end of chain */
-  if ((last = (*htab)->table[key]))
+    /* if there is a clash then goto end of chain */
+    if ((last = (*htab)->table[key]))
     {
-      while (last->next)
-	last = last->next;
-      last->next = htip;
+        while (last->next)
+            last = last->next;
+        last->next = htip;
     }
-  else
-    /* else just add it */
-    (*htab)->table[key] = htip;
-  (*htab)->nItems++;
+    else
+        /* else just add it */
+        (*htab)->table[key] = htip;
+    (*htab)->nItems++;
 }
 
 /*-----------------------------------------------------------------*/
 /* hTabAddItem - adds an item to the hash table                    */
 /*-----------------------------------------------------------------*/
-void 
+void
 hTabAddItem (hTab ** htab, int key, void *item)
 {
-  hTabAddItemLong (htab, key, NULL, item);
+    hTabAddItemLong (htab, key, NULL, item);
 }
 
 /*-----------------------------------------------------------------*/
 /* hTabDeleteItem - either delete an item                          */
 /*-----------------------------------------------------------------*/
-void 
+void
 hTabDeleteItem (hTab ** htab, int key,
-		const void *item, DELETE_ACTION action,
-		int (*compareFunc) (const void *, const void *))
+                const void *item, DELETE_ACTION action,
+                int (*compareFunc) (const void *, const void *))
 {
-  hashtItem *htip, **htipp;
+    hashtItem *htip, **htipp;
 
-  if (!(*htab))
-    return;
+    if (!(*htab))
+        return;
 
-  /* first check if anything exists in the slot */
-  if (!(*htab)->table[key])
-    return;
+    /* first check if anything exists in the slot */
+    if (!(*htab)->table[key])
+        return;
 
-  /* if delete chain */
-  if (action == DELETE_CHAIN)
-    (*htab)->table[key] = NULL;
-  else
+    /* if delete chain */
+    if (action == DELETE_CHAIN)
+        (*htab)->table[key] = NULL;
+    else
     {
 
-      /* delete specific item */
-      /* if a compare function is given then use the compare */
-      /* function to find the item, else just compare the items */
+        /* delete specific item */
+        /* if a compare function is given then use the compare */
+        /* function to find the item, else just compare the items */
 
-      htipp = &((*htab)->table[key]);
-      htip = (*htab)->table[key];
-      for (; htip; htip = htip->next)
-	{
+        htipp = &((*htab)->table[key]);
+        htip = (*htab)->table[key];
+        for (; htip; htip = htip->next)
+        {
 
-	  if (compareFunc ? compareFunc (item, htip->item) :
-	      (item == htip->item))
-	    {
-	      *htipp = htip->next;
-	      break;
-	    }
+            if (compareFunc ? compareFunc (item, htip->item) :
+                (item == htip->item))
+            {
+                *htipp = htip->next;
+                break;
+            }
 
-	  htipp = &(htip->next);
-	}
+            htipp = &(htip->next);
+        }
 
     }
 
-  (*htab)->nItems--;
+    (*htab)->nItems--;
 
-  if (!(*htab)->nItems)
+    if (!(*htab)->nItems)
     {
-      *htab = NULL;
+        *htab = NULL;
     }
 }
 
@@ -178,158 +178,158 @@ hTabDeleteItem (hTab ** htab, int key,
 /*                 leaks written by                                */
 /*                "BESSIERE Jerome" <BESSIERE_Jerome@stna.dgac.fr> */
 /*-----------------------------------------------------------------*/
-void 
+void
 hTabDeleteAll (hTab * p)
 {
-  if (p && p->table)
+    if (p && p->table)
     {
-      register int i;
-      register hashtItem *jc, *jn;
-      for (i = 0; i < p->size; i++)
-	{
+        register int i;
+        register hashtItem *jc, *jn;
+        for (i = 0; i < p->size; i++)
+        {
 
-	  if (!(jc = p->table[i]))
-	    continue;
-	  jn = jc->next;
-	  while (jc)
-	    {
-	      Safe_free (jc);
-	      if ((jc = jn))
-		jn = jc->next;
-	    }
-	  p->table[i] = NULL;
-	}
-      Safe_free (p->table);
+            if (!(jc = p->table[i]))
+                continue;
+            jn = jc->next;
+            while (jc)
+            {
+                Safe_free (jc);
+                if ((jc = jn))
+                    jn = jc->next;
+            }
+            p->table[i] = NULL;
+        }
+        Safe_free (p->table);
     }
 }
 
 /*-----------------------------------------------------------------*/
 /* hTabClearAll - clear all entries in the table (does not free)    */
 /*-----------------------------------------------------------------*/
-void 
+void
 hTabClearAll (hTab * htab)
 {
 
-  if (!htab || !htab->table)
+    if (!htab || !htab->table)
     {
-      printf ("null table\n");
-      return;
+        printf ("null table\n");
+        return;
     }
-  memset (htab->table, 0, htab->size * sizeof (hashtItem *));
+    memset (htab->table, 0, htab->size * sizeof (hashtItem *));
 
-  htab->minKey = htab->size;
-  htab->currKey = htab->nItems = htab->maxKey = 0;
+    htab->minKey = htab->size;
+    htab->currKey = htab->nItems = htab->maxKey = 0;
 }
 
 static const hashtItem *
 _findItem (hTab * htab, int key, void *item, int (*compareFunc) (void *, void *))
 {
-  hashtItem *htip;
+    hashtItem *htip;
 
-  for (htip = htab->table[key]; htip; htip = htip->next)
+    for (htip = htab->table[key]; htip; htip = htip->next)
     {
-      /* if a compare function is given use it */
-      if (compareFunc && compareFunc (item, htip->item))
-	break;
-      else if (item == htip->item)
-	break;
+        /* if a compare function is given use it */
+        if (compareFunc && compareFunc (item, htip->item))
+            break;
+        else if (item == htip->item)
+            break;
     }
-  return htip;
+    return htip;
 }
 
 static const hashtItem *
 _findByKey (hTab * htab, int key, const void *pkey, int (*compare) (const void *, const void *))
 {
-  hashtItem *htip;
+    hashtItem *htip;
 
-  assert (compare);
+    assert (compare);
 
-  if (!htab)
-    return NULL;
+    if (!htab)
+        return NULL;
 
-  for (htip = htab->table[key]; htip; htip = htip->next)
+    for (htip = htab->table[key]; htip; htip = htip->next)
     {
-      /* if a compare function is given use it */
-      if (compare && compare (pkey, htip->pkey))
-	{
-	  break;
-	}
-      else
-	{
-	  if (pkey == htip->pkey)
-	    {
-	      break;
-	    }
-	}
+        /* if a compare function is given use it */
+        if (compare && compare (pkey, htip->pkey))
+        {
+            break;
+        }
+        else
+        {
+            if (pkey == htip->pkey)
+            {
+                break;
+            }
+        }
     }
-  return htip;
+    return htip;
 }
 
 void *
 hTabFindByKey (hTab * h, int key, const void *pkey, int (*compare) (const void *, const void *))
 {
-  const hashtItem *item;
+    const hashtItem *item;
 
-  if ((item = _findByKey (h, key, pkey, compare)))
-    return item->item;
-  return NULL;
+    if ((item = _findByKey (h, key, pkey, compare)))
+        return item->item;
+    return NULL;
 }
 
-int 
+int
 hTabDeleteByKey (hTab ** h, int key, const void *pkey, int (*compare) (const void *, const void *))
 {
-  hashtItem *htip, **htipp;
-  bool found = FALSE;
+    hashtItem *htip, **htipp;
+    bool found = FALSE;
 
-  if (!(*h))
-    return 0;
+    if (!(*h))
+        return 0;
 
-  /* first check if anything exists in the slot */
-  if (!(*h)->table[key])
-    return 0;
+    /* first check if anything exists in the slot */
+    if (!(*h)->table[key])
+        return 0;
 
-  /* delete specific item */
-  /* if a compare function is given then use the compare */
-  /* function to find the item, else just compare the items */
+    /* delete specific item */
+    /* if a compare function is given then use the compare */
+    /* function to find the item, else just compare the items */
 
-  htipp = &((*h)->table[key]);
-  htip = (*h)->table[key];
-  for (; htip; htip = htip->next)
+    htipp = &((*h)->table[key]);
+    htip = (*h)->table[key];
+    for (; htip; htip = htip->next)
     {
-      if (
-	   (compare && compare (pkey, htip->pkey)) ||
-	   pkey == htip->pkey)
-	{
-	  *htipp = htip->next;
-          found = TRUE;
-	  break;
-	}
-      htipp = &(htip->next);
+        if (
+                (compare && compare (pkey, htip->pkey)) ||
+                pkey == htip->pkey)
+        {
+            *htipp = htip->next;
+            found = TRUE;
+            break;
+        }
+        htipp = &(htip->next);
     }
 
-  if (found == TRUE)
+    if (found == TRUE)
     {
-      (*h)->nItems--;
-      
-      if (!(*h)->nItems)
+        (*h)->nItems--;
+
+        if (!(*h)->nItems)
         {
-          *h = NULL;
+            *h = NULL;
         }
     }
 
-  return 1;
+    return 1;
 }
 
 /*-----------------------------------------------------------------*/
 /* hTabIsInTable - will determine if an Item is in the hasht       */
 /*-----------------------------------------------------------------*/
-int 
+int
 hTabIsInTable (hTab * htab, int key,
-	       void *item, int (*compareFunc) (void *, void *))
+               void *item, int (*compareFunc) (void *, void *))
 {
-  if (_findItem (htab, key, item, compareFunc))
-    return 1;
-  return 0;
+    if (_findItem (htab, key, item, compareFunc))
+        return 1;
+    return 0;
 }
 
 /*-----------------------------------------------------------------*/
@@ -338,22 +338,22 @@ hTabIsInTable (hTab * htab, int key,
 void *
 hTabFirstItem (hTab * htab, int *k)
 {
-  int key;
+    int key;
 
-  if (!htab)
-    return NULL;
+    if (!htab)
+        return NULL;
 
-  for (key = htab->minKey; key <= htab->maxKey; key++)
+    for (key = htab->minKey; key <= htab->maxKey; key++)
     {
-      if (htab->table[key])
-	{
-	  htab->currItem = htab->table[key];
-	  htab->currKey = key;
-	  *k = key;
-	  return htab->table[key]->item;
-	}
+        if (htab->table[key])
+        {
+            htab->currItem = htab->table[key];
+            htab->currKey = key;
+            *k = key;
+            return htab->table[key]->item;
+        }
     }
-  return NULL;
+    return NULL;
 }
 
 /*-----------------------------------------------------------------*/
@@ -362,30 +362,30 @@ hTabFirstItem (hTab * htab, int *k)
 void *
 hTabNextItem (hTab * htab, int *k)
 {
-  int key;
+    int key;
 
-  if (!htab)
+    if (!htab)
+        return NULL;
+
+    /* if this chain not ended then */
+    if (htab->currItem->next)
+    {
+        *k = htab->currItem->key;
+        return (htab->currItem = htab->currItem->next)->item;
+    }
+
+    /* find the next chain which has something */
+    for (key = htab->currKey + 1; key <= htab->maxKey; key++)
+    {
+        if (htab->table[key])
+        {
+            htab->currItem = htab->table[key];
+            *k = htab->currKey = key;
+            return htab->table[key]->item;
+        }
+    }
+
     return NULL;
-
-  /* if this chain not ended then */
-  if (htab->currItem->next)
-    {
-      *k = htab->currItem->key;
-      return (htab->currItem = htab->currItem->next)->item;
-    }
-
-  /* find the next chain which has something */
-  for (key = htab->currKey + 1; key <= htab->maxKey; key++)
-    {
-      if (htab->table[key])
-	{
-	  htab->currItem = htab->table[key];
-	  *k = htab->currKey = key;
-	  return htab->table[key]->item;
-	}
-    }
-
-  return NULL;
 }
 
 /*-----------------------------------------------------------------*/
@@ -395,16 +395,16 @@ void *
 hTabFirstItemWK (hTab * htab, int wk)
 {
 
-  if (!htab)
-    return NULL;
+    if (!htab)
+        return NULL;
 
-  if (wk < htab->minKey || wk > htab->maxKey)
-    return NULL;
+    if (wk < htab->minKey || wk > htab->maxKey)
+        return NULL;
 
-  htab->currItem = htab->table[wk];
-  htab->currKey = wk;
+    htab->currItem = htab->table[wk];
+    htab->currKey = wk;
 
-  return (htab->table[wk] ? htab->table[wk]->item : NULL);
+    return (htab->table[wk] ? htab->table[wk]->item : NULL);
 }
 
 /*-----------------------------------------------------------------*/
@@ -414,16 +414,16 @@ void *
 hTabNextItemWK (hTab * htab)
 {
 
-  if (!htab)
-    return NULL;
+    if (!htab)
+        return NULL;
 
-  /* if this chain not ended then */
-  if (htab->currItem->next)
+    /* if this chain not ended then */
+    if (htab->currItem->next)
     {
-      return (htab->currItem = htab->currItem->next)->item;
+        return (htab->currItem = htab->currItem->next)->item;
     }
 
-  return NULL;
+    return NULL;
 }
 
 /*-----------------------------------------------------------------*/
@@ -432,52 +432,52 @@ hTabNextItemWK (hTab * htab)
 hTab *
 hTabFromTable (hTab * htab)
 {
-  hTab *nhtab;
-  hashtItem *htip;
-  int key;
+    hTab *nhtab;
+    hashtItem *htip;
+    int key;
 
-  if (!htab)
-    return NULL;
+    if (!htab)
+        return NULL;
 
-  nhtab = newHashTable (htab->size);
+    nhtab = newHashTable (htab->size);
 
-  for (key = htab->minKey; key <= htab->maxKey; key++)
+    for (key = htab->minKey; key <= htab->maxKey; key++)
     {
 
-      for (htip = htab->table[key]; htip; htip = htip->next)
-	hTabAddItem (&nhtab, htip->key, htip->item);
+        for (htip = htab->table[key]; htip; htip = htip->next)
+            hTabAddItem (&nhtab, htip->key, htip->item);
     }
 
-  return nhtab;
+    return nhtab;
 }
 
 /*-----------------------------------------------------------------*/
 /* isHtabsEqual - returns 1 if all items in htab1 is found in htab2 */
 /*-----------------------------------------------------------------*/
-int 
+int
 isHtabsEqual (hTab * htab1, hTab * htab2,
-	      int (*compareFunc) (void *, void *))
+              int (*compareFunc) (void *, void *))
 {
-  void *item;
-  int key;
+    void *item;
+    int key;
 
-  if (htab1 == htab2)
+    if (htab1 == htab2)
+        return 1;
+
+    if (htab1 == NULL || htab2 == NULL)
+        return 0;
+
+    /* if they are different sizes then */
+    if (htab1->nItems != htab2->nItems)
+        return 0;
+
+    /* now do an item by item check */
+    for (item = hTabFirstItem (htab1, &key); item;
+         item = hTabNextItem (htab1, &key))
+        if (!hTabIsInTable (htab2, key, item, compareFunc))
+            return 0;
+
     return 1;
-
-  if (htab1 == NULL || htab2 == NULL)
-    return 0;
-
-  /* if they are different sizes then */
-  if (htab1->nItems != htab2->nItems)
-    return 0;
-
-  /* now do an item by item check */
-  for (item = hTabFirstItem (htab1, &key); item;
-       item = hTabNextItem (htab1, &key))
-    if (!hTabIsInTable (htab2, key, item, compareFunc))
-      return 0;
-
-  return 1;
 }
 
 
@@ -487,16 +487,16 @@ isHtabsEqual (hTab * htab1, hTab * htab2,
 hashtItem *
 hTabSearch (hTab * htab, int key)
 {
-  if (!htab)
-    return NULL;
+    if (!htab)
+        return NULL;
 
-  if ((key < htab->minKey) || (key > htab->maxKey))
-    return NULL;
+    if ((key < htab->minKey) || (key > htab->maxKey))
+        return NULL;
 
-  if (!htab->table[key])
-    return NULL;
+    if (!htab->table[key])
+        return NULL;
 
-  return htab->table[key];
+    return htab->table[key];
 }
 
 /*-----------------------------------------------------------------*/
@@ -505,12 +505,12 @@ hTabSearch (hTab * htab, int key)
 void *
 hTabItemWithKey (hTab * htab, int key)
 {
-  hashtItem *htip;
+    hashtItem *htip;
 
-  if (!(htip = hTabSearch (htab, key)))
-    return NULL;
+    if (!(htip = hTabSearch (htab, key)))
+        return NULL;
 
-  return htip->item;
+    return htip->item;
 }
 
 /*-----------------------------------------------------------------*/
@@ -519,24 +519,24 @@ hTabItemWithKey (hTab * htab, int key)
 int hTabMaxKey (hTab *htab)
 {
     return (htab ? htab->maxKey : 0);
-}	
+}
 
 /*-----------------------------------------------------------------*/
 /*hTabAddItemIfNotP - adds an item with nothing found with key     */
 /*-----------------------------------------------------------------*/
-void 
+void
 hTabAddItemIfNotP (hTab ** htab, int key, void *item)
 {
-  if (!*htab)
+    if (!*htab)
     {
-      hTabAddItem (htab, key, item);
-      return;
+        hTabAddItem (htab, key, item);
+        return;
     }
 
-  if (hTabItemWithKey (*htab, key))
-    return;
+    if (hTabItemWithKey (*htab, key))
+        return;
 
-  hTabAddItem (htab, key, item);
+    hTabAddItem (htab, key, item);
 }
 
 /** Simple implementation of a hash table which uses
@@ -545,42 +545,42 @@ hTabAddItemIfNotP (hTab ** htab, int key, void *item)
     This is used for the assembler token table.  The replace existing
     condition is used to implement inheritance.
 */
-static int 
+static int
 _compare (const void *s1, const void *s2)
 {
-  return !strcmp (s1, s2);
+    return !strcmp (s1, s2);
 }
 
-static int 
+static int
 _hash (const char *sz)
 {
-  /* Dumb for now */
-  return *sz;
+    /* Dumb for now */
+    return *sz;
 }
 
-void 
+void
 shash_add (hTab ** h, const char *szKey, const char *szValue)
 {
-  char *val;
-  int key = _hash (szKey);
+    char *val;
+    int key = _hash (szKey);
 
-  /* Find value of the item */
-  val = (char *)hTabFindByKey(*h, key, szKey, _compare);
-  /* Delete any that currently exist */
-  hTabDeleteByKey(h, key, szKey, _compare);
-  /* Deallocate old value in not NULL */
-  if (val != NULL)
-    Safe_free(val);
-  /* Duplicate new value if not NULL */
-  if (szValue != NULL)
-    szValue = Safe_strdup(szValue);
-  /* Now add in ours */
-  hTabAddItemLong (h, key, Safe_strdup (szKey), (void *)szValue);
+    /* Find value of the item */
+    val = (char *)hTabFindByKey(*h, key, szKey, _compare);
+    /* Delete any that currently exist */
+    hTabDeleteByKey(h, key, szKey, _compare);
+    /* Deallocate old value in not NULL */
+    if (val != NULL)
+        Safe_free(val);
+    /* Duplicate new value if not NULL */
+    if (szValue != NULL)
+        szValue = Safe_strdup(szValue);
+    /* Now add in ours */
+    hTabAddItemLong (h, key, Safe_strdup (szKey), (void *)szValue);
 }
 
 const char *
 shash_find (hTab * h, const char *szKey)
 {
-  int key = _hash (szKey);
-  return (char *) hTabFindByKey (h, key, szKey, _compare);
+    int key = _hash (szKey);
+    return (char *) hTabFindByKey (h, key, szKey, _compare);
 }

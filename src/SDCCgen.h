@@ -31,27 +31,31 @@
 /* can be inherited by each port */
 typedef struct asmLineNodeBase
 {
-  int size;
-  bitVect *regsRead;
-  bitVect *regsWritten;
+    int size;
+    bitVect *regsRead;
+    bitVect *regsWritten;
 }
-asmLineNodeBase;
+        asmLineNodeBase;
 
 typedef struct lineElem_s
 {
-  char *line;
-  iCode *ic;
-  unsigned int isInline:1;
-  unsigned int isComment:1;
-  unsigned int isDebug:1;
-  unsigned int isLabel:1;
-  unsigned int visited:1;
-  asmLineNodeBase *aln;
+    char *line;
+    iCode *ic;
+    unsigned int isInline:1;
+    unsigned int isComment:1;
+    unsigned int isDebug:1;
+    unsigned int isLabel:1;
+    unsigned int visited:1;
+    asmLineNodeBase *aln;
 }
-lineElem_t;
+        lineElem_t;
 
 typedef struct lineNode_s
 {
+#if defined(UNNAMED_STRUCT_TAG) && 0
+    struct lineElem_s;
+#else
+    /* exactly the same members as of struct lineElem_s */
   char *line;
   iCode *ic;
   unsigned int isInline:1;
@@ -60,19 +64,20 @@ typedef struct lineNode_s
   unsigned int isLabel:1;
   unsigned int visited:1;
   asmLineNodeBase *aln;
-  struct lineNode_s *prev;
-  struct lineNode_s *next;
+#endif
+    struct lineNode_s *prev;
+    struct lineNode_s *next;
 }
-lineNode;
+        lineNode;
 
 typedef struct genLine_s
 {
-  /* double linked list of lines */
-  lineNode *lineHead;
-  lineNode *lineCurr;
+    /* double linked list of lines */
+    lineNode *lineHead;
+    lineNode *lineCurr;
 
-  /* global line */
-  lineElem_t lineElement;
+    /* global line */
+    lineElem_t lineElement;
 } genLine_t;
 
 extern genLine_t genLine;

@@ -40,22 +40,22 @@
 
 int _dbuf_expand(struct dbuf_s *dbuf, size_t size)
 {
-  assert(dbuf->alloc != 0);
-  assert(dbuf->buf != NULL);
+    assert(dbuf->alloc != 0);
+    assert(dbuf->buf != NULL);
 
-  if (dbuf->len + size > dbuf->alloc) {
-    /* new_allocated_size = current_allocated_size * 2^n */
-    /* can this be optimized? */
-    do {
-      dbuf->alloc += dbuf->alloc;
+    if (dbuf->len + size > dbuf->alloc) {
+        /* new_allocated_size = current_allocated_size * 2^n */
+        /* can this be optimized? */
+        do {
+            dbuf->alloc += dbuf->alloc;
+        }
+        while (dbuf->len + size > dbuf->alloc);
+
+        if ((dbuf->buf = realloc(dbuf->buf, dbuf->alloc)) == NULL)
+            return 0;
     }
-    while (dbuf->len + size > dbuf->alloc);
 
-    if ((dbuf->buf = realloc(dbuf->buf, dbuf->alloc)) == NULL)
-      return 0;
-  }
-
-  return 1;
+    return 1;
 }
 
 
@@ -66,14 +66,14 @@ int _dbuf_expand(struct dbuf_s *dbuf, size_t size)
 
 int dbuf_init(struct dbuf_s *dbuf, size_t size)
 {
-  assert(size != 0);
+    assert(size != 0);
 
-  if (size == 0)
-    size = 1;
+    if (size == 0)
+        size = 1;
 
-  dbuf->len = 0;
-  dbuf->alloc = size;
-  return ((dbuf->buf = malloc(dbuf->alloc)) != NULL);
+    dbuf->len = 0;
+    dbuf->alloc = size;
+    return ((dbuf->buf = malloc(dbuf->alloc)) != NULL);
 }
 
 
@@ -88,16 +88,16 @@ int dbuf_init(struct dbuf_s *dbuf, size_t size)
 
 int dbuf_is_initialized (struct dbuf_s *dbuf)
 {
-  if (dbuf->buf == NULL) {
-    assert(dbuf->alloc == 0);
-    assert(dbuf->len == 0);
-    return 0;
-  }
-  else {
-    assert(dbuf->alloc != 0);
-    assert(dbuf->len >= 0 && dbuf->len <= dbuf->alloc);
-    return 1;
-  }
+    if (dbuf->buf == NULL) {
+        assert(dbuf->alloc == 0);
+        assert(dbuf->len == 0);
+        return 0;
+    }
+    else {
+        assert(dbuf->alloc != 0);
+        assert(dbuf->len >= 0 && dbuf->len <= dbuf->alloc);
+        return 1;
+    }
 }
 
 /*
@@ -109,16 +109,16 @@ int dbuf_is_initialized (struct dbuf_s *dbuf)
 
 struct dbuf_s *dbuf_new(size_t size)
 {
-  struct dbuf_s *dbuf;
+    struct dbuf_s *dbuf;
 
-  dbuf = (struct dbuf_s *)malloc(sizeof(struct dbuf_s));
-  if (dbuf != NULL) {
-    if (dbuf_init(dbuf, size) == 0) {
-      free(dbuf);
-      return NULL;
+    dbuf = (struct dbuf_s *)malloc(sizeof(struct dbuf_s));
+    if (dbuf != NULL) {
+        if (dbuf_init(dbuf, size) == 0) {
+            free(dbuf);
+            return NULL;
+        }
     }
-  }
-  return dbuf;
+    return dbuf;
 }
 
 
@@ -128,19 +128,19 @@ struct dbuf_s *dbuf_new(size_t size)
 
 int dbuf_set_length(struct dbuf_s *dbuf, size_t len)
 {
-  if (!dbuf_is_initialized (dbuf))
-    dbuf_init (dbuf, len ? len : 1);
+    if (!dbuf_is_initialized (dbuf))
+        dbuf_init (dbuf, len ? len : 1);
 
-  assert(dbuf != NULL);
-  assert(dbuf->alloc != 0);
-  assert(len <= dbuf->len);
+    assert(dbuf != NULL);
+    assert(dbuf->alloc != 0);
+    assert(len <= dbuf->len);
 
-  if (len <= dbuf->len) {
-    dbuf->len = len;
-    return 1;
-  }
+    if (len <= dbuf->len) {
+        dbuf->len = len;
+        return 1;
+    }
 
-  return 0;
+    return 0;
 }
 
 
@@ -150,19 +150,38 @@ int dbuf_set_length(struct dbuf_s *dbuf, size_t len)
 
 int dbuf_append(struct dbuf_s *dbuf, const void *buf, size_t len)
 {
-  assert(dbuf != NULL);
-  assert(dbuf->alloc != 0);
-  assert(dbuf->buf != NULL);
+    assert(dbuf != NULL);
+    assert(dbuf->alloc != 0);
+    assert(dbuf->buf != NULL);
 
-  if (_dbuf_expand(dbuf, len) != 0) {
-    memcpy(&(((char *)dbuf->buf)[dbuf->len]), buf, len);
-    dbuf->len += len;
-    return 1;
-  }
+    if (_dbuf_expand(dbuf, len) != 0) {
+        memcpy(&(((char *)dbuf->buf)[dbuf->len]), buf, len);
+        dbuf->len += len;
+        return 1;
+    }
 
-  return 0;
+    return 0;
 }
 
+/*
+ * Prepend the buf to the beginning of the buffer.
+ */
+
+int dbuf_prepend(struct dbuf_s *dbuf, const void *buf, size_t len)
+{
+    assert(dbuf);
+    assert(dbuf->alloc);
+    assert(dbuf->buf);
+
+    if (_dbuf_expand(dbuf, len) != 0) {
+        memmove(&(((char *)dbuf->buf)[len]), dbuf->buf, dbuf->len);
+        memcpy(dbuf->buf, buf, len);
+        dbuf->len += len;
+        return 1;
+    }
+
+    return 0;
+}
 
 /*
  * Add '\0' character at the end of the buffer without
@@ -171,16 +190,16 @@ int dbuf_append(struct dbuf_s *dbuf, const void *buf, size_t len)
 
 const char *dbuf_c_str(struct dbuf_s *dbuf)
 {
-  assert(dbuf != NULL);
-  assert(dbuf->alloc != 0);
-  assert(dbuf->buf != NULL);
+    assert(dbuf != NULL);
+    assert(dbuf->alloc != 0);
+    assert(dbuf->buf != NULL);
 
-  if (_dbuf_expand(dbuf, 1) != 0) {
-    ((char *)dbuf->buf)[dbuf->len] = '\0';
-    return dbuf->buf;
-  }
+    if (_dbuf_expand(dbuf, 1) != 0) {
+        ((char *)dbuf->buf)[dbuf->len] = '\0';
+        return dbuf->buf;
+    }
 
-  return NULL;
+    return NULL;
 }
 
 
@@ -188,13 +207,13 @@ const char *dbuf_c_str(struct dbuf_s *dbuf)
  * Get the buffer pointer.
  */
 
-const void *dbuf_get_buf(struct dbuf_s *dbuf)
+const void *dbuf_get_buf(const struct dbuf_s *dbuf)
 {
-  assert(dbuf != NULL);
-  assert(dbuf->alloc != 0);
-  assert(dbuf->buf != NULL);
+    assert(dbuf != NULL);
+    assert(dbuf->alloc != 0);
+    assert(dbuf->buf != NULL);
 
-  return dbuf->buf;
+    return dbuf->buf;
 }
 
 
@@ -202,13 +221,13 @@ const void *dbuf_get_buf(struct dbuf_s *dbuf)
  * Get the buffer length.
  */
 
-size_t dbuf_get_length(struct dbuf_s *dbuf)
+size_t dbuf_get_length(const struct dbuf_s *dbuf)
 {
-  assert(dbuf != NULL);
-  assert(dbuf->alloc != 0);
-  assert(dbuf->buf != NULL);
+    assert(dbuf != NULL);
+    assert(dbuf->alloc != 0);
+    assert(dbuf->buf != NULL);
 
-  return dbuf->len;
+    return dbuf->len;
 }
 
 
@@ -218,20 +237,20 @@ size_t dbuf_get_length(struct dbuf_s *dbuf)
 
 int dbuf_trim(struct dbuf_s *dbuf)
 {
-  void *buf;
+    void *buf;
 
-  assert(dbuf != NULL);
-  assert(dbuf->alloc != 0);
-  assert(dbuf->buf != NULL);
+    assert(dbuf != NULL);
+    assert(dbuf->alloc != 0);
+    assert(dbuf->buf != NULL);
 
-  buf = realloc(dbuf->buf, dbuf->len);
+    buf = realloc(dbuf->buf, dbuf->len);
 
-  if (buf != NULL) {
-    dbuf->alloc = dbuf->len;
-    dbuf->buf = buf;
-  }
+    if (buf != NULL) {
+        dbuf->alloc = dbuf->len;
+        dbuf->buf = buf;
+    }
 
-  return buf != NULL;
+    return buf != NULL;
 }
 
 
@@ -245,18 +264,18 @@ int dbuf_trim(struct dbuf_s *dbuf)
 
 void *dbuf_detach(struct dbuf_s *dbuf)
 {
-  void *ret;
+    void *ret;
 
-  assert(dbuf != NULL);
-  assert(dbuf->alloc != 0);
-  assert(dbuf->buf != NULL);
+    assert(dbuf != NULL);
+    assert(dbuf->alloc != 0);
+    assert(dbuf->buf != NULL);
 
-  ret = dbuf->buf;
-  dbuf->buf = NULL;
-  dbuf->len = 0;
-  dbuf->alloc = 0;
+    ret = dbuf->buf;
+    dbuf->buf = NULL;
+    dbuf->len = 0;
+    dbuf->alloc = 0;
 
-  return ret;
+    return ret;
 }
 
 
@@ -270,8 +289,8 @@ void *dbuf_detach(struct dbuf_s *dbuf)
 
 char *dbuf_detach_c_str(struct dbuf_s *dbuf)
 {
-  dbuf_c_str(dbuf);
-  return dbuf_detach(dbuf);
+    dbuf_c_str(dbuf);
+    return dbuf_detach(dbuf);
 }
 
 
@@ -282,7 +301,7 @@ char *dbuf_detach_c_str(struct dbuf_s *dbuf)
 
 void dbuf_destroy(struct dbuf_s *dbuf)
 {
-  free(dbuf_detach(dbuf));
+    free(dbuf_detach(dbuf));
 }
 
 
@@ -298,8 +317,8 @@ void dbuf_destroy(struct dbuf_s *dbuf)
 
 void dbuf_delete(struct dbuf_s *dbuf)
 {
-  dbuf_destroy(dbuf);
-  free(dbuf);
+    dbuf_destroy(dbuf);
+    free(dbuf);
 }
 
 
@@ -311,5 +330,5 @@ void dbuf_delete(struct dbuf_s *dbuf)
 
 void dbuf_free(const void *buf)
 {
-  free((void *)buf);
+    free((void *)buf);
 }

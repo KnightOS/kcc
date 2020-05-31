@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.5)
 
 project(kcc C CXX)
 
-set(DEBUG_FLAGS "-g -O0")
+set(DEBUG_FLAGS "-g -O0 -Wno-format -Wno-parentheses")
 
 set(CMAKE_CXX_FLAGS_DEBUG "${DEBUG_FLAGS}")
 set(CMAKE_C_FLAGS_DEBUG "${DEBUG_FLAGS}")

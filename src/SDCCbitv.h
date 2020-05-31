@@ -30,12 +30,12 @@
 
 /* bitvector */
 typedef struct bitVect
-  {
-    int size;
-    int bSize;
-    unsigned char *vect;
-  }
-bitVect;
+{
+    int size;           // number of bits
+    int allocSize;      // number of int elements
+    unsigned int *vect;
+}
+        bitVect;
 
 
 extern int bitVectDefault;
@@ -50,7 +50,9 @@ bitVect *bitVectSetBit (bitVect *, int);
 void bitVectUnSetBit (const bitVect *, int);
 int bitVectBitValue (const bitVect *, int);
 bitVect *bitVectUnion (bitVect *, bitVect *);
+bitVect *bitVectInplaceUnion (bitVect *, bitVect *);
 bitVect *bitVectIntersect (bitVect *, bitVect *);
+bitVect *bitVectInplaceIntersect (bitVect *, bitVect *);
 int bitVectBitsInCommon (const bitVect *, const bitVect *);
 bitVect *bitVectCplAnd (bitVect *, bitVect *);
 int bitVectEqual (bitVect *, bitVect *);
@@ -58,5 +60,7 @@ bitVect *bitVectCopy (const bitVect *);
 int bitVectIsZero (const bitVect *);
 int bitVectnBitsOn (const bitVect *);
 int bitVectFirstBit (const bitVect *);
+void bitVectClear (bitVect *bvp);
 void bitVectDebugOn (bitVect *, FILE *);
 #endif
+

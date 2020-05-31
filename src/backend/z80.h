@@ -8,26 +8,27 @@
 #include "support.h"
 
 typedef enum
-  {
+{
     SUB_Z80,
     SUB_Z180,
     SUB_R2K,
     SUB_R3KA,
     SUB_GBZ80,
-    SUB_TLCS90
-  }
-Z80_SUB_PORT;
+    SUB_TLCS90,
+    SUB_EZ80_Z80
+}
+        Z80_SUB_PORT;
 
 typedef struct
-  {
+{
     Z80_SUB_PORT sub;
     int calleeSavesBC;
     int port_mode;
     int port_back;
     int reserveIY;
     int noOmitFramePtr;
-  }
-Z80_OPTS;
+}
+        Z80_OPTS;
 
 extern Z80_OPTS z80_opts;
 
@@ -38,6 +39,7 @@ extern Z80_OPTS z80_opts;
 #define IS_RAB (IS_R2K || IS_R3KA)
 #define IS_GB (z80_opts.sub == SUB_GBZ80)
 #define IS_TLCS90 (z80_opts.sub == SUB_TLCS90)
+#define IS_EZ80_Z80 (z80_opts.sub == SUB_EZ80_Z80)
 
 #define IY_RESERVED (z80_opts.reserveIY)
 
@@ -45,9 +47,9 @@ extern Z80_OPTS z80_opts;
 #define OPTRALLOC_IY !(IY_RESERVED || IS_GB)
 
 enum
-  {
+{
     ACCUSE_A = 1,
     ACCUSE_SCRATCH,
     ACCUSE_IY
-  };
+};
 

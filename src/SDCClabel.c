@@ -30,40 +30,40 @@ hTab *labelDef = NULL;
 /*-----------------------------------------------------------------*/
 /* buildLabelRefTable - creates an hashTable of label references   */
 /*-----------------------------------------------------------------*/
-void 
+void
 buildLabelRefTable (iCode * ic)
 {
-  iCode *lic;
+    iCode *lic;
 
-  setToNull ((void *) &labelRef);
-  setToNull ((void *) &labelDef);
-  labelRef = newHashTable (labelKey + 1);
-  labelDef = newHashTable (labelKey + 1);
+    setToNull ((void *) &labelRef);
+    setToNull ((void *) &labelDef);
+    labelRef = newHashTable (labelKey + 1);
+    labelDef = newHashTable (labelKey + 1);
 
-  for (lic = ic; lic; lic = lic->next)
+    for (lic = ic; lic; lic = lic->next)
     {
-      if (lic->op == GOTO)
-        hTabAddItem (&labelRef, (IC_LABEL (lic))->key, lic);
+        if (lic->op == GOTO)
+            hTabAddItem (&labelRef, (IC_LABEL (lic))->key, lic);
 
-      if (lic->op == JUMPTABLE)
+        if (lic->op == JUMPTABLE)
         {
-          symbol *lbl;
-          for (lbl = setFirstItem (IC_JTLABELS (lic)); lbl;
-               lbl = setNextItem (IC_JTLABELS (lic)))
+            symbol *lbl;
+            for (lbl = setFirstItem (IC_JTLABELS (lic)); lbl;
+                 lbl = setNextItem (IC_JTLABELS (lic)))
             {
-              hTabAddItem (&labelRef, lbl->key, lic);
+                hTabAddItem (&labelRef, lbl->key, lic);
             }
         }
 
-      if (lic->op == IFX)
+        if (lic->op == IFX)
         {
-          if (IC_TRUE (lic))
-            hTabAddItem (&labelRef, (IC_TRUE (lic))->key, lic);
-          else
-            hTabAddItem (&labelRef, (IC_FALSE (lic))->key, lic);
+            if (IC_TRUE (lic))
+                hTabAddItem (&labelRef, (IC_TRUE (lic))->key, lic);
+            else
+                hTabAddItem (&labelRef, (IC_FALSE (lic))->key, lic);
         }
-      if (lic->op == LABEL)
-        hTabAddItem (&labelDef, (IC_LABEL (lic))->key, lic);
+        if (lic->op == LABEL)
+            hTabAddItem (&labelDef, (IC_LABEL (lic))->key, lic);
 
     }
 }
@@ -71,28 +71,28 @@ buildLabelRefTable (iCode * ic)
 /*-----------------------------------------------------------------*/
 /* labelGotoNext - kills gotos to next statement                   */
 /*-----------------------------------------------------------------*/
-int 
+int
 labelGotoNext (iCode * ic)
 {
-  iCode *loop;
-  int change = 0;
+    iCode *loop;
+    int change = 0;
 
-  for (loop = ic; loop; loop = loop->next)
+    for (loop = ic; loop; loop = loop->next)
     {
 
-      if (loop->op == GOTO &&   /* if this is a goto */
-          loop->next &&         /* and we have a next one */
-          loop->next->op == LABEL &&    /* next one is a label */
-          loop->next->label->key == loop->label->key)   /* same label */
+        if (loop->op == GOTO &&   /* if this is a goto */
+            loop->next &&         /* and we have a next one */
+            loop->next->op == LABEL &&    /* next one is a label */
+            loop->next->label->key == loop->label->key)   /* same label */
         {
-          loop->prev->next = loop->next;        /* get this out of the chain */
-          loop->next->prev = loop->prev;
-          hTabDeleteItem (&labelRef, (IC_LABEL (loop))->key, loop, DELETE_ITEM, NULL);
-          change++;
+            loop->prev->next = loop->next;        /* get this out of the chain */
+            loop->next->prev = loop->prev;
+            hTabDeleteItem (&labelRef, (IC_LABEL (loop))->key, loop, DELETE_ITEM, NULL);
+            change++;
         }
     }
 
-  return change;
+    return change;
 }
 
 /*-------------------------------------------------------------------*/
@@ -101,23 +101,23 @@ labelGotoNext (iCode * ic)
 static void
 deleteIfx (iCode * loop, int key)
 {
-  werrorfl (loop->filename, loop->lineno, W_CONTROL_FLOW);
-  hTabDeleteItem (&labelRef, key, loop, DELETE_ITEM, NULL);
+    werrorfl (loop->filename, loop->lineno, W_CONTROL_FLOW);
+    hTabDeleteItem (&labelRef, key, loop, DELETE_ITEM, NULL);
 
-  /* If the condition was volatile, convert IFX to */
-  /* DUMMY_READ_VOLATILE. Otherwise just delete the */
-  /* IFX iCode */
-  if (IS_OP_VOLATILE (IC_COND (loop)))
+    /* If the condition was volatile, convert IFX to */
+    /* DUMMY_READ_VOLATILE. Otherwise just delete the */
+    /* IFX iCode */
+    if (IS_OP_VOLATILE (IC_COND (loop)))
     {
-      IC_RIGHT (loop) = IC_COND (loop);
-      IC_LEFT (loop) = NULL;
-      IC_RESULT (loop) = NULL;
-      loop->op = DUMMY_READ_VOLATILE;
+        IC_RIGHT (loop) = IC_COND (loop);
+        IC_LEFT (loop) = NULL;
+        IC_RESULT (loop) = NULL;
+        loop->op = DUMMY_READ_VOLATILE;
     }
-  else
+    else
     {
-      loop->prev->next = loop->next;
-      loop->next->prev = loop->prev;
+        loop->prev->next = loop->next;
+        loop->next->prev = loop->prev;
     }
 }
 
@@ -125,347 +125,365 @@ deleteIfx (iCode * loop, int key)
 /*-----------------------------------------------------------------*/
 /* labelIfx - special case Ifx elimination                         */
 /*-----------------------------------------------------------------*/
-int 
+int
 labelIfx (iCode * ic)
 {
-  iCode *loop;
-  iCode *stat;
-  int change = 0;
+    iCode *loop;
+    iCode *stat;
+    int change = 0;
 
-  for (loop = ic; loop; loop = loop->next)
+    for (loop = ic; loop; loop = loop->next)
     {
-      /*   if  condition  goto label */
-      /*   goto label                */
-      /* i.e. the flow is going to the same location 
-         regardless of the condition in this case the 
-         condition can be eliminated with a WARNING ofcource */
-      if (loop->op == IFX &&
+        /*   if  condition  goto label */
+        /*   goto label                */
+        /* i.e. the flow is going to the same location
+           regardless of the condition in this case the
+           condition can be eliminated with a WARNING ofcource */
+        if (loop->op == IFX &&
             loop->next &&
-        loop->next->op == GOTO)
+            loop->next->op == GOTO)
         {
-          if (IC_TRUE (loop) && IC_TRUE (loop)->key == IC_LABEL (loop->next)->key)
+            if (IC_TRUE (loop) && IC_TRUE (loop)->key == IC_LABEL (loop->next)->key)
             {
-              deleteIfx (loop, IC_TRUE (loop)->key);
-              change++;
-              continue;
+                deleteIfx (loop, IC_TRUE (loop)->key);
+                change++;
+                continue;
             }
-          else
+            else
             {
-              if (IC_FALSE (loop) && IC_FALSE (loop)->key == IC_LABEL (loop->next)->key)
+                if (IC_FALSE (loop) && IC_FALSE (loop)->key == IC_LABEL (loop->next)->key)
                 {
-                  deleteIfx (loop, IC_FALSE (loop)->key);
-                  change++;
-                  continue;
+                    deleteIfx (loop, IC_FALSE (loop)->key);
+                    change++;
+                    continue;
                 }
             }
         }
-      /* same as above but with a twist */
-      /* if condition goto label */
-      /* label:                  */
-      if (loop->op == IFX &&
-          loop->next &&
-          loop->next->op == LABEL &&
-          ((IC_TRUE (loop) && IC_TRUE (loop)->key == IC_LABEL (loop->next)->key) ||
-           (IC_FALSE (loop) && IC_FALSE (loop)->key == IC_LABEL (loop->next)->key)))
+        /* same as above but with a twist */
+        /* if condition goto label */
+        /* label:                  */
+        if (loop->op == IFX &&
+            loop->next &&
+            loop->next->op == LABEL &&
+            ((IC_TRUE (loop) && IC_TRUE (loop)->key == IC_LABEL (loop->next)->key) ||
+             (IC_FALSE (loop) && IC_FALSE (loop)->key == IC_LABEL (loop->next)->key)))
         {
-          deleteIfx (loop, IC_LABEL (loop->next)->key);
-          change++;
-          continue;
+            deleteIfx (loop, IC_LABEL (loop->next)->key);
+            change++;
+            continue;
         }
 
-      /* we will eliminate certain special case situations */
-      /* of the conditional statement :-                  */
-      /*       if cond != 0 goto _trueLabel               */
-      /*       goto _falseLabel                           */
-      /* _trueLabel :                                     */
-      /*       ...                                        */
-      /* in these cases we can change it to :-            */
-      /*       if cond == 0 goto _falseLabel              */
-      /* _trueLabel :                                     */
-      /*       ...                                        */
-      /* similarly if we have a situation like :-         */
-      /*       if cond == 0 goto _falseLabel              */
-      /*       goto _someLabel                            */
-      /* _falseLabel :                                    */
-      /* we can change this to                            */
-      /*       if cond != 0 goto _someLabel               */
-      /* _falseLabel :                                    */
-      /*       ...                                        */
-      if (loop->op == IFX && loop->next && loop->next->op == GOTO &&
+        /* we will eliminate certain special case situations */
+        /* of the conditional statement :-                  */
+        /*       if cond != 0 goto _trueLabel               */
+        /*       goto _falseLabel                           */
+        /* _trueLabel :                                     */
+        /*       ...                                        */
+        /* in these cases we can change it to :-            */
+        /*       if cond == 0 goto _falseLabel              */
+        /* _trueLabel :                                     */
+        /*       ...                                        */
+        /* similarly if we have a situation like :-         */
+        /*       if cond == 0 goto _falseLabel              */
+        /*       goto _someLabel                            */
+        /* _falseLabel :                                    */
+        /* we can change this to                            */
+        /*       if cond != 0 goto _someLabel               */
+        /* _falseLabel :                                    */
+        /*       ...                                        */
+        if (loop->op == IFX && loop->next && loop->next->op == GOTO &&
             loop->next->next && loop->next->next->op == LABEL)
         {
-          if (IC_TRUE (loop) && (IC_TRUE (loop))->key != (IC_LABEL (loop->next->next))->key ||
-            (IC_FALSE (loop) && (IC_FALSE (loop))->key != (IC_LABEL (loop->next->next))->key))
-            continue;
+            if (IC_TRUE (loop) && (IC_TRUE (loop))->key != (IC_LABEL (loop->next->next))->key ||
+                (IC_FALSE (loop) && (IC_FALSE (loop))->key != (IC_LABEL (loop->next->next))->key))
+                continue;
 
-          /* now make sure that this is the only */
-          /* referenece to the _trueLabel        */
-          if (IC_TRUE (loop) && hTabItemWithKey (labelRef, (IC_TRUE (loop))->key))
+            /* now make sure that this is the only */
+            /* referenece to the _trueLabel        */
+            if (IC_TRUE (loop) && hTabItemWithKey (labelRef, (IC_TRUE (loop))->key))
             {
-              /* we just change the falseLabel */
-              /* to the next goto statement    */
-              /* unreferenced label will take  */
-              /* care of removing the label    */
-              /* delete reference to the true label */
+                /* we just change the falseLabel */
+                /* to the next goto statement    */
+                /* unreferenced label will take  */
+                /* care of removing the label    */
+                /* delete reference to the true label */
 
-              hTabDeleteItem (&labelRef, (IC_TRUE (loop))->key, loop, DELETE_ITEM, NULL);
-              IC_TRUE (loop) = NULL;
-              IC_FALSE (loop) = IC_LABEL (loop->next);
-              /* add reference to the LABEL */
-              hTabAddItem (&labelRef, (IC_FALSE (loop))->key, loop);
-              /* next remove the goto */
-              hTabDeleteItem (&labelRef,
-               (IC_LABEL (loop->next))->key, loop->next, DELETE_ITEM, NULL);
-              loop->next = loop->next->next;
-              loop->next->prev = loop;
-              change++;
-              continue;
+                hTabDeleteItem (&labelRef, (IC_TRUE (loop))->key, loop, DELETE_ITEM, NULL);
+                IC_TRUE (loop) = NULL;
+                IC_FALSE (loop) = IC_LABEL (loop->next);
+                /* add reference to the LABEL */
+                hTabAddItem (&labelRef, (IC_FALSE (loop))->key, loop);
+                /* next remove the goto */
+                hTabDeleteItem (&labelRef,
+                                (IC_LABEL (loop->next))->key, loop->next, DELETE_ITEM, NULL);
+                loop->next = loop->next->next;
+                loop->next->prev = loop;
+                change++;
+                continue;
             }
 
-          /* now do the same with the false labels */
-          if (IC_FALSE (loop) && hTabItemWithKey (labelRef, (IC_FALSE (loop))->key))
+            /* now do the same with the false labels */
+            if (IC_FALSE (loop) && hTabItemWithKey (labelRef, (IC_FALSE (loop))->key))
             {
-              hTabDeleteItem (&labelRef, (IC_FALSE (loop))->key, loop, DELETE_ITEM, NULL);
-              IC_FALSE (loop) = NULL;
-              IC_TRUE (loop) = IC_LABEL (loop->next);
-              hTabAddItem (&labelRef, (IC_TRUE (loop))->key, loop);
-              hTabDeleteItem (&labelRef, (IC_LABEL (loop->next))->key, loop->next, DELETE_ITEM, NULL);
-              loop->next = loop->next->next;
-              loop->next->prev = loop;
-              change++;
-              continue;
+                hTabDeleteItem (&labelRef, (IC_FALSE (loop))->key, loop, DELETE_ITEM, NULL);
+                IC_FALSE (loop) = NULL;
+                IC_TRUE (loop) = IC_LABEL (loop->next);
+                hTabAddItem (&labelRef, (IC_TRUE (loop))->key, loop);
+                hTabDeleteItem (&labelRef, (IC_LABEL (loop->next))->key, loop->next, DELETE_ITEM, NULL);
+                loop->next = loop->next->next;
+                loop->next->prev = loop;
+                change++;
+                continue;
             }
         }
 
-      /* Optimize hidden jump-to-jump:
-         Simplify
-           v = 1;              stat->prev
-           goto l1;            stat
-         l0:
-           v = 0;              loop->prev
-         l1:                   loop
-           if (v) goto l3;     loop->next
-         Into
-           v = 1;
-           goto l3;
-         l0:
-           v = 0;
-         l1: */
-      if (loop->op == LABEL &&
-          loop->next && loop->next->op == IFX &&
-          (stat = hTabFirstItemWK (labelRef, (IC_LABEL (loop))->key)) &&
-          !hTabNextItemWK (labelRef) &&
-          stat && stat->op == GOTO &&
-          stat->prev && stat->prev->op == '=' && IS_OP_LITERAL (IC_RIGHT (stat->prev)) &&
-          loop->prev && loop->prev->op == '=' && IS_OP_LITERAL (IC_RIGHT (loop->prev)) &&
-          IC_RESULT (stat->prev)->key == IC_COND (loop->next)->key &&
-          IC_RESULT (loop->prev)->key == IC_COND (loop->next)->key &&
-          !IS_OP_VOLATILE (IC_COND (loop->next)) &&
-          (!operandLitValue (IC_RIGHT (stat->prev)) ^ !operandLitValue (IC_RIGHT (loop->prev))))
+        /* Optimize hidden jump-to-jump:
+           Simplify
+             v = 1;              stat->prev
+             goto l1;            stat
+           l0:
+             v = 0;              loop->prev
+           l1:                   loop
+             if (v) goto l3;     loop->next
+           Into
+             v = 1;
+             goto l3;
+           l0:
+             v = 0;
+           l1: */
+        if (loop->op == LABEL &&
+            loop->next && loop->next->op == IFX &&
+            (stat = hTabFirstItemWK (labelRef, (IC_LABEL (loop))->key)) &&
+            !hTabNextItemWK (labelRef) &&
+            stat && stat->op == GOTO &&
+            stat->prev && stat->prev->op == '=' && IS_OP_LITERAL (IC_RIGHT (stat->prev)) &&
+            loop->prev && loop->prev->op == '=' && IS_OP_LITERAL (IC_RIGHT (loop->prev)) &&
+            IC_RESULT (stat->prev)->key == IC_COND (loop->next)->key &&
+            IC_RESULT (loop->prev)->key == IC_COND (loop->next)->key &&
+            !IS_OP_VOLATILE (IC_COND (loop->next)) &&
+            (!operandLitValue (IC_RIGHT (stat->prev)) ^ !operandLitValue (IC_RIGHT (loop->prev))))
         {
-          if (IC_FALSE (loop->next) && !operandLitValue (IC_RIGHT (loop->prev)) ||
-              IC_TRUE (loop->next)  && operandLitValue (IC_RIGHT (loop->prev)))
-            /* Complicated case: Insert goto, remove conditional jump. */
+            if (IC_FALSE (loop->next) && !operandLitValue (IC_RIGHT (loop->prev)) ||
+                IC_TRUE (loop->next)  && operandLitValue (IC_RIGHT (loop->prev)))
+                /* Complicated case: Insert goto, remove conditional jump. */
             {
-              /* Change IFX to GOTO. */
-              stat = loop->next;
-              IC_LABEL (stat) = IC_TRUE (stat) ? IC_TRUE (stat) : IC_FALSE (stat);
-              stat->op = GOTO;
+                /* Change IFX to GOTO. */
+                stat = loop->next;
+                IC_LABEL (stat) = IC_TRUE (stat) ? IC_TRUE (stat) : IC_FALSE (stat);
+                stat->op = GOTO;
 
-             /* Move to desired location. */
-              if (loop->next->next)
-                loop->next->next->prev = loop;
-              loop->next = loop->next->next;
-              stat->prev = loop->prev;
-              stat->prev->next = stat;
-              stat->next = loop;
-              loop->prev = stat;
-              change++;
-              continue;
+                /* Move to desired location. */
+                if (loop->next->next)
+                    loop->next->next->prev = loop;
+                loop->next = loop->next->next;
+                stat->prev = loop->prev;
+                stat->prev->next = stat;
+                stat->next = loop;
+                loop->prev = stat;
+                change++;
+                continue;
             }
-          else /* Simple case: Redirect goto, remove conditional jump. */
+            else /* Simple case: Redirect goto, remove conditional jump. */
             {
-              hTabDeleteItem (&labelRef, (IC_LABEL (stat))->key, stat, DELETE_ITEM, NULL);
-              IC_LABEL (stat) = IC_TRUE (loop->next) ? IC_TRUE (loop->next) : IC_FALSE (loop->next);
-              hTabAddItem (&labelRef, (IC_LABEL (stat))->key, stat);
-              hTabDeleteItem (&labelRef, IC_LABEL (stat)->key, loop->next, DELETE_ITEM, NULL);
-              if (loop->next->next)
-                loop->next->next->prev = loop;
-              loop->next = loop->next->next;
-              change++;
-              continue;
+                hTabDeleteItem (&labelRef, (IC_LABEL (stat))->key, stat, DELETE_ITEM, NULL);
+                IC_LABEL (stat) = IC_TRUE (loop->next) ? IC_TRUE (loop->next) : IC_FALSE (loop->next);
+                hTabAddItem (&labelRef, (IC_LABEL (stat))->key, stat);
+                hTabDeleteItem (&labelRef, IC_LABEL (stat)->key, loop->next, DELETE_ITEM, NULL);
+                if (loop->next->next)
+                    loop->next->next->prev = loop;
+                loop->next = loop->next->next;
+                change++;
+                continue;
             }
         }
     }
 
-  return change;
+    return change;
 }
+
+/*-----------------------------------------------------------------*/
+/* replaceGotoGoto - find new target for jump                      */
+/* if we have a target statement then check if the next            */
+/* one is a goto: this means target of goto is a goto              */
+/*-----------------------------------------------------------------*/
+static symbol *
+replaceGotoGoto (const iCode *ic, const symbol *sLabel, const iCode *target)
+{
+    if (!target || !target->next)
+        return 0;
+
+    if (target->next->op != GOTO && target->next->op != LABEL || target->next == ic)
+        return 0;
+
+    symbol *repLabel = target->next->label;
+
+    if (repLabel == sLabel)
+        return 0;
+
+    return repLabel;
+}
+
 
 /*-----------------------------------------------------------------*/
 /* labelGotoGoto - target of a goto is a goto                      */
 /*-----------------------------------------------------------------*/
-int 
-labelGotoGoto (iCode * ic)
+int
+labelGotoGoto (iCode *ic)
 {
-  iCode *loop;
-  int change = 0;
+    iCode *loop;
+    int change = 0;
 
-  for (loop = ic; loop; loop = loop->next)
+    for (loop = ic; loop; loop = loop->next)
     {
-      iCode *stat;
-      symbol *sLabel = NULL;
-      stat = NULL;
-      switch (loop->op)
+        iCode *stat;
+        symbol *sLabel = NULL;
+        symbol *repLabel;
+        stat = NULL;
+        switch (loop->op)
         {
-        case GOTO:              /* for a goto statement */
-          stat = hTabItemWithKey (labelDef, (sLabel = IC_LABEL (loop))->key);
-          break;
-        case IFX:               /* for a conditional jump */
-          if (IC_TRUE (loop))
-            stat = hTabItemWithKey (labelDef, (sLabel = IC_TRUE (loop))->key);
-          else
-            stat = hTabItemWithKey (labelDef, (sLabel = IC_FALSE (loop))->key);
-        }
+            case GOTO:              /* for a goto statement */
 
-      /* if we have a target statement then check if the next */
-      /* one is a goto: this means target of goto is a goto   */
-      if (stat && stat->next &&
-          (stat->next->op == GOTO ||
-           stat->next->op == LABEL) &&
-          stat->next != loop)
-        {
+                stat = hTabItemWithKey (labelDef, (sLabel = IC_LABEL (loop))->key);
 
-          symbol *repLabel = stat->next->label; /* replace with label */
-
-          /* if they are the same then continue */
-          if (repLabel->key == sLabel->key)
-            continue;
-
-          /* replacement depends on the statement type */
-          switch (loop->op)
-            {
-
-            case GOTO:          /* for a goto statement */
-
-              hTabDeleteItem (&labelRef, (IC_LABEL (loop))->key, loop, DELETE_ITEM, NULL);
-              loop->label = repLabel;
-              hTabAddItem (&labelRef, repLabel->key, loop);
-              break;
-
-            case IFX:           /* for a conditional jump */
-              if (IC_TRUE (loop))
+                if (repLabel = replaceGotoGoto (loop, sLabel, stat))
                 {
-
-                  hTabDeleteItem (&labelRef, (IC_TRUE (loop))->key, loop, DELETE_ITEM, NULL);
-                  IC_TRUE (loop) = repLabel;
+                    hTabDeleteItem (&labelRef, sLabel->key, loop, DELETE_ITEM, NULL);
+                    loop->label = repLabel;
+                    hTabAddItem (&labelRef, repLabel->key, loop);
+                    change++;
                 }
-              else
+                break;
+
+            case IFX:               /* for a conditional jump */
+
+                if (IC_TRUE (loop))
+                    stat = hTabItemWithKey (labelDef, (sLabel = IC_TRUE (loop))->key);
+                else
+                    stat = hTabItemWithKey (labelDef, (sLabel = IC_FALSE (loop))->key);
+
+                if (repLabel = replaceGotoGoto (loop, sLabel, stat))
                 {
-
-                  hTabDeleteItem (&labelRef, (IC_FALSE (loop))->key, loop, DELETE_ITEM, NULL);
-                  IC_FALSE (loop) = repLabel;
+                    if (IC_TRUE (loop))
+                    {
+                        hTabDeleteItem (&labelRef, sLabel->key, loop, DELETE_ITEM, NULL);
+                        IC_TRUE (loop) = repLabel;
+                    }
+                    else
+                    {
+                        hTabDeleteItem (&labelRef, sLabel->key, loop, DELETE_ITEM, NULL);
+                        IC_FALSE (loop) = repLabel;
+                    }
+                    hTabAddItem (&labelRef, repLabel->key, loop);
+                    change++;
                 }
-              hTabAddItem (&labelRef, repLabel->key, loop);
+                break;
+            case JUMPTABLE:
 
-            }
-          change++;
+                for (sLabel = setFirstItem (IC_JTLABELS (loop)); sLabel; sLabel = setNextItem (IC_JTLABELS (loop)))
+                    if (repLabel = replaceGotoGoto (loop, sLabel, hTabItemWithKey (labelDef, sLabel->key)))
+                    {
+                        hTabDeleteItem (&labelRef, sLabel->key, loop, DELETE_ITEM, NULL);
+                        replaceSetItem (IC_JTLABELS (loop), sLabel, repLabel);
+                        hTabAddItem (&labelRef, repLabel->key, loop);
+                        change++;
+                    }
         }
     }
 
-  return change;
+    return change;
 }
 
 /*-----------------------------------------------------------------*/
 /* labelUnrefLabel - remove unreferenced labels                    */
 /*-----------------------------------------------------------------*/
-int 
+int
 labelUnrefLabel (iCode * ic)
 {
-  iCode *loop;
-  int change = 0;
+    iCode *loop;
+    int change = 0;
 
-  for (loop = ic; loop; loop = loop->next)
+    for (loop = ic; loop; loop = loop->next)
     {
 
-      /* if this is a label */
-      if (loop->op == LABEL)
+        /* if this is a label */
+        if (loop->op == LABEL)
         {
-          if (((IC_LABEL (loop))->key == returnLabel->key) ||
-              ((IC_LABEL (loop))->key == entryLabel->key))
-            continue;
+            if (((IC_LABEL (loop))->key == returnLabel->key) ||
+                ((IC_LABEL (loop))->key == entryLabel->key))
+                continue;
 
-          if (hTabItemWithKey (labelRef, (IC_LABEL (loop))->key))
-            continue;
+            if (hTabItemWithKey (labelRef, (IC_LABEL (loop))->key))
+                continue;
 
-          /* else eliminitate this one */
-          loop->prev->next = loop->next;        /* get this out of the chain */
-          loop->next->prev = loop->prev;
-          change++;
+            /* else eliminitate this one */
+            loop->prev->next = loop->next;        /* get this out of the chain */
+            loop->next->prev = loop->prev;
+            change++;
         }
     }
 
-  return change;
+    return change;
 }
 
 /*-----------------------------------------------------------------*/
 /* labelUnreach - remove unreachable code                          */
 /*-----------------------------------------------------------------*/
-int 
+int
 labelUnreach (iCode * ic)
 {
-  iCode *loop;
-  iCode *tic;
-  int change = 0;
+    iCode *loop;
+    iCode *tic;
+    int change = 0;
 
-  /* if we hit a return statement or a goto statement */
-  /* remove all statements till we hit the next label */
-  for (loop = ic; loop; loop = loop->next)
+    /* if we hit a return statement or a goto statement */
+    /* remove all statements till we hit the next label */
+    for (loop = ic; loop; loop = loop->next)
     {
-      iCode *loop2;
+        iCode *loop2;
 
-      /* found a goto || return && the next */
-      /* statement is not a label           */
-      if (loop->op == GOTO || loop->op == RETURN ||
-        loop->op == CALL && IFFUNC_ISNORETURN (operandType (IC_LEFT (loop))))
+        /* found a goto || return && the next */
+        /* statement is not a label           */
+        if (loop->op == GOTO || loop->op == RETURN ||
+            loop->op == CALL && IFFUNC_ISNORETURN (operandType (IC_LEFT (loop))))
         {
-          if (loop->next &&
-              (loop->next->op == LABEL || loop->next->op == ENDFUNCTION))
-            continue;
+            if (loop->next &&
+                (loop->next->op == LABEL || loop->next->op == ENDFUNCTION))
+                continue;
 
-          /* loop till we find a label */
-          loop2 = loop->next;
-          while (loop2 && loop2->op != LABEL)
-            loop2 = loop2->next;
+            /* loop till we find a label */
+            loop2 = loop->next;
+            while (loop2 && loop2->op != LABEL)
+                loop2 = loop2->next;
 
-          /* throw away those in between */
-          for (tic = loop->next; tic && tic != loop2; tic = tic->next)
+            /* throw away those in between */
+            for (tic = loop->next; tic && tic != loop2; tic = tic->next)
             {
-              /* remove label references if any */
-              switch (tic->op)
+                /* remove label references if any */
+                switch (tic->op)
                 {
-                case GOTO:
-                  hTabDeleteItem (&labelRef, IC_LABEL (tic)->key, tic, DELETE_ITEM, NULL);
-                  break;
-                case IFX:
-                  werrorfl (tic->filename, tic->lineno, W_CODE_UNREACH);
-                  if (IC_TRUE (tic))
-                    hTabDeleteItem (&labelRef, IC_TRUE (tic)->key, tic, DELETE_ITEM, NULL);
-                  else
-                    hTabDeleteItem (&labelRef, IC_FALSE (tic)->key, tic, DELETE_ITEM, NULL);
-                  break;
-                default:
-                  werrorfl (tic->filename, tic->lineno, W_CODE_UNREACH);
+                    case GOTO:
+                        hTabDeleteItem (&labelRef, IC_LABEL (tic)->key, tic, DELETE_ITEM, NULL);
+                        break;
+                    case IFX:
+                        werrorfl (tic->filename, tic->lineno, W_CODE_UNREACH);
+                        if (IC_TRUE (tic))
+                            hTabDeleteItem (&labelRef, IC_TRUE (tic)->key, tic, DELETE_ITEM, NULL);
+                        else
+                            hTabDeleteItem (&labelRef, IC_FALSE (tic)->key, tic, DELETE_ITEM, NULL);
+                        break;
+                    default:
+                        werrorfl (tic->filename, tic->lineno, W_CODE_UNREACH);
                 }
             }
 
-          /* now set up the pointers */
-          loop->next = loop2;
-          if (loop2)
-            loop2->prev = loop;
-          change++;
+            /* now set up the pointers */
+            loop->next = loop2;
+            if (loop2)
+                loop2->prev = loop;
+            change++;
         }
     }
-  return change;
+    return change;
 }
 
 /*-----------------------------------------------------------------*/
@@ -474,44 +492,44 @@ labelUnreach (iCode * ic)
 iCode *
 iCodeLabelOptimize (iCode * ic)
 {
-  if (!optimize.label1 &&
-      !optimize.label2 &&
-      !optimize.label3 &&
-      !optimize.label4)
-    return ic;
+    if (!optimize.label1 &&
+        !optimize.label2 &&
+        !optimize.label3 &&
+        !optimize.label4)
+        return ic;
 
-  /* build labelreferences */
-  buildLabelRefTable (ic);
+    /* build labelreferences */
+    buildLabelRefTable (ic);
 
-  /* the following transformations need to ne done */
-  /* repeatedly till a fixed point is reached      */
-  while (1)
+    /* the following transformations need to ne done */
+    /* repeatedly till a fixed point is reached      */
+    while (1)
     {
-      int change;
-      change = 0;
+        int change;
+        change = 0;
 
-      /* first eliminate any goto statement */
-      /* that goes to the next statement    */
-      if (optimize.label1)
-        change += labelGotoNext (ic);
+        /* first eliminate any goto statement */
+        /* that goes to the next statement    */
+        if (optimize.label1)
+            change += labelGotoNext (ic);
 
-      if (optimize.label2)
-        change += labelIfx (ic);
+        if (optimize.label2)
+            change += labelIfx (ic);
 
-      /* target of a goto is a goto then rename this goto */
-      if (optimize.label3)
-        change += labelGotoGoto (ic);
+        /* target of a goto is a goto then rename this goto */
+        if (optimize.label3)
+            change += labelGotoGoto (ic);
 
-      /* remove unreference labels */
-      if (optimize.label4)
-        change += labelUnrefLabel (ic);
+        /* remove unreference labels */
+        if (optimize.label4)
+            change += labelUnrefLabel (ic);
 
-      /* remove unreachable code */
-      change += labelUnreach (ic);
+        /* remove unreachable code */
+        change += labelUnreach (ic);
 
-      if (!change)              /* fixed point reached */
-        break;
+        if (!change)              /* fixed point reached */
+            break;
     }
 
-  return ic;
+    return ic;
 }

@@ -28,159 +28,159 @@
 char *
 eval_macros (hTab * pvals, const char *pfrom)
 {
-  bool fdidsomething = FALSE;
-  char quote = '\0';
-  struct dbuf_s dbuf;
+    bool fdidsomething = FALSE;
+    char quote = '\0';
+    struct dbuf_s dbuf;
 
-  assert (pvals);
-  assert (pfrom);
+    assert (pvals);
+    assert (pfrom);
 
-  dbuf_init (&dbuf, 256);
-  while (*pfrom)
+    dbuf_init (&dbuf, 256);
+    while (*pfrom)
     {
-      switch (*pfrom)
+        switch (*pfrom)
         {
-        case '"':
-        case '\'':
-          if (quote != '\0')
-            {
-              /* write previous quote */
-              dbuf_append_char (&dbuf, quote);
-            }
-          quote = *pfrom++;
-          break;
-
-        case '{':
-          {
-            const char *pend = ++pfrom;
-            const char *pval;
-            char *name;
-
-            /* Find the end of macro */
-            while (*pend && '}' != *pend)
-              {
-                pend++;
-              }
-            if ('}' != *pend)
-              {
-                wassertl (0, "Unterminated macro expansion");
-              }
-
-            name = Safe_strndup (pfrom, pend - pfrom);
-
-            /* Look up the value in the hash table */
-            pval = shash_find (pvals, name);
-            Safe_free (name);
-
-            if (NULL == pval)
-              {
-                /* Empty macro value */
-                if ('\0' != quote)
-                  {
-                    /* It was a quote */
-                    if (pend[1] == quote)
-                      {
-                        /* Start quote equals end quote: skip both */
-                        ++pend;
-                      }
-                    else
-                      {
-                        /* Start quote not equals end quote: add both */
-                        dbuf_append_char (&dbuf, quote);
-                      }
-                  }
-              }
-            else
-              {
-                if ('\0' != quote)
-                  {
+            case '"':
+            case '\'':
+                if (quote != '\0')
+                {
+                    /* write previous quote */
                     dbuf_append_char (&dbuf, quote);
-                  }
-                dbuf_append_str (&dbuf, pval);
-                fdidsomething = TRUE;
-              }
+                }
+                quote = *pfrom++;
+                break;
 
-            quote = '\0';
-            pfrom = pend + 1;
-          }
-          break;
-
-        default:
-          if ('\0' != quote)
+            case '{':
             {
-              dbuf_append_char (&dbuf, quote);
-              quote = '\0';
-            }
+                const char *pend = ++pfrom;
+                const char *pval;
+                char *name;
 
-          dbuf_append_char (&dbuf, *pfrom++);
+                /* Find the end of macro */
+                while (*pend && '}' != *pend)
+                {
+                    pend++;
+                }
+                if ('}' != *pend)
+                {
+                    wassertl (0, "Unterminated macro expansion");
+                }
+
+                name = Safe_strndup (pfrom, pend - pfrom);
+
+                /* Look up the value in the hash table */
+                pval = shash_find (pvals, name);
+                Safe_free (name);
+
+                if (NULL == pval)
+                {
+                    /* Empty macro value */
+                    if ('\0' != quote)
+                    {
+                        /* It was a quote */
+                        if (pend[1] == quote)
+                        {
+                            /* Start quote equals end quote: skip both */
+                            ++pend;
+                        }
+                        else
+                        {
+                            /* Start quote not equals end quote: add both */
+                            dbuf_append_char (&dbuf, quote);
+                        }
+                    }
+                }
+                else
+                {
+                    if ('\0' != quote)
+                    {
+                        dbuf_append_char (&dbuf, quote);
+                    }
+                    dbuf_append_str (&dbuf, pval);
+                    fdidsomething = TRUE;
+                }
+
+                quote = '\0';
+                pfrom = pend + 1;
+            }
+                break;
+
+            default:
+                if ('\0' != quote)
+                {
+                    dbuf_append_char (&dbuf, quote);
+                    quote = '\0';
+                }
+
+                dbuf_append_char (&dbuf, *pfrom++);
         }
     }
 
-  if ('\0' != quote)
+    if ('\0' != quote)
     {
-      dbuf_append_char (&dbuf, quote);
+        dbuf_append_char (&dbuf, quote);
     }
 
 
-  /* If we did something then recursivly expand any expanded macros */
-  if (fdidsomething)
+    /* If we did something then recursivly expand any expanded macros */
+    if (fdidsomething)
     {
-      char *ret = eval_macros (pvals, dbuf_c_str (&dbuf));
-      dbuf_destroy (&dbuf);
-      return ret;
+        char *ret = eval_macros (pvals, dbuf_c_str (&dbuf));
+        dbuf_destroy (&dbuf);
+        return ret;
     }
 
-  return dbuf_detach_c_str (&dbuf);
+    return dbuf_detach_c_str (&dbuf);
 }
 
 char *
 mvsprintf (hTab * pvals, const char *pformat, va_list ap)
 {
-  char *p;
-  struct dbuf_s dbuf;
+    char *p;
+    struct dbuf_s dbuf;
 
-  dbuf_init (&dbuf, 256);
+    dbuf_init (&dbuf, 256);
 
-  /* Recursivly evaluate all the macros in the string */
-  p = eval_macros (pvals, pformat);
+    /* Recursivly evaluate all the macros in the string */
+    p = eval_macros (pvals, pformat);
 
-  /* Evaluate all the arguments */
-  dbuf_vprintf (&dbuf, p, ap);
-  Safe_free (p);
+    /* Evaluate all the arguments */
+    dbuf_vprintf (&dbuf, p, ap);
+    Safe_free (p);
 
-  /* Recursivly evaluate any macros that were used as arguments */
-  p = eval_macros (pvals, dbuf_c_str (&dbuf));
-  dbuf_destroy (&dbuf);
-  return p;
+    /* Recursivly evaluate any macros that were used as arguments */
+    p = eval_macros (pvals, dbuf_c_str (&dbuf));
+    dbuf_destroy (&dbuf);
+    return p;
 }
 
 char *
 msprintf (hTab * pvals, const char *pformat, ...)
 {
-  va_list ap;
-  char *pret;
+    va_list ap;
+    char *pret;
 
-  va_start (ap, pformat);
+    va_start (ap, pformat);
 
-  pret = mvsprintf (pvals, pformat, ap);
+    pret = mvsprintf (pvals, pformat, ap);
 
-  va_end (ap);
+    va_end (ap);
 
-  return pret;
+    return pret;
 }
 
 void
 mfprintf (FILE * fp, hTab * pvals, const char *pformat, ...)
 {
-  va_list ap;
-  char *p;
+    va_list ap;
+    char *p;
 
-  va_start (ap, pformat);
+    va_start (ap, pformat);
 
-  p = mvsprintf (pvals, pformat, ap);
+    p = mvsprintf (pvals, pformat, ap);
 
-  va_end (ap);
+    va_end (ap);
 
-  fputs (p, fp);
-  Safe_free (p);
+    fputs (p, fp);
+    Safe_free (p);
 }

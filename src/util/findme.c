@@ -20,7 +20,7 @@ const char * findProgramPath(const char * argv0) {
     if (argv0 == NULL) return NULL;	/* XXX can't happen */
     /* If there is a / in the argv[0], it has to be an absolute path */
     if (strchr(argv0, '/'))
-	return xstrdup(argv0);
+        return xstrdup(argv0);
 
     if (path == NULL) return NULL;
 
@@ -28,27 +28,27 @@ const char * findProgramPath(const char * argv0) {
     if (pathbuf == NULL) return NULL;
     buf = malloc(strlen(path) + strlen(argv0) + sizeof("/"));
     if (buf == NULL) {  /* XXX can't happen */
-         free(pathbuf);
-         return NULL;
-    }      
+        free(pathbuf);
+        return NULL;
+    }
     strcpy(pathbuf, path);
 
     chptr = NULL;
     /*@-branchstate@*/
     do {
-	if ((chptr = strchr(start, ':')))
-	    *chptr = '\0';
-	sprintf(buf, "%s/%s", start, argv0);
+        if ((chptr = strchr(start, ':')))
+            *chptr = '\0';
+        sprintf(buf, "%s/%s", start, argv0);
 
-	if (!access(buf, X_OK)) {
+        if (!access(buf, X_OK)) {
             free(pathbuf);
-	    return buf;
+            return buf;
         }
 
-	if (chptr) 
-	    start = chptr + 1;
-	else
-	    start = NULL;
+        if (chptr)
+            start = chptr + 1;
+        else
+            start = NULL;
     } while (start && *start);
     /*@=branchstate@*/
 

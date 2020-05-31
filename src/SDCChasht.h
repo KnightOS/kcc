@@ -30,19 +30,19 @@
 
 /* hashtable item */
 typedef struct hashtItem
-  {
+{
     int key;
     /* Pointer to the key that was hashed for key.
        Used for a hash table with unique keys. */
     void *pkey;
     void *item;
     struct hashtItem *next;
-  }
-hashtItem;
+}
+        hashtItem;
 
 /* hashtable */
 typedef struct hTab
-  {
+{
     int size;			/* max number of items */
     int minKey;			/* minimum key value   */
     int maxKey;			/* maximum key value */
@@ -50,15 +50,15 @@ typedef struct hTab
     int currKey;		/* used for iteration */
     hashtItem *currItem;	/* current item within the list */
     int nItems;
-  }
-hTab;
+}
+        hTab;
 
 typedef enum
-  {
+{
     DELETE_CHAIN = 1,
     DELETE_ITEM
-  }
-DELETE_ACTION;
+}
+        DELETE_ACTION;
 
 
 /*-----------------------------------------------------------------*/
@@ -91,10 +91,10 @@ void *hTabFindByKey (hTab * h, int key, const void *pkey, int (*compare) (const 
 int hTabDeleteByKey (hTab ** h, int key, const void *pkey, int (*compare) (const void *, const void *));
 
 void hTabDeleteItem (hTab **, int key,
-		     const void *item, DELETE_ACTION action,
-		     int (*compareFunc) (const void *, const void *));
+                     const void *item, DELETE_ACTION action,
+                     int (*compareFunc) (const void *, const void *));
 int hTabIsInTable (hTab *, int, void *,
-		   int (*compareFunc) (void *, void *));
+                   int (*compareFunc) (void *, void *));
 void *hTabFirstItem (hTab *, int *);
 void *hTabNextItem (hTab *, int *);
 hTab *hTabFromTable (hTab *);
@@ -116,7 +116,7 @@ int hTabMaxKey (hTab *htab);
     @param compareFunc		strcmp like compare function, may be null.
 */
 void *hTabFindItem (hTab * htab, int key,
-		    void *item, int (*compareFunc) (void *, void *));
+                    void *item, int (*compareFunc) (void *, void *));
 
 void shash_add (hTab ** h, const char *szKey, const char *szValue);
 const char *shash_find (hTab * h, const char *szKey);

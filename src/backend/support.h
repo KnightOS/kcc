@@ -8,11 +8,11 @@ typedef unsigned short WORD;
 typedef unsigned char BYTE;
 
 typedef struct
-  {
+{
     WORD w[2];
     BYTE b[4];
-  }
-Z80_FLOAT;
+}
+        Z80_FLOAT;
 
 /** Convert a native float into 'z80' format */
 int convertFloat (Z80_FLOAT * f, double native);

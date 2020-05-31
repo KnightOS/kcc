@@ -305,121 +305,128 @@
 
 typedef struct dwloc
 {
-  int opcode;
-  struct
-  {
-    symbol * sym;
-    const char * label;
-    int offset;
-  } operand;
-  struct dwloc * next;
+    int opcode;
+    struct
+    {
+        symbol * sym;
+        const char * label;
+        int offset;
+    } operand;
+    struct dwloc * next;
 } dwloc;
 
 typedef struct dwlocregion
 {
-  char * startLabel;
-  char * endLabel;
-  dwloc * loc;
-  struct dwlocregion * next;
+    char * startLabel;
+    char * endLabel;
+    dwloc * loc;
+    struct dwlocregion * next;
 } dwlocregion;
 
 typedef struct dwloclist
 {
-  int baseOffset;
-  dwlocregion * region;
-  struct dwloclist * next;
+    int baseOffset;
+    dwlocregion * region;
+    struct dwloclist * next;
 } dwloclist;
+
+typedef struct dwcfilist
+{
+    char * startLabel;
+    char * endLabel;
+    int callsize;
+    dwlocregion * region;
+    struct dwcfilist * next;
+} dwcfilist;
 
 struct dwtag;
 
 typedef struct dwattr
 {
-  int attr;
-  int form;
-  union
-  {
-    struct
+    int attr;
+    int form;
+    union
     {
-      char * label;
-      int offset;
-    } symaddr;
-    struct
-    {
-      unsigned char * data;
-      int length;
-    } block;
-    int data;
-    const char * string;
-    struct dwtag * ref;
-    struct dwloc * loc;
-    struct dwloclist * loclist;
-  } val;
-  struct dwattr * next;
+        struct
+        {
+            char * label;
+            int offset;
+        } symaddr;
+        struct
+        {
+            unsigned char * data;
+            int length;
+        } block;
+        int data;
+        const char * string;
+        struct dwtag * ref;
+        struct dwloc * loc;
+        struct dwloclist * loclist;
+    } val;
+    struct dwattr * next;
 } dwattr;
 
 typedef struct dwtag
 {
-  int tag;
-  int abbrev;
-  int baseOffset;
-  struct dwattr * attribs;
-  struct dwtag * parent;
-  struct dwtag * firstChild;
-  struct dwtag * lastChild;
-  struct dwtag * siblings;
+    int tag;
+    int abbrev;
+    int baseOffset;
+    struct dwattr * attribs;
+    struct dwtag * parent;
+    struct dwtag * firstChild;
+    struct dwtag * lastChild;
+    struct dwtag * siblings;
 } dwtag;
 
 typedef struct dwfile
 {
-  char * name;
-  int dirIndex;
-  int timestamp;
-  int length;
+    char * name;
+    int dirIndex;
+    int timestamp;
+    int length;
 } dwfile;
 
 typedef struct dwline
 {
-  char * label;
-  int offset;
-  int fileIndex;
-  int line;
-  unsigned is_stmt:1;
-  unsigned basic_block:1;
-  unsigned end_sequence:1;
-  unsigned begin_sequence:1;
-  struct dwline * next;
+    char * label;
+    int offset;
+    int fileIndex;
+    int line;
+    unsigned is_stmt:1;
+    unsigned basic_block:1;
+    unsigned end_sequence:1;
+    unsigned begin_sequence:1;
+    struct dwline * next;
 } dwline;
 
-#if 0
 typedef struct dwblock
 {
-  unsigned char * data;
-  int length;
-  int alloc;
+    unsigned char * data;
+    int length;
+    int alloc;
 } dwblock;
 
 typedef struct dwcfop
 {
-  int opcode;
-  char * label;
-  int operand1;
-  int operand2;
-  struct dwcfop * next;
+    int opcode;
+    char * label;
+    int operand1;
+    int operand2;
+    struct dwcfop * next;
 } dwcfop;
 
 typedef struct dwcfins
 {
-  dwcfop * first;
-  dwcfop * last;
+    dwcfop * first;
+    dwcfop * last;
 } dwcfins;
 
 typedef struct dwfde
 {
-  char * startLabel;
-  char * endLabel;
-  dwcfins * ins;
+    char * startLabel;
+    char * endLabel;
+    dwcfins * ins;
 } dwfde;
-#endif
-
 
 #endif
+

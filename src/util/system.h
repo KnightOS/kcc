@@ -21,7 +21,7 @@
 
   Borut Razem
   borut.razem@siol.net
-*/ 
+*/
 
 #ifndef _SYSTEM_H
 #define _SYSTEM_H

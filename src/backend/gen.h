@@ -23,68 +23,64 @@
 
 typedef enum
 {
-  AOP_INVALID,
-  /* Is a literal */
-  AOP_LIT = 1,
-  /* Is in a register */
-  AOP_REG,
-  /* Is in direct space */
-  AOP_DIR,
-  /* SFR space ($FF00 and above) */
-  AOP_SFR,
-  /* Is on the stack */
-  AOP_STK,
-  /* Is an immediate value */
-  AOP_IMMD,
-  /* Is a string (?) */
-  AOP_STR,
-  /* Is in the carry register */
-  AOP_CRY,
-  /* Is pointed to by IY */
-  AOP_IY,
-  /* Is pointed to by HL */
-  AOP_HL,
-  /* Is in A */
-  AOP_ACC,
-  /* Is in H and L */
-  AOP_HLREG,
-  /* Simple literal. */
-  AOP_SIMPLELIT,
-  /* Is in the extended stack pointer (IY on the Z80) */
-  AOP_EXSTK,
-  /* Is referenced by a pointer in a register pair. */
-  AOP_PAIRPTR,
-  /* Read undefined, discard writes */
-  AOP_DUMMY
+    AOP_INVALID,
+    /* Is a literal */
+    AOP_LIT = 1,
+    /* Is in a register */
+    AOP_REG,
+    /* Is in direct space */
+    AOP_DIR,
+    /* SFR space ($FF00 and above) */
+    AOP_SFR,
+    /* Is on the stack */
+    AOP_STK,
+    /* Is an immediate value */
+    AOP_IMMD,
+    /* Is a string (?) */
+    AOP_STR,
+    /* Is in the carry register */
+    AOP_CRY,
+    /* Is pointed to by IY */
+    AOP_IY,
+    /* Is pointed to by HL */
+    AOP_HL,
+    /* Is in H and L */
+    AOP_HLREG,
+    /* Is in the extended stack pointer (IY on the Z80) */
+    AOP_EXSTK,
+    /* Is referenced by a pointer in a register pair. */
+    AOP_PAIRPTR,
+    /* Read undefined, discard writes */
+    AOP_DUMMY
 }
-AOP_TYPE;
+        AOP_TYPE;
 
-/* type asmop : a homogenised type for 
+/* type asmop : a homogenised type for
    all the different spaces an operand can be
    in */
 typedef struct asmop
 {
-  AOP_TYPE type;
-  short coff;                   /* current offset */
-  short size;                   /* total size */
-  unsigned code:1;              /* is in Code space */
-  unsigned paged:1;             /* in paged memory  */
-  unsigned freed:1;             /* already freed    */
-  unsigned bcInUse:1;           /* for banked I/O, which uses bc for the I/O address */
-  union
-  {
-    value *aop_lit;             /* if literal */
-    reg_info *aop_reg[4];       /* array of registers */
-    char *aop_dir;              /* if direct  */
-    char *aop_immd;             /* if immediate others are implied */
-    int aop_stk;                /* stack offset when AOP_STK */
-    const char *aop_str[4];     /* just a string array containing the location */
-    unsigned long aop_simplelit;        /* Just the value. */
-    int aop_pairId;             /* The pair ID */
-  }
-  aopu;
+    AOP_TYPE type;
+    short coff;                   /* current offset */
+    short size;                   /* total size */
+    unsigned code:1;              /* is in Code space */
+    unsigned paged:1;             /* in paged memory  */
+    unsigned freed:1;             /* already freed    */
+    unsigned bcInUse:1;           /* for banked I/O, which uses bc for the I/O address */
+    union
+    {
+        value *aop_lit;             /* if literal */
+        reg_info *aop_reg[4];       /* array of registers */
+        char *aop_dir;              /* if direct  */
+        char *aop_immd;             /* if immediate others are implied */
+        int aop_stk;                /* stack offset when AOP_STK */
+        const char *aop_str[4];     /* just a string array containing the location */
+        int aop_pairId;             /* The pair ID */
+    }
+            aopu;
+    signed char regs[9]; // Byte of this aop that is in the register. -1 if no byte of this aop is in the reg.
 }
-asmop;
+        asmop;
 
 void genZ80Code (iCode *);
 void z80_emitDebuggerSymbol (const char *);

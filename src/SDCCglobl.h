@@ -26,34 +26,16 @@
 #include <setjmp.h>
 #include <stdio.h>
 
-#ifndef __cplusplus
-# ifndef _MSC_VER
-#   include <stdbool.h>
-#   ifndef TRUE
-#     define TRUE   true
-#   endif
-#   ifndef FALSE
-#     define FALSE  false
-#   endif
-# else
-    typedef unsigned char bool;
-#   define true     1
-#   define false    0
-#   ifndef TRUE
-#     define TRUE   1
-#   endif
-#   ifndef FALSE
-#     define FALSE  0
-#   endif
+# ifndef __cplusplus
+#  include <stdbool.h>
 # endif
-#else
+
 # ifndef TRUE
 #   define TRUE     true
 # endif
 # ifndef FALSE
 #   define FALSE    false
 # endif
-#endif
 
 #include "SDCCset.h"
 
@@ -112,7 +94,6 @@
 #include "SDCCerr.h"
 
 #define SPACE ' '
-#define ZERO  0
 
 #include <limits.h>             /* PATH_MAX                  */
 #if !defined(PATH_MAX) || (PATH_MAX < 2048)
@@ -140,24 +121,21 @@
 # define THROW_BOTH  3
 #endif
 
-/* size's in bytes  */
+/* sizes in bytes  */
 #define BOOLSIZE      port->s.char_size
 #define CHARSIZE      port->s.char_size
 #define SHORTSIZE     port->s.short_size
 #define INTSIZE       port->s.int_size
 #define LONGSIZE      port->s.long_size
 #define LONGLONGSIZE  port->s.longlong_size
-#define PTRSIZE       port->s.ptr_size
-#define FPTRSIZE      port->s.fptr_size
-#define GPTRSIZE      port->s.gptr_size
+#define NEARPTRSIZE   port->s.near_ptr_size
+#define FARPTRSIZE    port->s.far_ptr_size
+#define GPTRSIZE      port->s.ptr_size
+#define FUNCPTRSIZE   port->s.funcptr_size
+#define BFUNCPTRSIZE  port->s.banked_funcptr_size
 #define BITSIZE       port->s.bit_size
 #define FLOATSIZE     port->s.float_size
-#define MAXBASESIZE   port->s.max_base_size
 
-#define  SMALL_MODEL  0
-#define  LARGE_MODEL  1
-
-#define MAX_TVAR      6
 #define INITIAL_INLINEASM (4 * 1024)
 #define DEFPOOLSTACK(type,size)     \
     type       *type##Pool        ; \
@@ -185,12 +163,6 @@
         t_##stack stack[size];                                      \
         t_##stack (*p_##stack) = stack - 1;
 
-/* define extern stack */
-#define EXTERN_STACK_DCL(stack, type, size)                         \
-        typedef type t_##stack;                                     \
-        extern t_##stack stack[size];                               \
-        extern t_##stack *p_##stack;
-
 #define STACK_EMPTY(stack)     ((p_##stack) < stack)
 #define STACK_FULL(stack)      ((p_##stack) >= (stack +             \
                                 sizeof(stack) / sizeof(*stack) - 1) )
@@ -217,13 +189,13 @@
                                          ? "overflow"               \
                                          : "empty"))
 
+/* for semantically partitioned nest level values */
+#define LEVEL_UNIT      65536
+#define SUBLEVEL_UNIT   1
+
 /* optimization options */
-/*
- * cloneOptimize function in SDCC.lex should be updated every time
- * a new set is added to the optimize structure!
- */
 struct optimize
-  {
+{
     int global_cse;
     int ptrArithmetic;
     int label1;
@@ -232,13 +204,29 @@ struct optimize
     int label4;
     int loopInvariant;
     int loopInduction;
-    int noJTabBoundary;
     int noLoopReverse;
     int codeSpeed;
     int codeSize;
     int lospre;
-    int lospre_unsafe_read;
-  };
+    int allow_unsafe_read;
+    int noStdLibCall;
+};
+
+/** Build model.
+    Used in options.model.A bit each as port.supported_models is an OR
+    of these.
+*/
+enum
+{
+    NO_MODEL = 0,     /* no model applicable */
+    MODEL_SMALL = 1,
+    MODEL_COMPACT = 2,
+    MODEL_MEDIUM = 4,
+    MODEL_LARGE = 8,
+    MODEL_FLAT24 = 16,
+//  MODEL_PAGE0 = 32, /* disabled, was for the xa51 port */
+    MODEL_HUGE = 64   /* for banked support */
+};
 
 /* overlay segment name and the functions
    that belong to it. used by pragma overlay */
@@ -248,13 +236,21 @@ typedef struct {
     char *funcs[128];   /* function name that belong to this */
 } olay;
 
+enum
+{
+    NO_DEPENDENCY_FILE_OPT = 0,
+    SYSTEM_DEPENDENCY_FILE_OPT = 1,
+    USER_DEPENDENCY_FILE_OPT = 2
+};
+
 /* other command line options */
 /*
  * cloneOptions function in SDCC.lex should be updated every time
  * a new set is added to the options structure!
  */
 struct options
-  {
+{
+    int model;                  /* see MODEL_* defines above */
     int stackAuto;              /* Stack Automatic  */
     int useXstack;              /* use Xternal Stack */
     int stack10bit;             /* use 10 bit stack (flat24 model only) */
@@ -278,7 +274,6 @@ struct options
     int nostdinc;               /* Don't use standard include files */
     int noRegParams;            /* Disable passing some parameters in registers */
     int verbose;                /* Show what the compiler is doing */
-    int shortis8bits;           /* treat short like int or char */
     int lessPedantic;           /* disable some warnings */
     int profile;                /* Turn on extra profiling information */
     int omitFramePtr;           /* Turn off the frame pointer. */
@@ -315,13 +310,17 @@ struct options
     int vc_err_style;           /* errors and warnings are compatible with Micro$oft visual studio */
     int use_stdout;             /* send errors to stdout instead of stderr */
     int no_std_crt0;            /* for the z80/gbz80 do not link default crt0.o*/
+    int std_c95;                /* enable C95 keywords/constructs */
     int std_c99;                /* enable C99 keywords/constructs */
     int std_c11;                /* enable C11 keywords/constructs */
+    int std_c2x;                /* enable C2X keywords/constructs */
     int std_sdcc;               /* enable SDCC extensions to C */
     int dollars_in_ident;       /* zero means dollar signs are punctuation */
-    int unsigned_char;          /* use unsigned for char without signed/unsigned modifier */
+    int signed_char;            /* use signed for char without signed/unsigned modifier */
     char *code_seg;             /* segment name to use instead of CSEG */
     char *const_seg;            /* segment name to use instead of CONST */
+    char *data_seg;             /* segment name to use instead of DATA */
+    int dependencyFileOpt;      /* write dependencies to given file */
     /* sets */
     set *calleeSavesSet;        /* list of functions using callee save */
     set *excludeRegsSet;        /* registers excluded from saving */
@@ -329,9 +328,7 @@ struct options
     int max_allocs_per_node;    /* Maximum number of allocations / combinations considered at each node in the tree-decomposition based algorithms */
     bool noOptsdccInAsm;        /* Do not emit .optsdcc in asm */
     bool oldralloc;             /* Use old register allocator */
-    char *preprocessor;         /* Use a custom preprocessor */
-    bool noCleanup;               /* Don't clean up the generated asm */
-  };
+};
 
 /* forward definition for variables accessed globally */
 extern int noAssemble;          /* no assembly, stop after code generation */
@@ -339,17 +336,17 @@ extern char *yytext;
 extern char *lexFilename;       /* lex idea of current file name */
 extern int lexLineno;           /* lex idea of line number of the current file */
 extern const char *fullSrcFileName; /* full name for the source file; */
-                                /* can be NULL while linking without compiling */
+/* can be NULL while linking without compiling */
 extern const char *fullDstFileName; /* full name for the output file; */
-                                /* only given by -o, otherwise NULL */
+/* only given by -o, otherwise NULL */
 extern const char *dstFileName; /* destination file name without extension */
 extern const char *moduleName;  /* module name is source file without path and extension */
-                                /* can be NULL while linking without compiling */
+/* can be NULL while linking without compiling */
 extern int seqPointNo;          /* current sequence point */
 extern FILE *yyin;              /* */
 extern FILE *asmFile;           /* assembly output file */
 extern FILE *cdbFile;           /* debugger symbol file */
-extern int NestLevel;           /* NestLevel                 SDCC.y */
+extern long NestLevel;          /* NestLevel                 SDCC.y */
 extern int stackPtr;            /* stack pointer             SDCC.y */
 extern int xstackPtr;           /* external stack pointer    SDCC.y */
 extern int reentrant;           /* /X flag has been sent     SDCC.y */
@@ -358,7 +355,7 @@ extern int currRegBank;         /* register bank being used  SDCCgens.c */
 extern int RegBankUsed[4];      /* JCF: register banks used  SDCCmain.c */
 extern int BitBankUsed;         /* MB: overlayable bit bank  SDCCmain.c */
 extern struct symbol *currFunc; /* current function    SDCCgens.c */
-extern int cNestLevel;          /* block nest level  SDCCval.c */
+extern long cNestLevel;         /* block nest level  SDCCval.c */
 extern int blockNo;             /* maximum sequential block number */
 extern int currBlockno;         /* sequential block number */
 extern struct optimize optimize;
@@ -378,34 +375,33 @@ void setParseWithComma (set **, const char *);
 /** An assert() macro that will go out through sdcc's error
     system.
 */
-#define wassertl(a,s) \
-  if (!(a)) {\
-    werror (E_INTERNAL_ERROR, __FILE__, __LINE__, s);\
-  }
+#define wassertl(a,s)   (void)((a) ? 0 : \
+        (werror (E_INTERNAL_ERROR, __FILE__, __LINE__, s), 0))
 
 #define wassert(a)    wassertl(a,"code generator internal error")
 
 enum {
-  DUMP_RAW0 = 1,
-  DUMP_RAW1,
-  DUMP_CSE,
-  DUMP_DFLOW,
-  DUMP_GCSE,
-  DUMP_DEADCODE,
-  DUMP_LOOP,
-  DUMP_LOOPG,
-  DUMP_LOOPD,
-  DUMP_RANGE,
-  DUMP_PACK,
-  DUMP_RASSGN,
-  DUMP_LRANGE,
-  DUMP_LOSPRE
+    DUMP_RAW0 = 1,
+    DUMP_RAW1,
+    DUMP_CSE,
+    DUMP_DFLOW,
+    DUMP_GCSE,
+    DUMP_DEADCODE,
+    DUMP_LOOP,
+    DUMP_LOOPG,
+    DUMP_LOOPD,
+    DUMP_RANGE,
+    DUMP_PACK,
+    DUMP_RASSGN,
+    DUMP_LRANGE,
+    DUMP_LOSPRE,
+    DUMP_CUSTOM /* For temporary dump points */
 };
 
 struct _dumpFiles {
-  int id;
-  char *ext;
-  FILE *filePtr;
+    int id;
+    char *ext;
+    FILE *filePtr;
 };
 
 extern struct _dumpFiles dumpFiles[];

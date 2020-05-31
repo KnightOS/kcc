@@ -31,9 +31,9 @@
 #include <stddef.h>
 
 struct dbuf_s {
-  size_t alloc;   /* size of allocated buffer in bytes */
-  size_t len;     /* actual length of the buffer in bytes */
-  void *buf;      /* pointer to the buffer, allocated on heap */
+    size_t alloc;   /* size of allocated buffer in bytes */
+    size_t len;     /* actual length of the buffer in bytes */
+    void *buf;      /* pointer to the buffer, allocated on heap */
 };
 
 
@@ -47,8 +47,9 @@ int dbuf_init(struct dbuf_s *dbuf, size_t size);
 int dbuf_is_initialized (struct dbuf_s *dbuf);
 int dbuf_set_length(struct dbuf_s *dbuf, size_t size);
 int dbuf_append(struct dbuf_s *dbuf, const void *buf, size_t len);
-const void *dbuf_get_buf(struct dbuf_s *dbuf);
-size_t dbuf_get_length(struct dbuf_s *dbuf);
+int dbuf_prepend(struct dbuf_s *dbuf, const void *buf, size_t len);
+const void *dbuf_get_buf(const struct dbuf_s *dbuf);
+size_t dbuf_get_length(const struct dbuf_s *dbuf);
 const char *dbuf_c_str(struct dbuf_s *dbuf);
 int dbuf_trim(struct dbuf_s *dbuf);
 void *dbuf_detach(struct dbuf_s *dbuf);

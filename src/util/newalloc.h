@@ -27,9 +27,9 @@
 
 typedef struct _allocTrace
 {
-  int num;
-  int max;
-  void **palloced;
+    int num;
+    int max;
+    void **palloced;
 } allocTrace;
 
 /*

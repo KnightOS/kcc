@@ -115,10 +115,6 @@ char *strncatz (char *dest, const char *src, size_t n);
  */
 const char *getBuildNumber (void);
 
-/* return SDCC build date
- */
-const char *getBuildDate (void);
-
 /* return environment used to build SDCC
  */
 const char *getBuildEnvironment (void);
@@ -127,30 +123,7 @@ const char *getBuildEnvironment (void);
  */
 size_t SDCCsnprintf (char *, size_t, const char *, ...);
 
-# if defined(HAVE_VSNPRINTF)
-
-/* best option: we can define our own snprintf which logs errors.
- */
-#  define SNPRINTF SDCCsnprintf
-
-# elif defined(HAVE_SPRINTF)
-
-/* if we can't build a safe snprintf for lack of vsnprintf but there
- * is a native snprintf, use it.
- */
-#  define SNPRINTF snprintf
-
-# elif defined(HAVE_VSPRINTF)
-
-/* we can at least define our own unsafe version.
- */
-#  define SNPRINTF SDCCsnprintf
-
-# else
-/* We don't have a native snprintf nor the functions we need to write one.
- */
-#  error "Need at least one of snprintf, vsnprintf, vsprintf!"
-# endif
+#define SNPRINTF SDCCsnprintf
 
 /** Pragma tokenizer
  */
@@ -159,12 +132,12 @@ enum pragma_token_e
 
 struct pragma_token_s
 {
-  enum pragma_token_e type;
-  struct dbuf_s dbuf;
-  union
-  {
-    int int_val;
-  } val;
+    enum pragma_token_e type;
+    struct dbuf_s dbuf;
+    union
+    {
+        int int_val;
+    } val;
 };
 
 void init_pragma_token (struct pragma_token_s *token);
@@ -172,9 +145,13 @@ char *get_pragma_token (const char *s, struct pragma_token_s *token);
 const char *get_pragma_string (struct pragma_token_s *token);
 void free_pragma_token (struct pragma_token_s *token);
 
-unsigned char hexEscape (const char **src);
-unsigned char universalEscape (const char **src, unsigned int n);
-unsigned char octalEscape (const char **src);
+unsigned long int hexEscape (const char **src);
+unsigned long int universalEscape (const char **src, unsigned int n);
+unsigned long int octalEscape (const char **src);
 const char *copyStr (const char *src, size_t *size);
 
+void getPrefixSuffix(const char *);
+char *setPrefixSuffix(const char *);
+
+char *formatInlineAsm (char *);
 #endif

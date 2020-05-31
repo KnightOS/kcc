@@ -12,7 +12,7 @@ struct value;
 struct eBBlock;
 
 typedef struct memmap
-  {
+{
     unsigned char pageno;       /* page no for this variable   */
     const char *sname;          /* character prefix for map    */
     char dbName;                /* debugger address space name */
@@ -27,18 +27,18 @@ typedef struct memmap
     unsigned regsp:1;           /* 1 = sfr space               */
     struct dbuf_s oBuf;         /* object buffer associated    */
     struct set *syms;           /* symbols defined in this segment */
-  }
-memmap;
+}
+        memmap;
 
 /* For performance we might want to use a hash map instead of the linked list */
 typedef struct namedspacemap
-  {
+{
     char *name;
     bool is_const;
     memmap *map;
     struct namedspacemap *next;
-  }
-namedspacemap;
+}
+        namedspacemap;
 
 extern FILE *junkFile;
 
@@ -113,14 +113,16 @@ void initMem ();
 bool defaultOClass (struct symbol *);
 void allocGlobal (struct symbol *);
 void allocLocal (struct symbol *);
-void allocParms (struct value *);
+void allocParms (struct value *, bool smallc);
 void deallocParms (struct value *);
 void deallocLocal (struct symbol *);
 int allocVariables (struct symbol *);
 void overlay2Set ();
 void overlay2data ();
-void redoStackOffsets ();
+void clearStackOffsets (void);
+void redoStackOffsets (void);
 void printAllocInfo (struct symbol *, struct dbuf_s *);
 void doOverlays (struct eBBlock **, int count);
 void deleteFromSeg(struct symbol *);
 #endif
+

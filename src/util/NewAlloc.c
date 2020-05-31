@@ -107,22 +107,22 @@ out of memory error detection
 void *
 Clear_realloc (void *OldPtr, size_t OldSize, size_t NewSize)
 {
-  void *NewPtr;
+    void *NewPtr;
 
-  NewPtr = REALLOC (OldPtr, NewSize);
+    NewPtr = REALLOC (OldPtr, NewSize);
 
-  if (!NewPtr)
+    if (!NewPtr)
     {
-      printf ("ERROR - No more memory\n");
+        printf ("ERROR - No more memory\n");
 /*  werror(E_OUT_OF_MEM,__FILE__,NewSize);*/
-      exit (1);
+        exit (1);
     }
 
-  if (NewPtr)
-    if (NewSize > OldSize)
-      memset ((char *) NewPtr + OldSize, 0x00, NewSize - OldSize);
+    if (NewPtr)
+        if (NewSize > OldSize)
+            memset ((char *) NewPtr + OldSize, 0x00, NewSize - OldSize);
 
-  return NewPtr;
+    return NewPtr;
 }
 
 /*
@@ -135,18 +135,18 @@ Safe_realloc - Reallocate a memory block with out of memory error detection
 void *
 Safe_realloc (void *OldPtr, size_t NewSize)
 {
-  void *NewPtr;
+    void *NewPtr;
 
-  NewPtr = REALLOC (OldPtr, NewSize);
+    NewPtr = REALLOC (OldPtr, NewSize);
 
-  if (!NewPtr)
+    if (!NewPtr)
     {
-      printf ("ERROR - No more memory\n");
+        printf ("ERROR - No more memory\n");
 /*  werror(E_OUT_OF_MEM,__FILE__,NewSize);*/
-      exit (1);
+        exit (1);
     }
 
-  return NewPtr;
+    return NewPtr;
 }
 
 /*
@@ -160,23 +160,23 @@ all data to zero and checking for out of memory errors.
 void *
 Safe_calloc (size_t Elements, size_t Size)
 {
-  void *NewPtr;
+    void *NewPtr;
 
-  NewPtr = MALLOC (Elements * Size);
+    NewPtr = MALLOC (Elements * Size);
 #if TRACEMALLOC
-  _log (Elements * Size);
+    _log (Elements * Size);
 #endif
 
-  if (!NewPtr)
+    if (!NewPtr)
     {
-      printf ("ERROR - No more memory\n");
+        printf ("ERROR - No more memory\n");
 /*  werror(E_OUT_OF_MEM,__FILE__,Size);*/
-      exit (1);
+        exit (1);
     }
 
-  memset (NewPtr, 0, Elements * Size);
+    memset (NewPtr, 0, Elements * Size);
 
-  return NewPtr;
+    return NewPtr;
 }
 
 /*
@@ -190,88 +190,88 @@ and checking for out of memory errors.
 void *
 Safe_malloc (size_t Size)
 {
-  void *NewPtr;
+    void *NewPtr;
 
-  NewPtr = MALLOC (Size);
+    NewPtr = MALLOC (Size);
 
 #if TRACEMALLOC
-  _log (Size);
+    _log (Size);
 #endif
 
-  if (!NewPtr)
+    if (!NewPtr)
     {
-      printf ("ERROR - No more memory\n");
+        printf ("ERROR - No more memory\n");
 /*  werror(E_OUT_OF_MEM,__FILE__,Size);*/
-      exit (1);
+        exit (1);
     }
 
-  return NewPtr;
+    return NewPtr;
 }
 
 void *
 Safe_alloc (size_t Size)
 {
-  return Safe_calloc (1, Size);
+    return Safe_calloc (1, Size);
 }
 
 void
 Safe_free (void *p)
 {
-  FREE (p);
+    FREE (p);
 }
 
 char *
 Safe_strndup (const char *sz, size_t size)
 {
-  char *pret;
-  assert (sz);
+    char *pret;
+    assert (sz);
 
-  pret = Safe_alloc (size + 1);
-  strncpy (pret, sz, size);
-  pret[size] = '\0';
+    pret = Safe_alloc (size + 1);
+    strncpy (pret, sz, size);
+    pret[size] = '\0';
 
-  return pret;
+    return pret;
 }
 
 char *
 Safe_strdup (const char *sz)
 {
-  assert (sz);
+    assert (sz);
 
-  return Safe_strndup (sz, strlen (sz));
+    return Safe_strndup (sz, strlen (sz));
 }
 
 void *
 traceAlloc (allocTrace * ptrace, void *p)
 {
-  assert (ptrace);
-  assert (p);
+    assert (ptrace);
+    assert (p);
 
-  /* Also handles where max == 0 */
-  if (ptrace->num == ptrace->max)
+    /* Also handles where max == 0 */
+    if (ptrace->num == ptrace->max)
     {
-      /* Add an offset to handle max == 0 */
-      ptrace->max = (ptrace->max + 2) * 2;
-      ptrace->palloced = Safe_realloc (ptrace->palloced, ptrace->max * sizeof (*ptrace->palloced));
+        /* Add an offset to handle max == 0 */
+        ptrace->max = (ptrace->max + 2) * 2;
+        ptrace->palloced = Safe_realloc (ptrace->palloced, ptrace->max * sizeof (*ptrace->palloced));
     }
-  ptrace->palloced[ptrace->num++] = p;
+    ptrace->palloced[ptrace->num++] = p;
 
-  return p;
+    return p;
 }
 
 void
 freeTrace (allocTrace * ptrace)
 {
-  int i;
-  assert (ptrace);
+    int i;
+    assert (ptrace);
 
-  for (i = 0; i < ptrace->num; i++)
+    for (i = 0; i < ptrace->num; i++)
     {
-      Safe_free (ptrace->palloced[i]);
+        Safe_free (ptrace->palloced[i]);
     }
-  ptrace->num = 0;
+    ptrace->num = 0;
 
-  Safe_free (ptrace->palloced);
-  ptrace->palloced = NULL;
-  ptrace->max = 0;
+    Safe_free (ptrace->palloced);
+    ptrace->palloced = NULL;
+    ptrace->max = 0;
 }
