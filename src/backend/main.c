@@ -546,7 +546,7 @@ PORT z80_port = {
    _z80LinkCmd,                 //NULL,
    NULL,                        //LINKCMD,
    NULL,
-   "",
+   ".o",
    1,
    _crt,                        /* crt */
    _libs_z80,                   /* libs */
