@@ -399,7 +399,7 @@ setDefaultOptions (void)
   options.nostdinc = 0;
   options.verbose = 0;
   options.shortis8bits = 0;
-  options.std_sdcc = 1;         /* enable SDCC language extensions */
+  options.std_sdcc = 0;         /* enable SDCC language extensions */
   options.std_c99 = 0;          /* default to C89 until more C99 support */
   options.std_c11 = 0;          /* default to C89 until more C11 support */
   options.code_seg = CODE_NAME ? Safe_strdup (CODE_NAME) : NULL;        /* default to CSEG for generated code */
