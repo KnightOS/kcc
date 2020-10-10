@@ -513,7 +513,7 @@ oclsExpense (struct memmap *oclass)
 */
 
 static const char *_z80LinkCmd[] = {
-  "scas", "-o", "$1", "$2", NULL
+  "scas", "-o", "$1", "$1.o", NULL
 };
 
 /* $3 is replaced by assembler.debug_opts resp. port->assembler.plain_opts */
