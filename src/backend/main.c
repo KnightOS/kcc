@@ -499,26 +499,13 @@ oclsExpense (struct memmap *oclass)
   return 0;
 }
 
-
-//#define LINKCMD "sdld{port} -nf {dstfilename}"
-/*
-#define LINKCMD \
-    "sdld{port} -n -c -- {z80bases} -m -j" \
-    " {z80libspec}" \
-    " {z80extralibfiles} {z80extralibpaths}" \
-    " {z80outputtypeflag} \"{linkdstfilename}\"" \
-    " {z80crt0}" \
-    " \"{dstfilename}{objext}\"" \
-    " {z80extraobj}"
-*/
-
 static const char *_z80LinkCmd[] = {
-  "scas", "-o", "$1", "$1.o", NULL
+  "scas", "-o", "$1", "$1.o", "$l", NULL
 };
 
 /* $3 is replaced by assembler.debug_opts resp. port->assembler.plain_opts */
 static const char *_z80AsmCmd[] = {
-  "scas", "-c", "-o", "$2", "$1.asm", NULL
+  "scas", "-c", "-o", "$2", "$1.asm", "$l", NULL
 };
 
 static const char *const _crt[] = { "knightos-crt0.o", NULL, };
