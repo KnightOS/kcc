@@ -23,7 +23,7 @@
 
 #include <stdarg.h>
 
-#include <SDCCicode.h>
+#include "SDCCicode.h"
 
 #define initGenLineElement()  memset (&genLine.lineElement, 0, sizeof (lineElem_t))
 #define labelKey2num(key)     ((key) + 100)

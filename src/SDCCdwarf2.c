@@ -25,6 +25,7 @@
 
 #include "common.h"
 #include "SDCCdwarf2.h"
+#include "version.h"
 
 /*************************************************************
  *
@@ -2901,7 +2902,7 @@ dwWriteModule (const char *name)
   
   dwModuleName = Safe_strdup (name);
   
-  sprintf(verid, "SDCC version %s #%s", SDCC_VERSION_STR, getBuildNumber());
+  sprintf(verid, "KCC version %s", KCC_VERSION_STR);
     
   tp = dwNewTag (DW_TAG_compile_unit);
   dwAddTagAttr (tp, dwNewAttrString (DW_AT_producer, verid));

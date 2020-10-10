@@ -24,6 +24,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include "dbuf_string.h"
+#include "version.h"
 
 #ifdef _WIN32
 #include <io.h>
@@ -1654,7 +1655,7 @@ initialComments (FILE * afile)
   time_t t;
   time (&t);
   fprintf (afile, "%s", iComments1);
-  fprintf (afile, "; Version " SDCC_VERSION_STR " #%s (%s) (%s)\n", getBuildNumber (), getBuildDate (), getBuildEnvironment ());
+  fprintf (afile, "; Version " KCC_VERSION_STR " (%s) (%s)\n", getBuildDate (), getBuildEnvironment ());
   fprintf (afile, "; This file was generated %s", asctime (localtime (&t)));
   fprintf (afile, "%s", iComments2);
 }

@@ -26,8 +26,10 @@
 #define SDCCUTIL_H
 
 #include "SDCChasht.h"
-#include "dbuf.h"
+#include "SDCCset.h"
+#include "util/dbuf.h"
 #include <stdarg.h>
+#include <stdio.h>
 
 /** Given an array of name, value string pairs creates a new hash
  *  containing all of the pairs.
@@ -110,10 +112,6 @@ char *strncpyz (char *dest, const char *src, size_t n);
  * bytes to copy.
  */
 char *strncatz (char *dest, const char *src, size_t n);
-
-/* return SDCC build number
- */
-const char *getBuildNumber (void);
 
 /* return SDCC build date
  */

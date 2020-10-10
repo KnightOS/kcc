@@ -125,10 +125,6 @@
 #define SDCC_DIR_NAME "KCC_HOME"
 #define SDCC_INCLUDE_NAME "KCC_INCLUDE"
 #define SDCC_LIB_NAME "KCC_LIB"
-#define SDCC_VERSION_HI 4
-#define SDCC_VERSION_LO 0
-#define SDCC_VERSION_P 2
-#define SDCC_VERSION_STR "4.0.2"
 
 /* The size of `char', as computed by sizeof. */
 #define SIZEOF_CHAR 1

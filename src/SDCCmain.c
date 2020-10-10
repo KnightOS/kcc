@@ -37,6 +37,7 @@
 #include "SDCCmacro.h"
 #include "SDCCargs.h"
 #include "KCCCleanup.h"
+#include "version.h"
 
 #ifdef _WIN32
 #include <process.h>
@@ -299,11 +300,11 @@ printVersionInfo (FILE * stream)
 {
   fprintf (stream, "KCC ");
 
-  fprintf (stream, SDCC_VERSION_STR
+  fprintf (stream, KCC_VERSION_STR
 #ifdef SDCC_SUB_VERSION_STR
            "/" SDCC_SUB_VERSION_STR
 #endif
-           " #%s (%s) (%s)\n", getBuildNumber (), getBuildDate (), getBuildEnvironment ());
+           " (%s) (%s)\n", getBuildDate (), getBuildEnvironment ());
   fprintf (stream, "published under GNU General Public License (GPL)\n");
 }
 
@@ -1478,7 +1479,7 @@ preProcess (char **envp)
         struct dbuf_s dbuf;
 
         dbuf_init (&dbuf, 20);
-        dbuf_printf (&dbuf, "-D__SDCC=%d_%d_%d", SDCC_VERSION_HI, SDCC_VERSION_LO, SDCC_VERSION_P);
+        dbuf_printf (&dbuf, "-D__KCC=%d_%d_%d", KCC_VERSION_HI, KCC_VERSION_LO, KCC_VERSION_P);
         addSet (&preArgvSet, dbuf_detach_c_str (&dbuf));
       }
       if (options.std_sdcc)
@@ -1486,24 +1487,7 @@ preProcess (char **envp)
           struct dbuf_s dbuf;
 
           dbuf_init (&dbuf, 20);
-          dbuf_printf (&dbuf, "-DSDCC=%d%d%d", SDCC_VERSION_HI, SDCC_VERSION_LO, SDCC_VERSION_P);
-          addSet (&preArgvSet, dbuf_detach_c_str (&dbuf));
-        }
-
-      /* add SDCC revision number */
-      {
-        struct dbuf_s dbuf;
-
-        dbuf_init (&dbuf, 20);        
-        dbuf_printf (&dbuf, "-D__SDCC_REVISION=%s", getBuildNumber ());
-        addSet (&preArgvSet, dbuf_detach_c_str (&dbuf));
-      }
-      if (options.std_sdcc)
-        {
-          struct dbuf_s dbuf;
-
-          dbuf_init (&dbuf, 20);        
-          dbuf_printf (&dbuf, "-DSDCC_REVISION=%s", getBuildNumber ());
+          dbuf_printf (&dbuf, "-DKCC=%d%d%d", KCC_VERSION_HI, KCC_VERSION_LO, KCC_VERSION_P);
           addSet (&preArgvSet, dbuf_detach_c_str (&dbuf));
         }
 
@@ -1547,7 +1531,7 @@ preProcess (char **envp)
 		}
       
       if (options.verbose)
-        printf ("sdcc: Calling preprocessor...\n");
+        printf ("kcc: Calling preprocessor...\n");
       buf = buildMacros (_preCmd);
 
       if (preProcOnly)

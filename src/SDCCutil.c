@@ -670,15 +670,6 @@ strncatz (char *dest, const char *src, size_t n)
 }
 
 /*-----------------------------------------------------------------*/
-/* getBuildNumber - return build number                            */
-/*-----------------------------------------------------------------*/
-const char *
-getBuildNumber (void)
-{
-  return (SDCC_BUILD_NUMBER);
-}
-
-/*-----------------------------------------------------------------*/
 /* getBuildDate - return build date                                */
 /*-----------------------------------------------------------------*/
 const char *

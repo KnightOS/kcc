@@ -1,22 +1,11 @@
-/* TODO: Generate version numbers */
+#ifndef KCC_VERSION_H_
+#define KCC_VERSION_H_
 
-/*
- * version.h
- * control long build version number
- *
- * Created automatically with version.awk script
- *
- */
+// TODO: generate this with CMake from Git
 
-#ifndef __VERSION_H__
-#define __VERSION_H__
-
-#define SDCC_BUILD_NUMBER   "9072"
-#define SDCC_BUILD_NR       9072
-
-#ifndef SDCC_BUILD_NUMBER
-#define SDCC_BUILD_NUMBER    "0"
-#define SDCC_BUILD_NR        0
-#endif
+#define KCC_VERSION_HI 4
+#define KCC_VERSION_LO 0
+#define KCC_VERSION_P 2
+#define KCC_VERSION_STR "4.0.2"
 
 #endif
