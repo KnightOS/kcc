@@ -113,27 +113,6 @@ aopLiteral (value * val, int offset)
 }
 
 /*-----------------------------------------------------------------*/
-/* emitDebugSym - emit label for debug symbol                      */
-/*-----------------------------------------------------------------*/
-static void
-emitDebugSym (struct dbuf_s *oBuf, symbol * sym)
-{
-  if (sym->level && sym->localof)       /* symbol scope is local */
-    {
-      dbuf_printf (oBuf, "L%s.%s$", moduleName, sym->localof->name);
-    }
-  else if (IS_STATIC (sym->etype))      /* symbol scope is file */
-    {
-      dbuf_printf (oBuf, "F%s$", moduleName);
-    }
-  else                          /* symbol scope is global */
-    {
-      dbuf_printf (oBuf, "G$");
-    }
-  dbuf_printf (oBuf, "%s$%d$%d", sym->name, sym->level, sym->block);
-}
-
-/*-----------------------------------------------------------------*/
 /* emitRegularMap - emit code for maps with no special cases       */
 /*-----------------------------------------------------------------*/
 static void
@@ -289,12 +268,6 @@ emitRegularMap (memmap * map, bool addPublics, bool arFlag)
         {
           char *equ = "=";
 
-          /* print extra debug info if required */
-          if (options.debug)
-            {
-              emitDebugSym (&map->oBuf, sym);
-              dbuf_printf (&map->oBuf, " == 0x%04x\n", SPEC_ADDR (sym->etype));
-            }
           dbuf_printf (&map->oBuf, "%s\t%s\t0x%04x\n", sym->rname, equ, SPEC_ADDR (sym->etype));
         }
       else
@@ -308,12 +281,6 @@ emitRegularMap (memmap * map, bool addPublics, bool arFlag)
           if (SPEC_ABSA (sym->etype))
             {
               dbuf_tprintf (&map->oBuf, "\t!org\n", SPEC_ADDR (sym->etype));
-            }
-          /* print extra debug info if required */
-          if (options.debug)
-            {
-              emitDebugSym (&map->oBuf, sym);
-              dbuf_printf (&map->oBuf, "==.\n");
             }
           if (IS_STATIC (sym->etype) || sym->level)
             dbuf_tprintf (&map->oBuf, "!slabeldef\n", sym->rname);
@@ -1469,11 +1436,6 @@ emitStaticSeg (memmap *map, struct dbuf_s *oBuf)
       /* if it has an absolute address and no initializer */
       if (SPEC_ABSA (sym->etype) && !sym->ival)
         {
-          if (options.debug)
-            {
-              emitDebugSym (oBuf, sym);
-              dbuf_printf (oBuf, " == 0x%04x\n", SPEC_ADDR (sym->etype));
-            }
           dbuf_printf (oBuf, "%s\t=\t0x%04x\n", sym->rname, SPEC_ADDR (sym->etype));
         }
       else
@@ -1491,11 +1453,6 @@ emitStaticSeg (memmap *map, struct dbuf_s *oBuf)
                 {
                   dbuf_tprintf (oBuf, "\t!org\n", SPEC_ADDR (sym->etype));
                 }
-              if (options.debug)
-                {
-                  emitDebugSym (oBuf, sym);
-                  dbuf_printf (oBuf, " == .\n");
-                }
               dbuf_printf (oBuf, "%s:\n", sym->rname);
               ++noAlloc;
               resolveIvalSym (sym->ival, sym->type);
@@ -1512,11 +1469,6 @@ emitStaticSeg (memmap *map, struct dbuf_s *oBuf)
           else
             {
               /* allocate space */
-              if (options.debug)
-                {
-                  emitDebugSym (oBuf, sym);
-                  dbuf_printf (oBuf, " == .\n");
-                }
               dbuf_printf (oBuf, "%s:\n", sym->rname);
               /* special case for character strings */
               if (IS_ARRAY (sym->type) && IS_CHAR (sym->type->next) && SPEC_CVAL (sym->etype).v_char)
@@ -1740,11 +1692,6 @@ emitOverlay (struct dbuf_s *aBuf)
           if (SPEC_ABSA (sym->etype))
             {
               /* print extra debug info if required */
-              if (options.debug)
-                {
-                  emitDebugSym (aBuf, sym);
-                  dbuf_printf (aBuf, " == 0x%04x\n", SPEC_ADDR (sym->etype));
-                }
               dbuf_printf (aBuf, "%s\t=\t0x%04x\n", sym->rname, SPEC_ADDR (sym->etype));
             }
           else
@@ -1756,11 +1703,6 @@ emitOverlay (struct dbuf_s *aBuf)
                   werrorfl (sym->fileDef, sym->lineDef, E_UNKNOWN_SIZE, sym->name);
                 }
               /* print extra debug info if required */
-              if (options.debug)
-                {
-                  emitDebugSym (aBuf, sym);
-                  dbuf_printf (aBuf, "==.\n");
-                }
 
               /* allocate space */
               dbuf_tprintf (aBuf, "!slabeldef\n", sym->rname);
