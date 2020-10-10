@@ -172,6 +172,7 @@ static const OPTION optionsTable[] = {
   {0,   OPTION_WERROR, NULL, "Treat the warnings as errors"},
   {0,   OPTION_DEBUG, NULL, "Enable debugging symbol output"},
   {0,   "--cyclomatic", &options.cyclomatic, "Display complexity of compiled functions"},
+  {0,   "--std", NULL, "Use the specified C standard" },
   {0,   OPTION_STD_C89, NULL, "Use C89 standard (slightly incomplete)"},
   {0,   OPTION_STD_SDCC89, NULL, "Use C89 standard with SDCC extensions (default)"},
   {0,   OPTION_STD_C99, NULL, "Use C99 standard (incomplete)"},
@@ -894,21 +895,21 @@ parseCmdLine (int argc, char **argv)
               continue;
             }
 
-          if (strcmp (argv[i], OPTION_STD_C89) == 0)
+          if (strcmp (argv[i], OPTION_STD_C89) == 0 || !strcmp(argv[i], "--std=c89"))
             {
               options.std_c99 = 0;
               options.std_sdcc = 0;
               continue;
             }
 
-          if (strcmp (argv[i], OPTION_STD_C99) == 0)
+          if (strcmp (argv[i], OPTION_STD_C99) == 0 || !strcmp(argv[i], "--std=c99"))
             {
               options.std_c99 = 1;
               options.std_sdcc = 0;
               continue;
             }
 
-          if (strcmp (argv[i], OPTION_STD_C11) == 0)
+          if (strcmp (argv[i], OPTION_STD_C11) == 0 || !strcmp(argv[i], "--std=c11"))
             {
               options.std_c99 = 1;
               options.std_c11 = 1;
@@ -916,14 +917,14 @@ parseCmdLine (int argc, char **argv)
               continue;
             }
 
-          if (strcmp (argv[i], OPTION_STD_SDCC89) == 0)
+          if (strcmp (argv[i], OPTION_STD_SDCC89) == 0 || !strcmp(argv[i], "--std=sdcc89"))
             {
               options.std_c99 = 0;
               options.std_sdcc = 1;
               continue;
             }
 
-          if (strcmp (argv[i], OPTION_STD_SDCC99) == 0)
+          if (strcmp (argv[i], OPTION_STD_SDCC99) == 0 || !strcmp(argv[i], "--std=sdcc99"))
             {
               options.std_c99 = 1;
               options.std_sdcc = 1;
