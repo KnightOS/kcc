@@ -22,51 +22,51 @@ std::vector<std::string> allowed_commands = {
 	".ascii",
 	".asciip",
 	".asciiz",
-    ".if",
-    ".ifdef",
-    ".ifndef",
-    ".elif",
-    ".elseif",
-    ".end",
-    ".module",
-    ".optsdcc",
-    ".function"
+	".if",
+	".ifdef",
+	".ifndef",
+	".elif",
+	".elseif",
+	".end",
+	".module",
+	".optsdcc",
+	".function"
 };
 
 std::string trim(const std::string& str,
-                 const std::string& whitespace = " \t")
+				 const std::string& whitespace = " \t")
 {
-    const auto strBegin = str.find_first_not_of(whitespace);
-    if (strBegin == std::string::npos)
-        return ""; // no content
+	const auto strBegin = str.find_first_not_of(whitespace);
+	if (strBegin == std::string::npos)
+		return ""; // no content
 
-    const auto strEnd = str.find_last_not_of(whitespace);
-    const auto strRange = strEnd - strBegin + 1;
+	const auto strEnd = str.find_last_not_of(whitespace);
+	const auto strRange = strEnd - strBegin + 1;
 
-    return str.substr(strBegin, strRange);
+	return str.substr(strBegin, strRange);
 }
 
 std::string reduce(const std::string& str,
-                   const std::string& fill = " ",
-                   const std::string& whitespace = " \t")
+				   const std::string& fill = " ",
+				   const std::string& whitespace = " \t")
 {
-    // trim first
-    auto result = trim(str, whitespace);
+	// trim first
+	auto result = trim(str, whitespace);
 
-    // replace sub ranges
-    auto beginSpace = result.find_first_of(whitespace);
-    while (beginSpace != std::string::npos)
-    {
-        const auto endSpace = result.find_first_not_of(whitespace, beginSpace);
-        const auto range = endSpace - beginSpace;
+	// replace sub ranges
+	auto beginSpace = result.find_first_of(whitespace);
+	while (beginSpace != std::string::npos)
+	{
+		const auto endSpace = result.find_first_not_of(whitespace, beginSpace);
+		const auto range = endSpace - beginSpace;
 
-        result.replace(beginSpace, range, fill);
+		result.replace(beginSpace, range, fill);
 
-        const auto newStart = beginSpace + fill.length();
-        beginSpace = result.find_first_of(whitespace, newStart);
-    }
+		const auto newStart = beginSpace + fill.length();
+		beginSpace = result.find_first_of(whitespace, newStart);
+	}
 
-    return result;
+	return result;
 }
 
 void cleanupFile(const char *file) {
@@ -101,9 +101,9 @@ void cleanupFile(const char *file) {
 				}
 				keep = true;
 			}
-            else if (options.verbose) {
-                fprintf(stderr, "Discarded: %s\n", o_line.c_str());
-            }
+			else if (options.verbose) {
+				fprintf(stderr, "Discarded: %s\n", o_line.c_str());
+			}
 		}
 		if (keep) {
 			buffer.push_back(o_line);
