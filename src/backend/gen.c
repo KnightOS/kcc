@@ -4635,10 +4635,6 @@ genEndFunction (iCode * ic)
         }
     }
 
-  if (options.debug && currFunc)
-    {
-      debugFile->writeEndFunction (currFunc, ic, 1);
-    }
 
   if (IFFUNC_ISISR (sym->type))
     {
@@ -12138,12 +12134,6 @@ genZ80Code (iCode * lic)
 
   initGenLineElement ();
 
-  /* if debug information required */
-  if (options.debug && currFunc)
-    {
-      debugFile->writeFunction (currFunc, lic);
-    }
-
   for (ic = lic; ic; ic = ic->next)
     ic->generated = FALSE;
 
@@ -12153,8 +12143,6 @@ genZ80Code (iCode * lic)
       if (ic->lineno && cln != ic->lineno)
         {
           if (options.debug)
-            debugFile->writeCLine (ic);
-          if (!options.noCcodeInAsm)
             emit2 (".map %s, %d, \"%s\"", ic->filename, ic->lineno, printCLine (ic->filename, ic->lineno));
           cln = ic->lineno;
         }

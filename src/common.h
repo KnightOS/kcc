@@ -57,7 +57,6 @@ extern "C" {
 #include "SDCCopt.h"
 #include "SDCCglue.h"
 #include "SDCCpeeph.h"
-#include "SDCCdebug.h"
 #include "SDCCutil.h"
 #include "SDCCasm.h"
 #include "SDCCsystem.h"

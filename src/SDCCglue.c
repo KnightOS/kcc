@@ -1785,10 +1785,6 @@ glue (void)
   dbuf_init (&vBuf, 4096);
   dbuf_init (&ovrBuf, 4096);
 
-  /* print the global struct definitions */
-  if (options.debug)
-    cdbStructBlock (0);
-
   /* PENDING: this isn't the best place but it will do */
   if (port->general.glue_up_main)
     {
@@ -1800,8 +1796,6 @@ glue (void)
   emitMaps ();
   /* do the overlay segments */
   emitOverlay (&ovrBuf);
-
-  outputDebugSymbols ();
 
   /* now put it all together into the assembler file */
   /* create the assembler file name */

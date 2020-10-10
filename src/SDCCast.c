@@ -6856,7 +6856,6 @@ createFunction (symbol * name, ast * body)
 skipall:
   /* dealloc the block variables */
   processBlockVars (body, &stack, DEALLOCATE);
-  outputDebugStackSymbols ();
   /* deallocate paramaters */
   deallocParms (FUNC_ARGS (name->type));
 
@@ -6871,9 +6870,6 @@ skipall:
   FUNC_HASBODY (name->type) = 1;
   addSet (&operKeyReset, name);
   applyToSet (operKeyReset, resetParmKey);
-
-  if (options.debug)
-    cdbStructBlock (1);
 
   cleanUpLevel (LabelTab, 0);
   cleanUpBlock (StructTab, 1);

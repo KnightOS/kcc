@@ -307,7 +307,6 @@ struct options
     int code_size;              /* code size (used only for error checking) */
     int verboseExec;            /* show what we are doing */
     int noXinitOpt;             /* don't optimize initialized xdata */
-    int noCcodeInAsm;           /* hide c-code from asm */
     int iCodeInAsm;             /* show i-code in asm */
     int noPeepComments;         /* hide peephole optimizer comments */
     int verboseAsm;             /* include comments generated with gen.c */

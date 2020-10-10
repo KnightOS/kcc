@@ -115,7 +115,6 @@ char buffer[PATH_MAX * 2];
 #define OPTION_NO_GCSE              "--nogcse"
 #define OPTION_SHORT_IS_8BITS       "--short-is-8bits"
 #define OPTION_NO_XINIT_OPT         "--no-xinit-opt"
-#define OPTION_NO_CCODE_IN_ASM      "--no-c-code-in-asm"
 #define OPTION_ICODE_IN_ASM         "--i-code-in-asm"
 #define OPTION_PRINT_SEARCH_DIRS    "--print-search-dirs"
 #define OPTION_MSVC_ERROR_STYLE     "--vc"
@@ -170,7 +169,7 @@ static const OPTION optionsTable[] = {
   {0,   OPTION_LESS_PEDANTIC, NULL, "Disable some of the more pedantic warnings"},
   {0,   OPTION_DISABLE_WARNING, NULL, "<nnnn> Disable specific warning"},
   {0,   OPTION_WERROR, NULL, "Treat the warnings as errors"},
-  {0,   OPTION_DEBUG, NULL, "Enable debugging symbol output"},
+  {'g', OPTION_DEBUG, &options.debug, "Enable debugging symbol output"},
   {0,   "--cyclomatic", &options.cyclomatic, "Display complexity of compiled functions"},
   {0,   "--std", NULL, "Use the specified C standard" },
   {0,   OPTION_STD_C89, NULL, "Use C89 standard (slightly incomplete)"},
@@ -193,7 +192,6 @@ static const OPTION optionsTable[] = {
   {0,   "--all-callee-saves", &options.all_callee_saves, "callee will always save registers used"},
   {0,   "--stack-probe", &options.stack_probe, "insert call to function __stack_probe at each function prologue"},
   {0,   OPTION_NO_XINIT_OPT, &options.noXinitOpt, "don't memcpy initialized xram from code"},
-  {0,   OPTION_NO_CCODE_IN_ASM, &options.noCcodeInAsm, "don't include c-code as comments in the asm file"},
   {0,   OPTION_NO_PEEP_COMMENTS, &options.noPeepComments, "don't include peephole optimizer comments"},
   {0,   OPTION_SHORT_IS_8BITS, NULL, "Make short 8 bits (for old times sake)"},
   {0,   OPTION_CODE_SEG, NULL, "<name> use this name for the code segment"},
@@ -1261,22 +1259,6 @@ parseCmdLine (int argc, char **argv)
       options.float_rent++;
     }
 
-  /* if debug option is set then open the cdbFile */
-  if (options.debug && fullSrcFileName)
-    {
-      struct dbuf_s adbFile;
-
-      dbuf_init (&adbFile, PATH_MAX);
-      dbuf_append_str (&adbFile, dstFileName);
-      dbuf_append_str (&adbFile, ".adb");
-
-      if (debugFile->openFile (dbuf_c_str (&adbFile)))
-        debugFile->writeModule (moduleName);
-      else
-        werror (E_FILE_OPEN_ERR, dbuf_c_str (&adbFile));
-
-      dbuf_destroy (&adbFile);
-    }
   MSVC_style (options.vc_err_style);
 
   return 0;
@@ -1345,7 +1327,7 @@ linkEdit (char **envp)
     }                           /* if(port->linker.needLinkerScript) */
 
   if (options.verbose)
-    printf ("sdcc: Calling linker...\n");
+    printf ("kcc: Calling linker...\n");
 
   if (port->linker.cmd)
     {
@@ -1915,7 +1897,7 @@ main (int argc, char **argv, char **envp)
       initPeepHole ();
 
       if (options.verbose)
-        printf ("sdcc: Generating code...\n");
+        printf ("kcc: Generating code...\n");
 
       yyparse ();
 
@@ -1953,19 +1935,16 @@ main (int argc, char **argv, char **envp)
       if (!options.c1mode && !noAssemble)
         {
           if (options.verbose)
-            printf ("sdcc: Calling assembler...\n");
+            printf ("kcc: Calling assembler...\n");
           assemble (envp);
         }
     }
   closeDumpFiles ();
 
-  if (options.debug && debugFile)
-    debugFile->closeFile ();
-
   if (!options.cc_only && !fatalError && !noAssemble && !options.c1mode && (fullSrcFileName || peekSet (relFilesSet) != NULL))
     {
       if (options.verbose)
-        printf ("sdcc: Calling linker...\n");
+        printf ("kcc: Calling linker...\n");
 
       if (port->linker.do_link)
         port->linker.do_link ();

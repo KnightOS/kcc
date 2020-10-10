@@ -3052,30 +3052,6 @@ checkFunction (symbol * sym, symbol * csym)
   return 1;
 }
 
-/*------------------------------------------------------------------*/
-/* cdbStructBlock - calls struct printing for a blocks              */
-/*------------------------------------------------------------------*/
-void
-cdbStructBlock (int block)
-{
-  int i;
-  bucket **table = StructTab;
-  bucket *chain;
-
-  /* go thru the entire  table  */
-  for (i = 0; i < 256; i++)
-    {
-      for (chain = table[i]; chain; chain = chain->next)
-        {
-          if (chain->block >= block)
-            {
-              if (debugFile)
-                debugFile->writeType ((structdef *) chain->sym, chain->block, 0, NULL);
-            }
-        }
-    }
-}
-
 /*-----------------------------------------------------------------*/
 /* processFuncPtrArgs - does some processing with args of func ptrs*/
 /*-----------------------------------------------------------------*/
