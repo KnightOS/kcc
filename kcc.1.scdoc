@@ -1,0 +1,107 @@
+kcc(1)
+
+# NAME
+
+kcc - the KnightOS C Compiler
+
+# SYNOPSIS
+
+kcc	[*-c*|*-S*|*-E*] [*--std*=_standard_]++
+	[*-g*] [*--Werror*] [*-Wa* _scas_option_...]++
+	[*-I* _dir_...]++
+	[*-o* _outfile_...] infile
+
+For an exhaustive list of options, see the *OPTIONS* section.
+
+# DESCRIPTION
+
+KCC is the official KnightOS C compiler. It uses the scas assembler to build
+produced assembly; see *scas*(1) for usage details. KCC relies on the system's
+preprocessor - on most Linux systems, this is */usr/bin/cpp*. See *cpp*(1) for
+preprocessor options, or the man page for the relevant preprocessor if it's not
+GNU's *cpp*.
+
+# MODE
+
+A typical KCC invocation performs preprocessing, compilation, assembly, and
+linking. Preprocessing is shelled out to the configured preprocessor. The
+preprocessor to be used can be overridden with *--cpp* _path_. The preprocessed
+source is compiled by KCC into z80 assembly, with the format documented by scas.
+KCC then shells out to scas for assembly and linking.
+
+To preprocess only, use the *-E* flag. To only compile into asm, use *-S*. To
+compile and assemble only, and not link, use *-c*. With *-E*, output goes to
+stdout by default; in all other modes, the default is to write to a file with
+the same base name as the input but the correct extension. For instance, when
+compiling a file *example.c* with the *-c* flag, *example.o* will be used as the
+destination for the object file.
+
+# C STANDARD
+
+The *--std*=_standard_ option allows for selecting the C standard to use. The
+recommend standard is C99. KCC's support for C99 is not complete, but it's very
+usable, and it provides some key features missing from C89. We support the
+official C89, C99, and C11 standards. Use *cNN* for the _standard_ given, where
+*NN* is the number desired. For instance, to use C11, specify *--std=c11*. We
+also support the SDCC extensions, though it is *highly* recommends that you do
+*not* use those unless you have to. If you do choose to use SDCC extensions,
+simply replace *c* with *sdcc* in the compiler flag. For instance,
+*--std=sdcc99* selects the C99 standard with SDCC extensions. Standards given to
+*--std* must be given in lower case.
+
+# LINKING
+
+Dynamic linking is not yet officially supported with KCC; you're on your own for
+the time being. Static linking, however, is very well supported.
+
+Unlike other platforms, KnightOS doesn't currently have an "archive" format
+defined. Instead, a static library is simply another object file. Using scas
+directly, you can simply run:
+
+	scas -c obj1.o obj2.o -o name
+
+Static libraries in knightos don't have a *lib* prefix, and have no extension,
+just like binaries. The only difference is that binaries are placed in */bin*
+and libraries in */lib*.
+
+Creating static libraries with kcc is currently not supported. It is a target
+for KCC 4.1.
+
+Linking should also be done with scas, presently; we're still working on tighter
+integration between KCC's CLI and scas. To link with scas, simply pass it the
+list of object files and the *-o* flag with the desired output file. For
+instance, to link a library *example* in a relative folder *../../example/lib/*
+with *source1.o* and *source2.o* into a binary *test*, run the following:
+
+	scas source1.o source2.o ../../example/lib/example -o test
+
+# OTHER OPTIONS
+
+To generate debugging information, add *-g* to the KCC command line. This
+currently only provides mappings from the C source to the assembly given to scas
+(and thus to the final binary). This currently only integrates with z80e,
+allowing the debugger to print and breakpoint based on the C source. In the
+future, this will also result in DWARF generation.
+
+To pass arbitrary options through to scas, use the *-Wa* flag (for assembling)
+or the *-Wl* flag (for linking). For applicable options, see *scas*(1).
+
+To add to the list of search paths for includes, use *-I* _path_.
+
+To change the file used as the output, use *-o* _path_.
+
+To abort compilation on all warnings, use *--Werror*.
+
+To pass options through to the preprocessor, use *-Wp*.
+
+# SEE ALSO
+
+scas(1), cpp(1)
+
+# AUTHORS
+
+Maintained by the KnightOS Group. Up-to-date sources can be found at
+https://github.com/KnightOS/KCC and bugs/patches can be submitted by email to
+~pixelherodev/knightos@lists.sr.ht or manually to
+https://github.com/KnightOS/KnightOS/issues/.
+

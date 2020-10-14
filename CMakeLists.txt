@@ -18,11 +18,19 @@ if (NOT DEFINED KCC_DEFAULT_PREPROCESSOR)
 	set(KCC_DEFAULT_PREPROCESSOR "cpp" CACHE PATH "The preprocessor KCC should use if none is explicitly specified")
 endif()
 
+if (NOT DEFINED KCC_DOCUMENTATION)
+	set(KCC_DOCUMENTATION FALSE CACHE BOOL "Whether to build documentation")
+endif()
+
 add_definitions("-DKCC_DEFAULT_PREPROCESSOR=\"${KCC_DEFAULT_PREPROCESSOR}\"")
 
 find_package(BISON REQUIRED)
 find_package(FLEX REQUIRED)
 find_package(Boost REQUIRED)
+find_program(SCDOC NAMES scdoc)
+if (SCDOC-NOTFOUND)
+	set(KCC_DOCUMENTATION FALSE CACHE BOOL "Whether to build documentation")
+endif()
 
 if (NOT DEFINED CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "")
@@ -64,6 +72,16 @@ add_executable(kcc
     ${SOURCES}
     ${peep_rules}
 )
+
+if (KCC_DOCUMENTATION)
+	add_custom_target(man ALL DEPENDS ${PROJECT_BINARY_DIR}/kcc.1)
+	add_custom_command(
+		DEPENDS ${PROJECT_SOURCE_DIR}/kcc.1.scdoc
+		COMMAND ${SCDOC} <${PROJECT_SOURCE_DIR}/kcc.1.scdoc >${PROJECT_BINARY_DIR}/kcc.1
+		OUTPUT ${PROJECT_BINARY_DIR}/kcc.1
+	)
+	install(FILES ${PROJECT_BINARY_DIR}/kcc.1 DESTINATION share/man/man1)
+endif()
 
 target_link_libraries(kcc m ${BOOST_LIBRARIES} ${LIBS})
 
