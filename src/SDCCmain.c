@@ -300,33 +300,10 @@ printVersionInfo (FILE * stream)
   fprintf (stream, "KCC ");
 
   fprintf (stream, KCC_VERSION_STR
-#ifdef SDCC_SUB_VERSION_STR
-           "/" SDCC_SUB_VERSION_STR
-#endif
            " (%s) (%s)\n", getBuildDate (), getBuildEnvironment ());
   fprintf (stream, "published under GNU General Public License (GPL)\n");
 }
 
-static void
-printOptions (const OPTION * optionsTable, FILE * stream)
-{
-  int i;
-  for (i = 0; optionsTable[i].shortOpt != 0 || optionsTable[i].longOpt != NULL || optionsTable[i].help != NULL; i++)
-    {
-      if (!optionsTable[i].shortOpt && !optionsTable[i].longOpt && optionsTable[i].help)
-        {
-          fprintf (stream, "\n%s:\n", optionsTable[i].help);
-        }
-      else
-        {
-          fprintf (stream, "  %c%c  %-20s  %s\n",
-                   optionsTable[i].shortOpt != 0 ? '-' : ' ',
-                   optionsTable[i].shortOpt != 0 ? optionsTable[i].shortOpt : ' ',
-                   optionsTable[i].longOpt != NULL ? optionsTable[i].longOpt : "",
-                   optionsTable[i].help != NULL ? optionsTable[i].help : "");
-        }
-    }
-}
 
 /*-----------------------------------------------------------------*/
 /* printUsage - prints command line syntax         */
@@ -338,12 +315,10 @@ printUsage (void)
 
   printVersionInfo (stream);
   fprintf (stream,
-           "Usage : kcc [options] filename\n"
-           "Options :-\n");
+           "Usage : kcc [options] infiles [-o outfile]\n"
+           "For the list of options, see the kcc(1) man page\n"
+  );
 
-  printOptions (optionsTable, stream);
-
-  printOptions (port->poptions, stream);
 }
 
 /*-----------------------------------------------------------------*/
@@ -776,7 +751,7 @@ parseCmdLine (int argc, char **argv)
             }
           if (strcmp (argv[i], OPTION_HELP) == 0)
             {
-              printUsage ();
+              printUsage();
               exit (EXIT_SUCCESS);
             }
 
@@ -997,7 +972,7 @@ parseCmdLine (int argc, char **argv)
             case 'h':
               verifyShortOption (argv[i]);
 
-              printUsage ();
+              printUsage();
               exit (EXIT_SUCCESS);
               break;
 
@@ -1856,7 +1831,7 @@ main (int argc, char **argv, char **envp)
     {
       if (options.printSearchDirs)
         exit (EXIT_SUCCESS);
-      printUsage ();
+      printUsage();
       exit (EXIT_FAILURE);
     }
 
