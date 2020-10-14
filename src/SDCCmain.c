@@ -1548,15 +1548,11 @@ setBinPaths (const char *argv0)
    * Search logic:
    *
    * 1. - $SDCCDIR/PREFIX2BIN_DIR
-   * 2. - path(argv[0])
-   * 3. - $PATH
+   * 2. - $PATH
    */
 
   /* do it in reverse mode, so that addSetHead() can be used
      instead of slower addSet() */
-
-  if ((p = getBinPath (argv0)) != NULL)
-    addSetHead (&binPathSet, (void *) p);
 
   if ((p = getenv (SDCC_DIR_NAME)) != NULL)
     {
@@ -1697,16 +1693,6 @@ setDataPaths (const char *argv0)
       dbuf_init (&dbuf, PATH_MAX);
       dbuf_append_str (&dbuf, p);
       dbuf_append_str (&dbuf, PREFIX2DATA_DIR);
-      addSetHead (&dataDirsSet, dbuf_detach_c_str (&dbuf));
-    }
-
-  if ((p = getBinPath (argv0)) != NULL)
-    {
-      struct dbuf_s dbuf;
-
-      dbuf_init (&dbuf, PATH_MAX);
-      dbuf_append_str (&dbuf, p);
-      dbuf_append_str (&dbuf, BIN2DATA_DIR);
       addSetHead (&dataDirsSet, dbuf_detach_c_str (&dbuf));
     }
 

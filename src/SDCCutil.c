@@ -38,9 +38,6 @@
 #include "SDCCutil.h"
 #include "newalloc.h"
 #include "dbuf_string.h"
-#ifndef _WIN32
-#include "findme.h"
-#endif
 
 #include "version.h"
 
@@ -393,63 +390,6 @@ dbuf_makePath (struct dbuf_s *path, const char *dir, const char *file)
   if (file != NULL)
     dbuf_append_str (path, file);
 }
-
-/** Given a file with path information in the binary files directory,
-    returns the directory component. Used for discovery of bin
-    directory of SDCC installation. Returns NULL if the path is
-    impossible.
-*/
-#ifdef _WIN32
-const char *
-getBinPath (const char *prel)
-{
-  struct dbuf_s path;
-  const char *p;
-
-  dbuf_init (&path, 128);
-  dbuf_splitPath (prel, &path, NULL);
-
-  p = dbuf_c_str (&path);
-  if ('\0' != *p)
-    return p;
-  else
-    {
-      char module[PATH_MAX];
-
-      dbuf_destroy (&path);
-
-      /* not enough info in prel; do it with module name */
-      if (0 != GetModuleFileName (NULL, module, sizeof (module)))
-        {
-          dbuf_init (&path, 128);
-
-          dbuf_splitPath (module, &path, NULL);
-          return dbuf_detach_c_str (&path);
-        }
-      else
-        return NULL;
-    }
-}
-#else
-const char *
-getBinPath (const char *prel)
-{
-  const char *ret_path;
-
-  if (NULL != (ret_path = findProgramPath (prel)))
-    {
-      struct dbuf_s path;
-
-      dbuf_init (&path, 128);
-
-      dbuf_splitPath (ret_path, &path, NULL);
-      free ((void *) ret_path);
-      return dbuf_detach_c_str (&path);
-    }
-  else
-    return NULL;
-}
-#endif
 
 /** Returns true if the given path exists.
  */
