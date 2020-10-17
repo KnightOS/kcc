@@ -21,9 +21,9 @@ add_definitions("-DKCC_DEFAULT_PREPROCESSOR=\"${KCC_DEFAULT_PREPROCESSOR}\"")
 find_package(BISON REQUIRED)
 find_package(FLEX REQUIRED)
 find_package(Boost REQUIRED)
-find_program(SCDOC NAMES scdoc)
-if (SCDOC-NOTFOUND)
-	set(KCC_DOCUMENTATION FALSE CACHE BOOL "Whether to build documentation")
+
+if (KCC_DOCUMENTATION)
+    find_program(SCDOC NAMES scdoc REQUIRED)
 endif()
 
 if (NOT DEFINED CMAKE_BUILD_TYPE)
