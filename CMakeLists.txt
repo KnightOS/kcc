@@ -2,10 +2,8 @@ cmake_minimum_required(VERSION 2.8.5)
 
 project(kcc C CXX)
 
-set(DEBUG_FLAGS "-g -O0")
-
-set(CMAKE_CXX_FLAGS_DEBUG "${DEBUG_FLAGS}")
-set(CMAKE_C_FLAGS_DEBUG "${DEBUG_FLAGS}")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -Og")
+set(CMAKE_C_FLAGS_DEBUG "-g -Og")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -pedantic -std=c99")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -std=c++11")
