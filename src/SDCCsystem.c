@@ -28,86 +28,76 @@
 #include <windows.h>
 #undef TRUE
 #undef FALSE
-#include <io.h>
 #include <fcntl.h>
+#include <io.h>
 #else
 #include <unistd.h>
 #endif
 
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
 #include "SDCCglobl.h"
+#include "SDCCsystem.h"
 #include "SDCCutil.h"
 #include "dbuf_string.h"
-#include "SDCCsystem.h"
 #include "newalloc.h"
-
+#include <ctype.h>
+#include <stdio.h>
+#include <string.h>
 
 set *binPathSet = NULL; /* set of binary paths */
-
 
 /*!
  * get command and arguments from command line
  */
 
-static void
-split_command (const char *cmd_line, char **command, char **params)
-{
+static void split_command(const char *cmd_line, char **command, char **params) {
   const char *p, *cmd_start;
   char delim;
   char *str;
   unsigned len;
 
   /* skip leading spaces */
-  for (p = cmd_line; isspace (*p); p++)
+  for (p = cmd_line; isspace(*p); p++)
     ;
 
   /* get command */
-  switch (*p)
-    {
-    case '\'':
-    case '"':
-      delim = *p;
-      cmd_start = ++p;
-      break;
+  switch (*p) {
+  case '\'':
+  case '"':
+    delim = *p;
+    cmd_start = ++p;
+    break;
 
-    default:
-      delim = ' ';
-      cmd_start = p;
-    }
+  default:
+    delim = ' ';
+    cmd_start = p;
+  }
 
-  if (delim == ' ')
-    {
-      while (*p != '\0' && !isspace (*p))
-        p++;
-    }
-  else
-    {
-      while (*p != '\0' && *p != delim)
-        p++;
-    }
+  if (delim == ' ') {
+    while (*p != '\0' && !isspace(*p))
+      p++;
+  } else {
+    while (*p != '\0' && *p != delim)
+      p++;
+  }
 
-  if (command != NULL)
-    {
-      len = p - cmd_start;
-      str = Safe_alloc (len + 1);
-      strncpy (str, cmd_start, len);
-      str[len] = '\0';
-      *command = str;
-    }
+  if (command != NULL) {
+    len = p - cmd_start;
+    str = Safe_alloc(len + 1);
+    strncpy(str, cmd_start, len);
+    str[len] = '\0';
+    *command = str;
+  }
 
   p++;
 
   /* skip spaces before parameters */
-  while (isspace (*p))
+  while (isspace(*p))
     p++;
 
   /* get parameters */
   if (params != NULL)
-    *params = Safe_strdup (p);
+    *params = Safe_strdup(p);
 }
-
 
 /*!
  * find the command:
@@ -141,108 +131,95 @@ split_command (const char *cmd_line, char **command, char **params)
  * merge command and parameters to command line
  */
 
-static const char *
-merge_command (const char *command, const char *params)
-{
+static const char *merge_command(const char *command, const char *params) {
   struct dbuf_s dbuf;
 
   /* allocate extra space for ' ' and '\0' */
-  dbuf_init (&dbuf, strlen (command) + strlen (params) + 2);
+  dbuf_init(&dbuf, strlen(command) + strlen(params) + 2);
 
-  dbuf_append_str (&dbuf, command);
-  dbuf_append (&dbuf, " ", 1);
-  dbuf_append_str (&dbuf, params);
+  dbuf_append_str(&dbuf, command);
+  dbuf_append(&dbuf, " ", 1);
+  dbuf_append_str(&dbuf, params);
 
-  return dbuf_detach_c_str (&dbuf);
+  return dbuf_detach_c_str(&dbuf);
 }
-
 
 /*!
  * check if path/command exist by converting it to short file name
  * if it exists, compose with args and return it
  */
 
-static const char *
-compose_command_line (const char *path, const char *command, const char *args)
-{
+static const char *compose_command_line(const char *path, const char *command,
+                                        const char *args) {
   unsigned len;
   struct dbuf_s cmdPath;
   char shortPath[PATH_MAX];
 
-  dbuf_init (&cmdPath, PATH_MAX);
+  dbuf_init(&cmdPath, PATH_MAX);
 
   if (path != NULL)
-    dbuf_makePath (&cmdPath, path, command);
+    dbuf_makePath(&cmdPath, path, command);
   else
-    dbuf_append_str (&cmdPath, command);
+    dbuf_append_str(&cmdPath, command);
 
-  /* Try if cmdPath or cmdPath.exe exist by converting it to the short path name */
-  len = GetShortPathName (dbuf_c_str (&cmdPath), shortPath, sizeof shortPath);
-  assert (len < sizeof shortPath);
-  if (0 == len)
-    {
-      dbuf_append_str (&cmdPath, EXE_EXT);
-      len = GetShortPathName (dbuf_c_str (&cmdPath), shortPath, sizeof shortPath);
-      assert (len < sizeof shortPath);
-    }
-  if (0 != len)
-    {
-      /* compose the command line */
-      return merge_command (shortPath, args);
-    }
-  else
-    {
-      /* path/command not found */
-      return NULL;
-    }
+  /* Try if cmdPath or cmdPath.exe exist by converting it to the short path name
+   */
+  len = GetShortPathName(dbuf_c_str(&cmdPath), shortPath, sizeof shortPath);
+  assert(len < sizeof shortPath);
+  if (0 == len) {
+    dbuf_append_str(&cmdPath, EXE_EXT);
+    len = GetShortPathName(dbuf_c_str(&cmdPath), shortPath, sizeof shortPath);
+    assert(len < sizeof shortPath);
+  }
+  if (0 != len) {
+    /* compose the command line */
+    return merge_command(shortPath, args);
+  } else {
+    /* path/command not found */
+    return NULL;
+  }
 }
 
-
-static const char *
-get_path (const char *cmd)
-{
+static const char *get_path(const char *cmd) {
   const char *cmdLine;
   char *command;
   char *args;
   char *path;
 
   /* get the command */
-  split_command (cmd, &command, &args);
+  split_command(cmd, &command, &args);
 
-  if (NULL == (cmdLine = compose_command_line(NULL, command, args)))
-    {
-      /* not an absolute path: try to find the command in predefined binary paths */
-      if (NULL != (path = (char *)setFirstItem (binPathSet)))
-        {
-          while (NULL == (cmdLine  = compose_command_line (path, command, args)) &&
-            NULL != (path = (char *)setNextItem (binPathSet)))
+  if (NULL == (cmdLine = compose_command_line(NULL, command, args))) {
+    /* not an absolute path: try to find the command in predefined binary paths
+     */
+    if (NULL != (path = (char *)setFirstItem(binPathSet))) {
+      while (NULL == (cmdLine = compose_command_line(path, command, args)) &&
+             NULL != (path = (char *)setNextItem(binPathSet)))
+        ;
+    }
+
+    if (NULL == cmdLine) {
+      /* didn't found the command in predefined binary paths: try with PATH */
+      char *envPath;
+
+      if (NULL != (envPath = getenv("PATH"))) {
+        /* make a local copy; strtok() will modify it */
+        envPath = Safe_strdup(envPath);
+
+        if (NULL != (path = strtok(envPath, ";"))) {
+          while (NULL ==
+                     (cmdLine = compose_command_line(path, command, args)) &&
+                 NULL != (path = strtok(NULL, ";")))
             ;
         }
 
-      if (NULL == cmdLine)
-        {
-          /* didn't found the command in predefined binary paths: try with PATH */
-          char *envPath;
-
-          if (NULL != (envPath = getenv("PATH")))
-            {
-              /* make a local copy; strtok() will modify it */
-              envPath = Safe_strdup (envPath);
-
-              if (NULL != (path = strtok (envPath, ";")))
-                {
-                  while (NULL == (cmdLine = compose_command_line (path, command, args)) &&
-                    NULL != (path = strtok (NULL, ";")))
-                    ;
-                }
-
-              Safe_free (envPath);
-          }
+        Safe_free(envPath);
+      }
     }
 
     /* didn't found it; probably this won't help neither :-( */
     if (NULL == cmdLine)
-      cmdLine = merge_command (command, args);
+      cmdLine = merge_command(command, args);
   }
 
   Safe_free(command);
@@ -258,152 +235,123 @@ get_path (const char *cmd)
  * merge command and parameters to command line
  */
 
-static const char *
-merge_command (const char *command, const char *params)
-{
+static const char *merge_command(const char *command, const char *params) {
   struct dbuf_s dbuf;
-  char *s = shell_escape (command);
+  char *s = shell_escape(command);
 
   /* allocate extra space for ' ' and '\0' */
-  dbuf_init (&dbuf, strlen (command) + strlen (params) + 2);
+  dbuf_init(&dbuf, strlen(command) + strlen(params) + 2);
 
-  dbuf_append_str (&dbuf, s);
-  dbuf_append (&dbuf, " ", 1);
-  dbuf_append_str (&dbuf, params);
+  dbuf_append_str(&dbuf, s);
+  dbuf_append(&dbuf, " ", 1);
+  dbuf_append_str(&dbuf, params);
 
-  return dbuf_detach_c_str (&dbuf);
+  return dbuf_detach_c_str(&dbuf);
 }
-
 
 /*!
  * check if the path is relative or absolute (if contains the dir separator)
  */
 
-static int
-has_path (const char *path)
-{
-  return dbuf_splitPath (path, NULL, NULL);
+static int has_path(const char *path) {
+  return dbuf_splitPath(path, NULL, NULL);
 }
 
-
-static const char *
-get_path (const char *cmd)
-{
+static const char *get_path(const char *cmd) {
   const char *cmdLine = NULL;
   char *command;
   char *args;
   char *path;
 
   /* get the command */
-  split_command (cmd, &command, &args);
+  split_command(cmd, &command, &args);
 
-  if (!has_path (command))
-    {
-      /* try to find the command in predefined binary paths */
-      if (NULL != (path = (char *)setFirstItem (binPathSet)))
-        {
-          do
-            {
-              struct dbuf_s dbuf;
-              const char *cmdPath;
+  if (!has_path(command)) {
+    /* try to find the command in predefined binary paths */
+    if (NULL != (path = (char *)setFirstItem(binPathSet))) {
+      do {
+        struct dbuf_s dbuf;
+        const char *cmdPath;
 
-              dbuf_init (&dbuf, PATH_MAX);
-              dbuf_makePath (&dbuf, path, command);
-              cmdPath = dbuf_detach (&dbuf);
+        dbuf_init(&dbuf, PATH_MAX);
+        dbuf_makePath(&dbuf, path, command);
+        cmdPath = dbuf_detach(&dbuf);
 
-              /* Try if cmdPath */
-              if (0 == access (cmdPath, X_OK))
-                {
-                  /* compose the command line */
-                  cmdLine = merge_command (cmdPath, args);
-                  break;
-                }
-            } while (NULL != (path = (char *)setNextItem (binPathSet)));
+        /* Try if cmdPath */
+        if (0 == access(cmdPath, X_OK)) {
+          /* compose the command line */
+          cmdLine = merge_command(cmdPath, args);
+          break;
         }
-      if (NULL == cmdLine)
-        cmdLine = merge_command (command, args);
-
-      Safe_free (command);
-      Safe_free (args);
-
-      return cmdLine;
+      } while (NULL != (path = (char *)setNextItem(binPathSet)));
     }
-  else
-    {
-      /*
-       * the command is defined with absolute path:
-       * just return it
-       */
-      Safe_free (command);
-      Safe_free (args);
+    if (NULL == cmdLine)
+      cmdLine = merge_command(command, args);
 
-      return Safe_strdup (cmd);
-    }
+    Safe_free(command);
+    Safe_free(args);
+
+    return cmdLine;
+  } else {
+    /*
+     * the command is defined with absolute path:
+     * just return it
+     */
+    Safe_free(command);
+    Safe_free(args);
+
+    return Safe_strdup(cmd);
+  }
 }
 #endif
-
 
 /*!
  * call an external program with arguements
  */
 
-int
-sdcc_system (const char *cmd)
-{
+int sdcc_system(const char *cmd) {
   int e;
-  const char *cmdLine = get_path (cmd);
+  const char *cmdLine = get_path(cmd);
 
-  assert (NULL != cmdLine);
+  assert(NULL != cmdLine);
 
   if (options.verboseExec)
-    printf ("+ %s\n", cmdLine);
+    printf("+ %s\n", cmdLine);
 
-  e = system (cmdLine);
+  e = system(cmdLine);
 
   if (options.verboseExec && e)
-    printf ("+ %s returned errorcode %d\n", cmdLine, e);
+    printf("+ %s returned errorcode %d\n", cmdLine, e);
 
-  dbuf_free (cmdLine);
+  dbuf_free(cmdLine);
 
   return e;
 }
-
 
 /*!
  * pipe an external program with arguements
  */
 
 #ifdef _WIN32
-#define sdcc_popen_read(cmd)  _popen ((cmd), "rt")
-int
-sdcc_pclose (FILE *fp)
-{
-  return _pclose (fp);
-}
+#define sdcc_popen_read(cmd) _popen((cmd), "rt")
+int sdcc_pclose(FILE *fp) { return _pclose(fp); }
 #else
-#define sdcc_popen_read(cmd)  popen ((cmd), "r")
-int
-sdcc_pclose (FILE *fp)
-{
-  return pclose (fp);
-}
+#define sdcc_popen_read(cmd) popen((cmd), "r")
+int sdcc_pclose(FILE *fp) { return pclose(fp); }
 #endif
 
-FILE *
-sdcc_popen (const char *cmd)
-{
+FILE *sdcc_popen(const char *cmd) {
   FILE *fp;
-  const char *cmdLine = get_path (cmd);
+  const char *cmdLine = get_path(cmd);
 
-  assert (NULL != cmdLine);
+  assert(NULL != cmdLine);
 
-  if (options.verboseExec)
-    {
-      printf ("+ %s\n", cmdLine);
-    }
+  if (options.verboseExec) {
+    printf("+ %s\n", cmdLine);
+  }
 
-  fp = sdcc_popen_read (cmdLine);
-  dbuf_free (cmdLine);
+  fp = sdcc_popen_read(cmdLine);
+  dbuf_free(cmdLine);
 
   return fp;
 }

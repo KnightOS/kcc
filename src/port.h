@@ -5,38 +5,36 @@
 #ifndef PORT_INCLUDE
 #define PORT_INCLUDE
 
-#include "SDCCicode.h"
 #include "SDCCargs.h"
+#include "SDCCicode.h"
 #include "SDCCpeeph.h"
 #include "dbuf.h"
 
-#define MAX_BUILTIN_ARGS        16
+#define MAX_BUILTIN_ARGS 16
 /* definition of builtin functions */
-typedef struct builtins
-{
-  char *name;                   /* name of builtin function */
-  char *rtype;                  /* return type as string : see typeFromStr */
-  int nParms;                   /* number of parms : max 8 */
-  char *parm_types[MAX_BUILTIN_ARGS];   /* each parm type as string : see typeFromStr */
+typedef struct builtins {
+  char *name;  /* name of builtin function */
+  char *rtype; /* return type as string : see typeFromStr */
+  int nParms;  /* number of parms : max 8 */
+  char *parm_types[MAX_BUILTIN_ARGS]; /* each parm type as string : see
+                                         typeFromStr */
 } builtins;
 
 struct ebbIndex;
 
 /* pragma structure */
-struct pragma_s
-{
+struct pragma_s {
   const char *name;
   int id;
   char deprecated;
-  int (*func) (int id, const char *name, const char *cp);
+  int (*func)(int id, const char *name, const char *cp);
 };
 
 /* defined in SDCClex.lex */
-int process_pragma_tbl (const struct pragma_s *pragma_tbl, const char *s);
+int process_pragma_tbl(const struct pragma_s *pragma_tbl, const char *s);
 
 /* Processor specific names */
-typedef struct
-{
+typedef struct {
   /** Unique id for this target */
   const int id;
   /** Target name used for -m */
@@ -48,10 +46,9 @@ typedef struct
   /** Specific processor for the given target family. specified by -p */
   char *processor;
 
-  struct
-  {
+  struct {
     /** Pointer to glue function */
-    void (*do_glue) (void);
+    void (*do_glue)(void);
     /** TRUE if all types of glue functions should be inserted into
         the file that also defines main.
         We dont want this in cases like the z80 where the startup
@@ -59,12 +56,10 @@ typedef struct
      */
     bool glue_up_main;
     /* OR of MODEL_* */
-  }
-  general;
+  } general;
 
   /* assembler related information */
-  struct
-  {
+  struct {
     /** Command to run and arguments (eg as-z80) */
     const char **cmd;
     /** Alternate macro based form. */
@@ -78,72 +73,62 @@ typedef struct
     /* assembler file extension */
     const char *file_ext;
     /** If non-null will be used to execute the assembler. */
-    void (*do_assemble) (set *);
-  }
-  assembler;
+    void (*do_assemble)(set *);
+  } assembler;
 
   /* linker related info */
-  struct
-  {
+  struct {
     /** Command to run (eg link-z80) */
     const char **cmd;
     /** Alternate macro based form. */
     const char *mcmd;
     /** If non-null will be used to execute the link. */
-    void (*do_link) (void);
+    void (*do_link)(void);
     /** Extension for object files (.rel, .obj, ...) */
     const char *rel_ext;
     /** 1 if port needs the .lnk file, 0 otherwise */
     const int needLinkerScript;
     const char *const *crt;
     const char *const *libs;
-  }
-  linker;
+  } linker;
 
   /** Default peephole rules */
-  struct
-  {
+  struct {
     char *default_rules;
-    int (*getSize) (lineNode * line);
-    bitVect *(*getRegsRead) (lineNode * line);
-    bitVect *(*getRegsWritten) (lineNode * line);
-    bool (*deadMove) (const char *reg, lineNode * currPl, lineNode * head);
-    bool (*notUsed) (const char *reg, lineNode * currPl, lineNode * head);
-    bool (*canAssign) (const char *op1, const char *op2, const char *op3);
-    bool (*notUsedFrom) (const char *reg, const char *label, lineNode *head);
-  }
-  peep;
+    int (*getSize)(lineNode *line);
+    bitVect *(*getRegsRead)(lineNode *line);
+    bitVect *(*getRegsWritten)(lineNode *line);
+    bool (*deadMove)(const char *reg, lineNode *currPl, lineNode *head);
+    bool (*notUsed)(const char *reg, lineNode *currPl, lineNode *head);
+    bool (*canAssign)(const char *op1, const char *op2, const char *op3);
+    bool (*notUsedFrom)(const char *reg, const char *label, lineNode *head);
+  } peep;
 
   /** Basic type sizes */
-  struct
-  {
+  struct {
     int char_size;
     int short_size;
     unsigned int int_size;
     int long_size;
     int longlong_size;
-    int ptr_size;               //near
-    int fptr_size;              //far
-    int gptr_size;              //generic
+    int ptr_size;  // near
+    int fptr_size; // far
+    int gptr_size; // generic
     int bit_size;
     int float_size;
     int max_base_size;
-  }
-  s;
+  } s;
 
   /** tags for far, near, xstack, code generic pointers */
-  struct
-  {
+  struct {
     int tag_far;
     int tag_near;
     int tag_xstack;
     int tag_code;
-  }
-  gp_tags;
+  } gp_tags;
 
   /** memory regions related stuff */
-  struct
-  {
+  struct {
     const char *const xstack_name;
     const char *const istack_name;
     /*
@@ -162,31 +147,31 @@ typedef struct
     const char *const overlay_name;
     const char *const post_static_name;
     const char *const home_name;
-    const char *const xidata_name;      // initialized xdata
-    const char *const xinit_name;       // a code copy of xidata
-    const char *const const_name;       // const data (code or not)
-    const char *const cabs_name;        // const absolute data (code or not)
-    const char *const xabs_name;        // absolute xdata/pdata
-    const char *const iabs_name;        // absolute idata/data
-    const char *const initialized_name; // Initialized global (and static local) variables.
-    const char *const initializer_name; // A code copy of initialized_name (to be copied for fast initialization).
+    const char *const xidata_name; // initialized xdata
+    const char *const xinit_name;  // a code copy of xidata
+    const char *const const_name;  // const data (code or not)
+    const char *const cabs_name;   // const absolute data (code or not)
+    const char *const xabs_name;   // absolute xdata/pdata
+    const char *const iabs_name;   // absolute idata/data
+    const char *const
+        initialized_name; // Initialized global (and static local) variables.
+    const char *const initializer_name; // A code copy of initialized_name (to
+                                        // be copied for fast initialization).
     struct memmap *default_local_map;   // default location for auto vars
     struct memmap *default_globl_map;   // default location for globl vars
     int code_ro;                        // code space read-only 1=yes
-    unsigned int maxextalign;           // maximum extended alignment supported, nonnegative power of 2 (C11 standard, section 6.2.8).
-  }
-  mem;
+    unsigned int
+        maxextalign; // maximum extended alignment supported, nonnegative power
+                     // of 2 (C11 standard, section 6.2.8).
+  } mem;
 
-  struct
-  {
-    void (*genExtraAreaDeclaration) (FILE *, bool);
-    void (*genExtraAreaLinkOptions) (FILE *);
-  }
-  extraAreas;
+  struct {
+    void (*genExtraAreaDeclaration)(FILE *, bool);
+    void (*genExtraAreaLinkOptions)(FILE *);
+  } extraAreas;
 
   /* stack related information */
-  struct
-  {
+  struct {
     /** -1 for grows down (z80), +1 for grows up (mcs51) */
     int direction;
     /** Extra overhead when calling between banks */
@@ -200,26 +185,22 @@ typedef struct
     /** 'banked' call overhead.
         Mild overlap with bank_overhead */
     int banked_overhead;
-  }
-  stack;
+  } stack;
 
-  struct
-  {
+  struct {
     /** One more than the smallest
         mul/div operation the processor can do natively
         Eg if the processor has an 8 bit mul, native below is 2 */
     unsigned int muldiv;
-    /** Size of the biggest shift the port can handle. -1 if port can handle shifts of arbitrary size. */
+    /** Size of the biggest shift the port can handle. -1 if port can handle
+     * shifts of arbitrary size. */
     signed int shift;
-  }
-  support;
+  } support;
 
-  struct
-  {
-    void (*emitDebuggerSymbol) (const char *);
-    struct
-    {
-      int (*regNum) (const struct reg_info *);
+  struct {
+    void (*emitDebuggerSymbol)(const char *);
+    struct {
+      int (*regNum)(const struct reg_info *);
       bitVect *cfiSame;
       bitVect *cfiUndef;
       int addressSize;
@@ -227,21 +208,17 @@ typedef struct
       int regNumSP;
       int regNumBP;
       int offsetSP;
-    }
-    dwarf;
-  }
-  debugger;
+    } dwarf;
+  } debugger;
 
-  struct
-  {
+  struct {
     int maxCount;
     int sizeofElement;
     int sizeofMatchJump[3];
     int sizeofRangeCompare[3];
     int sizeofSubtract;
     int sizeofDispatch;
-  }
-  jumptableCost;
+  } jumptableCost;
 
   /** Prefix to add to a C function (eg "_") */
   const char *fun_prefix;
@@ -250,76 +227,78 @@ typedef struct
       First chance to initalise and set any port specific variables.
       'port' is set before calling this.  May be NULL.
   */
-  void (*init) (void);
+  void (*init)(void);
   /** Parses one option + its arguments */
-  bool (*parseOption) (int *pargc, char **argv, int *i);
+  bool (*parseOption)(int *pargc, char **argv, int *i);
   /** Optional list of automatically parsed options.  Should be
       implemented to at least show the help text correctly. */
   OPTION *poptions;
   /** Initialise port spectific paths */
-  void (*initPaths) (void);
+  void (*initPaths)(void);
   /** Called after all the options have been parsed. */
-  void (*finaliseOptions) (void);
-   /** Called after the port has been selected but before any
-       options are parsed. */
-  void (*setDefaultOptions) (void);
+  void (*finaliseOptions)(void);
+  /** Called after the port has been selected but before any
+      options are parsed. */
+  void (*setDefaultOptions)(void);
   /** Does the dirty work. */
-  void (*assignRegisters) (struct ebbIndex *);
+  void (*assignRegisters)(struct ebbIndex *);
 
   /** Returns the register name of a symbol.
       Used so that 'reg_info' can be an incomplete type. */
-  const char *(*getRegName) (const struct reg_info *reg);
+  const char *(*getRegName)(const struct reg_info *reg);
 
   /** Try to keep track of register contents. */
-  bool (*rtrackUpdate)(const char* line);
+  bool (*rtrackUpdate)(const char *line);
 
   /* list of keywords that are used by this
      target (used by lexer) */
   char **keywords;
 
   /* Write any port specific assembler output. */
-  void (*genAssemblerPreamble) (FILE * of);
+  void (*genAssemblerPreamble)(FILE *of);
   /* invoked at end assembler file */
-  void (*genAssemblerEnd) (FILE * of);
+  void (*genAssemblerEnd)(FILE *of);
 
   /* Write the port specific IVT. If genIVT is NULL or if
    * it returns zero, default (8051) IVT generation code
    * will be used.
    */
-  int (*genIVT) (struct dbuf_s * oBuf, symbol ** intTable, int intCount);
+  int (*genIVT)(struct dbuf_s *oBuf, symbol **intTable, int intCount);
 
-  void (*genXINIT) (FILE * of);
+  void (*genXINIT)(FILE *of);
 
   /* Write port specific startup code */
-  void (*genInitStartup) (FILE * of);
+  void (*genInitStartup)(FILE *of);
 
   /* parameter passing in register related functions */
-  void (*reset_regparms) (void);        /* reset the register count */
-  int (*reg_parm) (struct sym_link *, bool reentrant);  /* will return 1 if can be passed in register */
+  void (*reset_regparms)(void); /* reset the register count */
+  int (*reg_parm)(
+      struct sym_link *,
+      bool reentrant); /* will return 1 if can be passed in register */
 
   /** Process the pragma string 'sz'.  Returns 0 if recognised and
       processed, 1 otherwise.  May be NULL.
    */
-  int (*process_pragma) (const char *sz);
+  int (*process_pragma)(const char *sz);
 
   /** Mangles a support function name to reflect the calling model.
    */
-  const char *(*getMangledFunctionName) (const char *szOrginial);
+  const char *(*getMangledFunctionName)(const char *szOrginial);
 
   /** Returns true if the port can multiply the two types nativly
       without using support functions.
    */
-  bool (*hasNativeMulFor) (iCode * ic, sym_link * left, sym_link * right);
+  bool (*hasNativeMulFor)(iCode *ic, sym_link *left, sym_link *right);
 
   /** Returns true if the port has implemented certain bit
       manipulation iCodes (RRC, RLC, SWAP, GETHBIT, GETABIT, GETBYTE, GETWORD)
    */
-  bool (*hasExtBitOp) (int op, int size);
+  bool (*hasExtBitOp)(int op, int size);
 
   /** Returns the relative expense of accessing a particular output
       storage class. Larger values indicate higher expense.
    */
-  int (*oclsExpense) (struct memmap * oclass);
+  int (*oclsExpense)(struct memmap *oclass);
 
   /** If TRUE, then tprintf and !dw will be used for some initalisers
    */
@@ -331,26 +310,28 @@ typedef struct
   bool little_endian;
 
   /* condition transformations */
-  bool lt_nge;                  /* transform (a < b)  to !(a >= b)  */
-  bool gt_nle;                  /* transform (a > b)  to !(a <= b)  */
-  bool le_ngt;                  /* transform (a <= b) to !(a > b)   */
-  bool ge_nlt;                  /* transform (a >= b) to !(a < b)   */
-  bool ne_neq;                  /* transform a != b --> ! (a == b)  */
-  bool eq_nne;                  /* transform a == b --> ! (a != b)  */
+  bool lt_nge; /* transform (a < b)  to !(a >= b)  */
+  bool gt_nle; /* transform (a > b)  to !(a <= b)  */
+  bool le_ngt; /* transform (a <= b) to !(a > b)   */
+  bool ge_nlt; /* transform (a >= b) to !(a < b)   */
+  bool ne_neq; /* transform a != b --> ! (a == b)  */
+  bool eq_nne; /* transform a == b --> ! (a != b)  */
 
   bool arrayInitializerSuppported;
-  bool (*cseOk) (iCode * ic, iCode * pdic);
-  builtins *builtintable;       /* table of builtin functions */
-  int unqualified_pointer;      /* unqualified pointers type is  */
-  int reset_labelKey;           /* reset Label no 1 at the start of a function */
-  int globals_allowed;          /* global & static locals not allowed ?  0 ONLY TININative */
+  bool (*cseOk)(iCode *ic, iCode *pdic);
+  builtins *builtintable;  /* table of builtin functions */
+  int unqualified_pointer; /* unqualified pointers type is  */
+  int reset_labelKey;      /* reset Label no 1 at the start of a function */
+  int globals_allowed;     /* global & static locals not allowed ?  0 ONLY
+                              TININative */
 
-  int num_regs;                /* Number of registers handled in the tree-decomposition-based register allocator in SDCCralloc.hpp */
+  int num_regs; /* Number of registers handled in the tree-decomposition-based
+                   register allocator in SDCCralloc.hpp */
 #define PORT_MAGIC 0xAC32
-  /** Used at runtime to detect if this structure has been completly filled in. */
+  /** Used at runtime to detect if this structure has been completly filled in.
+   */
   int magic;
-}
-PORT;
+} PORT;
 
 extern PORT *port;
 

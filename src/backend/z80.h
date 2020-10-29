@@ -2,32 +2,28 @@
     Common definitions between the z80 and gbz80 parts.
 */
 #include "common.h"
-#include "ralloc.h"
 #include "gen.h"
 #include "peep.h"
+#include "ralloc.h"
 #include "support.h"
 
-typedef enum
-  {
-    SUB_Z80,
-    SUB_Z180,
-    SUB_R2K,
-    SUB_R3KA,
-    SUB_GBZ80,
-    SUB_TLCS90
-  }
-Z80_SUB_PORT;
+typedef enum {
+  SUB_Z80,
+  SUB_Z180,
+  SUB_R2K,
+  SUB_R3KA,
+  SUB_GBZ80,
+  SUB_TLCS90
+} Z80_SUB_PORT;
 
-typedef struct
-  {
-    Z80_SUB_PORT sub;
-    int calleeSavesBC;
-    int port_mode;
-    int port_back;
-    int reserveIY;
-    int noOmitFramePtr;
-  }
-Z80_OPTS;
+typedef struct {
+  Z80_SUB_PORT sub;
+  int calleeSavesBC;
+  int port_mode;
+  int port_back;
+  int reserveIY;
+  int noOmitFramePtr;
+} Z80_OPTS;
 
 extern Z80_OPTS z80_opts;
 
@@ -44,10 +40,4 @@ extern Z80_OPTS z80_opts;
 #define OPTRALLOC_HL (!IS_GB)
 #define OPTRALLOC_IY !(IY_RESERVED || IS_GB)
 
-enum
-  {
-    ACCUSE_A = 1,
-    ACCUSE_SCRATCH,
-    ACCUSE_IY
-  };
-
+enum { ACCUSE_A = 1, ACCUSE_SCRATCH, ACCUSE_IY };

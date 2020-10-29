@@ -19,7 +19,6 @@
 #ifndef SDCCBTREE_H
 #define SDCCBTREE_H
 
-
 // Clear block tree. To be called after each function.
 void btree_clear(void);
 
@@ -36,4 +35,3 @@ void btree_add_symbol(struct symbol *s);
 void btree_alloc(void);
 
 #endif
-

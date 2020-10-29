@@ -3,4 +3,5 @@
 #ifdef __cplusplus
 extern "C"
 #endif
-void cleanupFile(const char *file);
+    void
+    cleanupFile(const char *file);

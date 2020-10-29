@@ -25,8 +25,7 @@
 
 #include <memory.h>
 
-typedef struct _allocTrace
-{
+typedef struct _allocTrace {
   int num;
   int max;
   void **palloced;
@@ -40,7 +39,7 @@ out of memory error detection
 -------------------------------------------------------------------------------
 */
 
-void *Clear_realloc (void *OldPtr, size_t OldSize, size_t NewSize);
+void *Clear_realloc(void *OldPtr, size_t OldSize, size_t NewSize);
 
 /*
 -------------------------------------------------------------------------------
@@ -49,7 +48,7 @@ Safe_realloc - Reallocate a memory block with out of memory error detection
 -------------------------------------------------------------------------------
 */
 
-void *Safe_realloc (void *OldPtr, size_t NewSize);
+void *Safe_realloc(void *OldPtr, size_t NewSize);
 
 /*
 -------------------------------------------------------------------------------
@@ -59,7 +58,7 @@ all data to zero and checking for out or memory errors.
 -------------------------------------------------------------------------------
 */
 
-void *Safe_calloc (size_t Elements, size_t Size);
+void *Safe_calloc(size_t Elements, size_t Size);
 
 /*
 -------------------------------------------------------------------------------
@@ -69,31 +68,32 @@ and checking for out or memory errors.
 -------------------------------------------------------------------------------
 */
 
-void *Safe_malloc (size_t Size);
+void *Safe_malloc(size_t Size);
 
-/** Replacement for Safe_malloc that also zeros memory.  To make it interchangable.
+/** Replacement for Safe_malloc that also zeros memory.  To make it
+ * interchangable.
  */
-void *Safe_alloc (size_t Size);
+void *Safe_alloc(size_t Size);
 
 /** Function to make the replacements complete.
  */
-void Safe_free (void *p);
+void Safe_free(void *p);
 
 /** Creates a copy of a string with specified length in a safe way.
  */
-char *Safe_strndup (const char *sz, size_t len);
+char *Safe_strndup(const char *sz, size_t len);
 
 /** Creates a copy of a string in a safe way.
  */
-char *Safe_strdup (const char *sz);
+char *Safe_strdup(const char *sz);
 
 /** Logs the allocated memory 'p' in the given trace for batch freeing
     later using freeTrace.
 */
-void *traceAlloc (allocTrace * ptrace, void *p);
+void *traceAlloc(allocTrace *ptrace, void *p);
 
 /** Frees all the memory logged in the trace and resets the trace.
  */
-void freeTrace (allocTrace * ptrace);
+void freeTrace(allocTrace *ptrace);
 
 #endif

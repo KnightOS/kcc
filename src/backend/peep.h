@@ -24,6 +24,5 @@
 
 bool z80notUsed(const char *what, lineNode *endPl, lineNode *head);
 bool z80notUsedFrom(const char *what, const char *label, lineNode *head);
-bool z80canAssign (const char *dst, const char *src, const char *exotic);
+bool z80canAssign(const char *dst, const char *src, const char *exotic);
 int z80instructionSize(lineNode *node);
-

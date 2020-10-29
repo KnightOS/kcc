@@ -7,12 +7,12 @@
    under the terms of the GNU General Public License as published by the
    Free Software Foundation; either version 2, or (at your option) any
    later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
@@ -21,8 +21,7 @@
 #ifndef Z80GEN_H
 #define Z80GEN_H
 
-typedef enum
-{
+typedef enum {
   AOP_INVALID,
   /* Is a literal */
   AOP_LIT = 1,
@@ -56,41 +55,35 @@ typedef enum
   AOP_PAIRPTR,
   /* Read undefined, discard writes */
   AOP_DUMMY
-}
-AOP_TYPE;
+} AOP_TYPE;
 
-/* type asmop : a homogenised type for 
+/* type asmop : a homogenised type for
    all the different spaces an operand can be
    in */
-typedef struct asmop
-{
+typedef struct asmop {
   AOP_TYPE type;
-  short coff;                   /* current offset */
-  short size;                   /* total size */
-  unsigned code:1;              /* is in Code space */
-  unsigned paged:1;             /* in paged memory  */
-  unsigned freed:1;             /* already freed    */
-  unsigned bcInUse:1;           /* for banked I/O, which uses bc for the I/O address */
-  union
-  {
-    value *aop_lit;             /* if literal */
-    reg_info *aop_reg[4];       /* array of registers */
-    char *aop_dir;              /* if direct  */
-    char *aop_immd;             /* if immediate others are implied */
-    int aop_stk;                /* stack offset when AOP_STK */
-    const char *aop_str[4];     /* just a string array containing the location */
-    unsigned long aop_simplelit;        /* Just the value. */
-    int aop_pairId;             /* The pair ID */
-  }
-  aopu;
-}
-asmop;
+  short coff;           /* current offset */
+  short size;           /* total size */
+  unsigned code : 1;    /* is in Code space */
+  unsigned paged : 1;   /* in paged memory  */
+  unsigned freed : 1;   /* already freed    */
+  unsigned bcInUse : 1; /* for banked I/O, which uses bc for the I/O address */
+  union {
+    value *aop_lit;         /* if literal */
+    reg_info *aop_reg[4];   /* array of registers */
+    char *aop_dir;          /* if direct  */
+    char *aop_immd;         /* if immediate others are implied */
+    int aop_stk;            /* stack offset when AOP_STK */
+    const char *aop_str[4]; /* just a string array containing the location */
+    unsigned long aop_simplelit; /* Just the value. */
+    int aop_pairId;              /* The pair ID */
+  } aopu;
+} asmop;
 
-void genZ80Code (iCode *);
-void z80_emitDebuggerSymbol (const char *);
+void genZ80Code(iCode *);
+void z80_emitDebuggerSymbol(const char *);
 
 extern bool z80_assignment_optimal;
 extern bool should_omit_frame_ptr;
 
 #endif
-

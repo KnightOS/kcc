@@ -25,13 +25,13 @@
 #ifndef SDCCSYSTEM_H
 #define SDCCSYSTEM_H
 
-#include <stdio.h>
 #include "SDCCset.h"
+#include <stdio.h>
 
 extern set *binPathSet; /* set of binary paths */
 
-int sdcc_system (const char *cmd);
-FILE *sdcc_popen (const char *cmd);
-int sdcc_pclose (FILE *fp);
+int sdcc_system(const char *cmd);
+FILE *sdcc_popen(const char *cmd);
+int sdcc_pclose(FILE *fp);
 
 #endif

@@ -21,17 +21,17 @@
 
   Borut Razem
   borut.razem@siol.net
-*/ 
+*/
 
 #ifndef _SYSTEM_H
 #define _SYSTEM_H
 
 /* findme.c is compiled only on *nix, so includes are *nix specific */
-#include <unistd.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
-#define	xstrdup(_str) strdup(_str)
+#define xstrdup(_str) strdup(_str)
 
-#endif  /* _SYSTEM_H */
+#endif /* _SYSTEM_H */

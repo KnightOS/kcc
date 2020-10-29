@@ -1,5 +1,6 @@
 /*-------------------------------------------------------------------------
-  SDCCasm.h - header file for all types of stuff to support different assemblers.
+  SDCCasm.h - header file for all types of stuff to support different
+assemblers.
 
   Copyright (C) 2000, Michael Hope <michaelh@juju.net.nz>
 
@@ -23,23 +24,20 @@
 
 #include "dbuf.h"
 
-void tfprintf (FILE * fp, const char *szFormat, ...);
-void dbuf_tprintf (struct dbuf_s *dbuf, const char *szFormat, ...);
-void dbuf_tvprintf (struct dbuf_s *dbuf, const char *szFormat, va_list ap);
+void tfprintf(FILE *fp, const char *szFormat, ...);
+void dbuf_tprintf(struct dbuf_s *dbuf, const char *szFormat, ...);
+void dbuf_tvprintf(struct dbuf_s *dbuf, const char *szFormat, va_list ap);
 
-typedef struct
-{
+typedef struct {
   const char *szKey;
   const char *szValue;
-}
-ASM_MAPPING;
+} ASM_MAPPING;
 
 typedef struct _ASM_MAPPINGS ASM_MAPPINGS;
 
 /* PENDING: could include the peephole rules here as well.
  */
-struct _ASM_MAPPINGS
-{
+struct _ASM_MAPPINGS {
   const ASM_MAPPINGS *pParent;
   const ASM_MAPPING *pMappings;
 };
@@ -58,10 +56,10 @@ extern const ASM_MAPPINGS asm_xa_asm_mapping;
 
 /** Last entry has szKey = NULL.
  */
-void asm_addTree (const ASM_MAPPINGS * pMappings);
+void asm_addTree(const ASM_MAPPINGS *pMappings);
 
-const char *FileBaseName (const char *fileFullName);
+const char *FileBaseName(const char *fileFullName);
 
-const char *printILine (iCode * ic);
-const char *printCLine (const char *srcFile, int lineno);
+const char *printILine(iCode *ic);
+const char *printCLine(const char *srcFile, int lineno);
 #endif

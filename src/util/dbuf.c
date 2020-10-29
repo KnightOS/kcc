@@ -24,12 +24,10 @@
   borut.razem@siol.net
 */
 
-
+#include "dbuf.h"
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
-#include "dbuf.h"
-
 
 /*
  * Assure that the buffer is large enough to hold
@@ -38,8 +36,7 @@
  * Intended for internal use.
  */
 
-int _dbuf_expand(struct dbuf_s *dbuf, size_t size)
-{
+int _dbuf_expand(struct dbuf_s *dbuf, size_t size) {
   assert(dbuf->alloc != 0);
   assert(dbuf->buf != NULL);
 
@@ -48,8 +45,7 @@ int _dbuf_expand(struct dbuf_s *dbuf, size_t size)
     /* can this be optimized? */
     do {
       dbuf->alloc += dbuf->alloc;
-    }
-    while (dbuf->len + size > dbuf->alloc);
+    } while (dbuf->len + size > dbuf->alloc);
 
     if ((dbuf->buf = realloc(dbuf->buf, dbuf->alloc)) == NULL)
       return 0;
@@ -58,14 +54,12 @@ int _dbuf_expand(struct dbuf_s *dbuf, size_t size)
   return 1;
 }
 
-
 /*
  * Initialize the dbuf structure and
  * allocate buffer to hold size bytes.
  */
 
-int dbuf_init(struct dbuf_s *dbuf, size_t size)
-{
+int dbuf_init(struct dbuf_s *dbuf, size_t size) {
   assert(size != 0);
 
   if (size == 0)
@@ -76,7 +70,6 @@ int dbuf_init(struct dbuf_s *dbuf, size_t size)
   return ((dbuf->buf = malloc(dbuf->alloc)) != NULL);
 }
 
-
 /*
  * Test if dbuf is initialized.
  * NOTE: the dbuf structure should be set
@@ -86,14 +79,12 @@ int dbuf_init(struct dbuf_s *dbuf, size_t size)
  * See: dbuf_init()
  */
 
-int dbuf_is_initialized (struct dbuf_s *dbuf)
-{
+int dbuf_is_initialized(struct dbuf_s *dbuf) {
   if (dbuf->buf == NULL) {
     assert(dbuf->alloc == 0);
     assert(dbuf->len == 0);
     return 0;
-  }
-  else {
+  } else {
     assert(dbuf->alloc != 0);
     assert(dbuf->len >= 0 && dbuf->len <= dbuf->alloc);
     return 1;
@@ -107,8 +98,7 @@ int dbuf_is_initialized (struct dbuf_s *dbuf)
  * See: dbuf_delete()
  */
 
-struct dbuf_s *dbuf_new(size_t size)
-{
+struct dbuf_s *dbuf_new(size_t size) {
   struct dbuf_s *dbuf;
 
   dbuf = (struct dbuf_s *)malloc(sizeof(struct dbuf_s));
@@ -121,15 +111,13 @@ struct dbuf_s *dbuf_new(size_t size)
   return dbuf;
 }
 
-
 /*
  * Set the buffer size. Buffer size can be only decreased.
  */
 
-int dbuf_set_length(struct dbuf_s *dbuf, size_t len)
-{
-  if (!dbuf_is_initialized (dbuf))
-    dbuf_init (dbuf, len ? len : 1);
+int dbuf_set_length(struct dbuf_s *dbuf, size_t len) {
+  if (!dbuf_is_initialized(dbuf))
+    dbuf_init(dbuf, len ? len : 1);
 
   assert(dbuf != NULL);
   assert(dbuf->alloc != 0);
@@ -143,13 +131,11 @@ int dbuf_set_length(struct dbuf_s *dbuf, size_t len)
   return 0;
 }
 
-
 /*
  * Append the buf to the end of the buffer.
  */
 
-int dbuf_append(struct dbuf_s *dbuf, const void *buf, size_t len)
-{
+int dbuf_append(struct dbuf_s *dbuf, const void *buf, size_t len) {
   assert(dbuf != NULL);
   assert(dbuf->alloc != 0);
   assert(dbuf->buf != NULL);
@@ -163,14 +149,12 @@ int dbuf_append(struct dbuf_s *dbuf, const void *buf, size_t len)
   return 0;
 }
 
-
 /*
  * Add '\0' character at the end of the buffer without
  * count it in the dbuf->len.
  */
 
-const char *dbuf_c_str(struct dbuf_s *dbuf)
-{
+const char *dbuf_c_str(struct dbuf_s *dbuf) {
   assert(dbuf != NULL);
   assert(dbuf->alloc != 0);
   assert(dbuf->buf != NULL);
@@ -183,13 +167,11 @@ const char *dbuf_c_str(struct dbuf_s *dbuf)
   return NULL;
 }
 
-
 /*
  * Get the buffer pointer.
  */
 
-const void *dbuf_get_buf(struct dbuf_s *dbuf)
-{
+const void *dbuf_get_buf(struct dbuf_s *dbuf) {
   assert(dbuf != NULL);
   assert(dbuf->alloc != 0);
   assert(dbuf->buf != NULL);
@@ -197,13 +179,11 @@ const void *dbuf_get_buf(struct dbuf_s *dbuf)
   return dbuf->buf;
 }
 
-
 /*
  * Get the buffer length.
  */
 
-size_t dbuf_get_length(struct dbuf_s *dbuf)
-{
+size_t dbuf_get_length(struct dbuf_s *dbuf) {
   assert(dbuf != NULL);
   assert(dbuf->alloc != 0);
   assert(dbuf->buf != NULL);
@@ -211,13 +191,11 @@ size_t dbuf_get_length(struct dbuf_s *dbuf)
   return dbuf->len;
 }
 
-
 /*
  * Trim the allocated buffer to required size
  */
 
-int dbuf_trim(struct dbuf_s *dbuf)
-{
+int dbuf_trim(struct dbuf_s *dbuf) {
   void *buf;
 
   assert(dbuf != NULL);
@@ -234,7 +212,6 @@ int dbuf_trim(struct dbuf_s *dbuf)
   return buf != NULL;
 }
 
-
 /*
  * Detach the buffer from dbuf structure.
  * The dbuf structure can be reused by
@@ -243,8 +220,7 @@ int dbuf_trim(struct dbuf_s *dbuf)
  * See: dbuf_init()
  */
 
-void *dbuf_detach(struct dbuf_s *dbuf)
-{
+void *dbuf_detach(struct dbuf_s *dbuf) {
   void *ret;
 
   assert(dbuf != NULL);
@@ -259,7 +235,6 @@ void *dbuf_detach(struct dbuf_s *dbuf)
   return ret;
 }
 
-
 /*
  * Add '\0' character at the end of the buffer without
  * count it in the dbuf->len and detach the buffer from dbuf structure.
@@ -268,23 +243,17 @@ void *dbuf_detach(struct dbuf_s *dbuf)
  * See: dbuf_init()
  */
 
-char *dbuf_detach_c_str(struct dbuf_s *dbuf)
-{
+char *dbuf_detach_c_str(struct dbuf_s *dbuf) {
   dbuf_c_str(dbuf);
   return dbuf_detach(dbuf);
 }
-
 
 /*
  * Destroy the dbuf structure and
  * free the buffer
  */
 
-void dbuf_destroy(struct dbuf_s *dbuf)
-{
-  free(dbuf_detach(dbuf));
-}
-
+void dbuf_destroy(struct dbuf_s *dbuf) { free(dbuf_detach(dbuf)); }
 
 /*
  * Delete dbuf structure on the heap:
@@ -296,12 +265,10 @@ void dbuf_destroy(struct dbuf_s *dbuf)
  * See dbuf_new()
  */
 
-void dbuf_delete(struct dbuf_s *dbuf)
-{
+void dbuf_delete(struct dbuf_s *dbuf) {
   dbuf_destroy(dbuf);
   free(dbuf);
 }
-
 
 /*
  * Free detached buffer.
@@ -309,7 +276,4 @@ void dbuf_delete(struct dbuf_s *dbuf)
  * See dbuf_detach()
  */
 
-void dbuf_free(const void *buf)
-{
-  free((void *)buf);
-}
+void dbuf_free(const void *buf) { free((void *)buf); }

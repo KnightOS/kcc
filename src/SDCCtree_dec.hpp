@@ -1,4 +1,5 @@
-// Philipp Klaus Krause, philipp@informatik.uni-frankfurt.de, pkk@spth.de, 2010 - 2011
+// Philipp Klaus Krause, philipp@informatik.uni-frankfurt.de, pkk@spth.de, 2010
+// - 2011
 //
 // (c) 2010-2011 Goethe-Universität Frankfurt
 //
@@ -19,15 +20,18 @@
 //
 // Some routines for tree-decompositions.
 //
-// A tree decomposition is a graph that has a set of vertex indices as bundled property, e.g.:
+// A tree decomposition is a graph that has a set of vertex indices as bundled
+// property, e.g.:
 //
 // struct tree_dec_node
 // {
 //  std::set<unsigned int> bag;
 // };
-// typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS, tree_dec_node> tree_dec_t;
+// typedef boost::adjacency_list<boost::vecS, boost::vecS,
+// boost::bidirectionalS, tree_dec_node> tree_dec_t;
 //
-// The following are the routines that are most likely to be interesting for outside use:
+// The following are the routines that are most likely to be interesting for
+// outside use:
 //
 // void nicify(T_t &T)
 // Transforms a tree decomposition T into a nice tree decomposition
@@ -35,58 +39,56 @@
 // void thorup_tree_decomposition(T_t &tree_decomposition, const G_t &cfg)
 // Creates a tree decomposition T from a graph cfg using Thorup's heuristic.
 //
-// void tree_decomposition_from_elimination_ordering(T_t &T, std::list<unsigned int>& l, const G_t &G)
-// Creates a tree decomposition T of a graph G from an elimination ordering l.
+// void tree_decomposition_from_elimination_ordering(T_t &T, std::list<unsigned
+// int>& l, const G_t &G) Creates a tree decomposition T of a graph G from an
+// elimination ordering l.
 //
 // void thorup_elimination_ordering(l_t &l, const J_t &J)
 // Creates an elimination ordering l of a graph J using Thorup's heuristic.
 
+#include <list>
 #include <map>
-#include <vector>
 #include <set>
 #include <stack>
-#include <list>
+#include <vector>
 
-#include <boost/tuple/tuple_io.hpp>
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/copy.hpp>
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/properties.hpp>
-#include <boost/graph/copy.hpp>
-#include <boost/graph/adjacency_list.hpp>
+#include <boost/tuple/tuple_io.hpp>
 
-struct forget_properties
-{
-  template<class T1, class T2>
-  void operator()(const T1&, const T2&) const
-  {
-  }
+struct forget_properties {
+  template <class T1, class T2> void operator()(const T1 &, const T2 &) const {}
 };
 
 // Thorup algorithm D.
-// The use of the multimap makes the complexity of this O(|I|log|I|), which could be reduced to O(|I|).
+// The use of the multimap makes the complexity of this O(|I|log|I|), which
+// could be reduced to O(|I|).
 template <class l_t>
-void thorup_D(l_t &l, const std::multimap<unsigned int, unsigned int> &MJ, const std::multimap<unsigned int, unsigned int> &MS, const unsigned int n)
-{
+void thorup_D(l_t &l, const std::multimap<unsigned int, unsigned int> &MJ,
+              const std::multimap<unsigned int, unsigned int> &MS,
+              const unsigned int n) {
   std::map<unsigned int, unsigned int> m;
 
   l.clear();
 
   unsigned int i = 0;
-  for (unsigned int j = n; j > 0;)
-    {
-      j--;
-      if (m.find(j) == m.end())
-        m[j] = i++;
-        
-      std::multimap<unsigned int, unsigned int>::const_iterator k, k_end;
+  for (unsigned int j = n; j > 0;) {
+    j--;
+    if (m.find(j) == m.end())
+      m[j] = i++;
 
-      for (boost::tie(k, k_end) = MS.equal_range(j); k != k_end; ++k)
-        if (m.find(k->second) == m.end())
-          m[k->second] = i++;
+    std::multimap<unsigned int, unsigned int>::const_iterator k, k_end;
 
-      for (boost::tie(k, k_end) = MJ.equal_range(j); k != k_end; ++k)
-        if (m.find(k->second) == m.end())
-          m[k->second] = i++;
-    }
+    for (boost::tie(k, k_end) = MS.equal_range(j); k != k_end; ++k)
+      if (m.find(k->second) == m.end())
+        m[k->second] = i++;
+
+    for (boost::tie(k, k_end) = MJ.equal_range(j); k != k_end; ++k)
+      if (m.find(k->second) == m.end())
+        m[k->second] = i++;
+  }
 
   std::vector<unsigned int> v(n);
 
@@ -100,70 +102,77 @@ void thorup_D(l_t &l, const std::multimap<unsigned int, unsigned int> &MJ, const
 }
 
 // Thorup algorithm E.
-// The use of the multimap makes the complexity of this O(|I|log|I|), which could be reduced to O(|I|).
+// The use of the multimap makes the complexity of this O(|I|log|I|), which
+// could be reduced to O(|I|).
 template <class I_t>
-void thorup_E(std::multimap<unsigned int, unsigned int> &M, const I_t &I)
-{
-  typedef typename boost::graph_traits<I_t>::adjacency_iterator adjacency_iter_t;
-  typedef typename boost::property_map<I_t, boost::vertex_index_t>::type index_map;
+void thorup_E(std::multimap<unsigned int, unsigned int> &M, const I_t &I) {
+  typedef
+      typename boost::graph_traits<I_t>::adjacency_iterator adjacency_iter_t;
+  typedef
+      typename boost::property_map<I_t, boost::vertex_index_t>::type index_map;
   index_map index = boost::get(boost::vertex_index, I);
 
-  std::stack<std::pair<int, unsigned int> > s;
+  std::stack<std::pair<int, unsigned int>> s;
 
   M.clear();
 
   s.push(std::pair<int, unsigned int>(-1, boost::num_vertices(I)));
 
-  for (unsigned int i = 0; i < boost::num_vertices(I); i++)
-    {
-      unsigned int j = i;
-      adjacency_iter_t j_curr, j_end;
+  for (unsigned int i = 0; i < boost::num_vertices(I); i++) {
+    unsigned int j = i;
+    adjacency_iter_t j_curr, j_end;
 
-      for (boost::tie(j_curr, j_end) = boost::adjacent_vertices(i, I); j_curr != j_end; ++j_curr)
-        if (index[*j_curr] > j)
-          j = index[*j_curr];
+    for (boost::tie(j_curr, j_end) = boost::adjacent_vertices(i, I);
+         j_curr != j_end; ++j_curr)
+      if (index[*j_curr] > j)
+        j = index[*j_curr];
 
-      if (j == i)
-        continue;
+    if (j == i)
+      continue;
 
-      while (s.top().second <= i)
-        {
-          M.insert(std::pair<unsigned int, unsigned int>(s.top().second, s.top().first));
-          s.pop();
-        }
-
-      unsigned int i2 = i;
-      while (j >= s.top().second && s.top().second > i2)
-        {
-          i2 = s.top().first;
-          s.pop();
-        }
-
-      s.push(std::pair<int, unsigned int>(i2, j));
+    while (s.top().second <= i) {
+      M.insert(
+          std::pair<unsigned int, unsigned int>(s.top().second, s.top().first));
+      s.pop();
     }
-    
-    // Not in Thorup's paper, but without this the algorithm gives incorrect results.
-    while(s.size() > 1)
-    {
-        M.insert(std::pair<unsigned int, unsigned int>(s.top().second, s.top().first));
-        s.pop();
+
+    unsigned int i2 = i;
+    while (j >= s.top().second && s.top().second > i2) {
+      i2 = s.top().first;
+      s.pop();
     }
+
+    s.push(std::pair<int, unsigned int>(i2, j));
+  }
+
+  // Not in Thorup's paper, but without this the algorithm gives incorrect
+  // results.
+  while (s.size() > 1) {
+    M.insert(
+        std::pair<unsigned int, unsigned int>(s.top().second, s.top().first));
+    s.pop();
+  }
 }
 
 // Heuristically give an elimination ordering for a directed graph.
 // For a description of this, including algorithms D and E, see
-// Mikkel Thorup, "All Structured Programs have Small Tree-Width and Good Register Allocation", Appendix A.
-// The use of the multimap makes the complexity of this O(|I|log|I|), could be reduced to O(|I|).
+// Mikkel Thorup, "All Structured Programs have Small Tree-Width and Good
+// Register Allocation", Appendix A. The use of the multimap makes the
+// complexity of this O(|I|log|I|), could be reduced to O(|I|).
 template <class l_t, class G_t>
-void thorup_elimination_ordering(l_t &l, const G_t &G)
-{
-  // Should we do this? Or just use G as J? The Thorup paper seems unclear, it speaks of statements that contain jumps to other statements, but does it count as a jump, when they're just subsequent?
+void thorup_elimination_ordering(l_t &l, const G_t &G) {
+  // Should we do this? Or just use G as J? The Thorup paper seems unclear, it
+  // speaks of statements that contain jumps to other statements, but does it
+  // count as a jump, when they're just subsequent?
   boost::adjacency_list<boost::vecS, boost::vecS, boost::directedS> J;
-  boost::copy_graph(G, J, boost::vertex_copy(forget_properties()).edge_copy(forget_properties()));
+  boost::copy_graph(
+      G, J,
+      boost::vertex_copy(forget_properties()).edge_copy(forget_properties()));
   for (unsigned int i = 0; i < boost::num_vertices(J) - 1; i++)
     remove_edge(i, i + 1, J);
 
-  // Todo: Implement a graph adaptor for boost that allows to treat directed graphs as undirected graphs.
+  // Todo: Implement a graph adaptor for boost that allows to treat directed
+  // graphs as undirected graphs.
   boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> S;
   boost::copy_graph(J, S);
 
@@ -176,39 +185,37 @@ void thorup_elimination_ordering(l_t &l, const G_t &G)
   thorup_D(l, MJ, MS, num_vertices(J));
 }
 
-// Finds a (the newest) bag that contains all vertices in X in the tree decomposition T.
+// Finds a (the newest) bag that contains all vertices in X in the tree
+// decomposition T.
 template <class T_t>
-typename boost::graph_traits<T_t>::vertex_iterator find_bag(const std::set<unsigned int> &X, const T_t &T)
-{
+typename boost::graph_traits<T_t>::vertex_iterator
+find_bag(const std::set<unsigned int> &X, const T_t &T) {
   typedef typename boost::graph_traits<T_t>::vertex_iterator T_vertex_iter_t;
   typedef typename std::set<unsigned int>::const_iterator vertex_index_iter_t;
 
   T_vertex_iter_t t, t_end, t_found;
   vertex_index_iter_t v;
 
-  for (boost::tie(t, t_end) = vertices(T), t_found = t_end; t != t_end; ++t)
-    {
-      for (v = X.begin(); v != X.end(); ++v)
-        if (T[*t].bag.find(*v) == T[*t].bag.end())
-          break;
+  for (boost::tie(t, t_end) = vertices(T), t_found = t_end; t != t_end; ++t) {
+    for (v = X.begin(); v != X.end(); ++v)
+      if (T[*t].bag.find(*v) == T[*t].bag.end())
+        break;
 
-      if (v == X.end())
-        t_found = t;
-    }
+    if (v == X.end())
+      t_found = t;
+  }
 
   if (t_found == t_end) // Todo: Better error handling (throw exception?)
-    {
-      std::cerr << "find_bag() failed.\n";
-      std::cerr.flush();
-    }
+  {
+    std::cerr << "find_bag() failed.\n";
+    std::cerr.flush();
+  }
 
-  return(t_found);
+  return (t_found);
 }
 
 // Add edges to make the vertices in X a clique in G.
-template <class G_t>
-void make_clique(const std::set<unsigned int> &X , G_t &G)
-{
+template <class G_t> void make_clique(const std::set<unsigned int> &X, G_t &G) {
   std::set<unsigned int>::const_iterator n1, n2;
   for (n1 = X.begin(); n1 != X.end(); n1++)
     for (n2 = n1, ++n2; n2 != X.end(); ++n2)
@@ -216,19 +223,20 @@ void make_clique(const std::set<unsigned int> &X , G_t &G)
 }
 
 template <class T_t, class v_t, class G_t>
-void add_vertices_to_tree_decomposition(T_t &T, const v_t v, const v_t v_end, G_t &G, std::vector<bool> &active)
-{
+void add_vertices_to_tree_decomposition(T_t &T, const v_t v, const v_t v_end,
+                                        G_t &G, std::vector<bool> &active) {
   // Base case: Empty graph. Create an empty bag.
-  if (v == v_end)
-    {
-      boost::add_vertex(T);
-      return;
-    }
+  if (v == v_end) {
+    boost::add_vertex(T);
+    return;
+  }
 
   // Todo: A more elegant solution, e.g. using subgraphs or filtered graphs.
 
-  typedef typename boost::graph_traits<G_t>::adjacency_iterator adjacency_iter_t;
-  typedef typename boost::property_map<G_t, boost::vertex_index_t>::type index_map;
+  typedef
+      typename boost::graph_traits<G_t>::adjacency_iterator adjacency_iter_t;
+  typedef
+      typename boost::property_map<G_t, boost::vertex_index_t>::type index_map;
   index_map index = boost::get(boost::vertex_index, G);
 
   // Get the neigbours
@@ -256,14 +264,17 @@ void add_vertices_to_tree_decomposition(T_t &T, const v_t v, const v_t v_end, G_
 
 // Create a tree decomposition from en elimination ordering.
 template <class T_t, class G_t>
-void tree_decomposition_from_elimination_ordering(T_t &T, const std::list<unsigned int>& l, const G_t &G)
-{
+void tree_decomposition_from_elimination_ordering(
+    T_t &T, const std::list<unsigned int> &l, const G_t &G) {
   std::list<unsigned int>::const_reverse_iterator v, v_end;
   v = l.rbegin(), v_end = l.rend();
 
-  // Todo: Implement a graph adaptor for boost that allows to treat directed graphs as undirected graphs.
+  // Todo: Implement a graph adaptor for boost that allows to treat directed
+  // graphs as undirected graphs.
   boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> G_sym;
-  boost::copy_graph(G, G_sym, boost::vertex_copy(forget_properties()).edge_copy(forget_properties()));
+  boost::copy_graph(
+      G, G_sym,
+      boost::vertex_copy(forget_properties()).edge_copy(forget_properties()));
 
   std::vector<bool> active(boost::num_vertices(G), true);
 
@@ -271,158 +282,163 @@ void tree_decomposition_from_elimination_ordering(T_t &T, const std::list<unsign
 }
 
 template <class T_t, class G_t>
-void thorup_tree_decomposition(T_t &tree_decomposition, const G_t &cfg)
-{
+void thorup_tree_decomposition(T_t &tree_decomposition, const G_t &cfg) {
   std::list<unsigned int> elimination_ordering;
 
   thorup_elimination_ordering(elimination_ordering, cfg);
 
-  tree_decomposition_from_elimination_ordering(tree_decomposition, elimination_ordering, cfg);
+  tree_decomposition_from_elimination_ordering(tree_decomposition,
+                                               elimination_ordering, cfg);
 }
 
-// Ensure that all joins are at proper join nodes: Each node that has two children has the same bag as its children.
-// Complexity: Linear in the number of vertices of T.
+// Ensure that all joins are at proper join nodes: Each node that has two
+// children has the same bag as its children. Complexity: Linear in the number
+// of vertices of T.
 template <class T_t>
-void nicify_joins(T_t &T, typename boost::graph_traits<T_t>::vertex_descriptor t)
-{
-  typedef typename boost::graph_traits<T_t>::adjacency_iterator adjacency_iter_t;
+void nicify_joins(T_t &T,
+                  typename boost::graph_traits<T_t>::vertex_descriptor t) {
+  typedef
+      typename boost::graph_traits<T_t>::adjacency_iterator adjacency_iter_t;
 
   adjacency_iter_t c, c_end;
   typename boost::graph_traits<T_t>::vertex_descriptor c0, c1;
 
   boost::tie(c, c_end) = boost::adjacent_vertices(t, T);
 
-  switch (out_degree(t, T))
-    {
-    case 0:
-      return;
-    case 1:
-      nicify_joins(T, *c);
-      return;
-    case 2:
-      break;
-    default:
-      c0 = *c++;
-      c1 = *c;
-      typename boost::graph_traits<T_t>::vertex_descriptor d;
-      d = boost::add_vertex(T);
-      add_edge(d, c0, T);
-      add_edge(d, c1, T);
-      boost::remove_edge(t, c0, T);
-      boost::remove_edge(t, c1, T);
-      T[d].bag = T[t].bag;
-      boost::add_edge(t, d, T);
-      nicify_joins(T, t);
-      return;
-    }
+  switch (out_degree(t, T)) {
+  case 0:
+    return;
+  case 1:
+    nicify_joins(T, *c);
+    return;
+  case 2:
+    break;
+  default:
+    c0 = *c++;
+    c1 = *c;
+    typename boost::graph_traits<T_t>::vertex_descriptor d;
+    d = boost::add_vertex(T);
+    add_edge(d, c0, T);
+    add_edge(d, c1, T);
+    boost::remove_edge(t, c0, T);
+    boost::remove_edge(t, c1, T);
+    T[d].bag = T[t].bag;
+    boost::add_edge(t, d, T);
+    nicify_joins(T, t);
+    return;
+  }
 
   c0 = *c++;
   c1 = *c;
   nicify_joins(T, c0);
-  if (T[t].bag != T[c0].bag)
-    {
-      typename boost::graph_traits<T_t>::vertex_descriptor d;
-      d = boost::add_vertex(T);
-      boost::add_edge(d, c0, T);
-      boost::remove_edge(t, c0, T);
-      T[d].bag = T[t].bag;
-      boost::add_edge(t, d, T);
-    }
+  if (T[t].bag != T[c0].bag) {
+    typename boost::graph_traits<T_t>::vertex_descriptor d;
+    d = boost::add_vertex(T);
+    boost::add_edge(d, c0, T);
+    boost::remove_edge(t, c0, T);
+    T[d].bag = T[t].bag;
+    boost::add_edge(t, d, T);
+  }
   nicify_joins(T, c1);
-  if (T[t].bag != T[c1].bag)
-    {
-      typename boost::graph_traits<T_t>::vertex_descriptor d = boost::add_vertex(T);
-      boost::add_edge(d, c1, T);
-      boost::remove_edge(t, c1, T);
-      T[d].bag = T[t].bag;
-      boost::add_edge(t, d, T);
-    }
+  if (T[t].bag != T[c1].bag) {
+    typename boost::graph_traits<T_t>::vertex_descriptor d =
+        boost::add_vertex(T);
+    boost::add_edge(d, c1, T);
+    boost::remove_edge(t, c1, T);
+    T[d].bag = T[t].bag;
+    boost::add_edge(t, d, T);
+  }
 }
 
-// Ensure that all nodes' bags are either a subset or a superset of their successors'.
-// Complexity: Linear in the number of vertices of T.
+// Ensure that all nodes' bags are either a subset or a superset of their
+// successors'. Complexity: Linear in the number of vertices of T.
 template <class T_t>
-void nicify_diffs(T_t &T, typename boost::graph_traits<T_t>::vertex_descriptor t)
-{
-  typedef typename boost::graph_traits<T_t>::adjacency_iterator adjacency_iter_t;
+void nicify_diffs(T_t &T,
+                  typename boost::graph_traits<T_t>::vertex_descriptor t) {
+  typedef
+      typename boost::graph_traits<T_t>::adjacency_iterator adjacency_iter_t;
 
   adjacency_iter_t c, c_end;
   typename boost::graph_traits<T_t>::vertex_descriptor c0, c1;
 
   boost::tie(c, c_end) = adjacent_vertices(t, T);
 
-  switch (boost::out_degree(t, T))
-    {
-    case 0:
-      if (T[t].bag.size())
-        boost::add_edge(t, boost::add_vertex(T), T);
-      return;
-    case 1:
-      break;
-    case 2:
-      c0 = *c++;
-      c1 = *c;
-      nicify_diffs(T, c0);
-      nicify_diffs(T, c1);
-      return;
-    default:
-      std::cerr << "nicify_diffs error.\n";
-      return;
-    }
+  switch (boost::out_degree(t, T)) {
+  case 0:
+    if (T[t].bag.size())
+      boost::add_edge(t, boost::add_vertex(T), T);
+    return;
+  case 1:
+    break;
+  case 2:
+    c0 = *c++;
+    c1 = *c;
+    nicify_diffs(T, c0);
+    nicify_diffs(T, c1);
+    return;
+  default:
+    std::cerr << "nicify_diffs error.\n";
+    return;
+  }
 
   c0 = *c;
   nicify_diffs(T, c0);
 
-  if (std::includes(T[t].bag.begin(), T[t].bag.end(), T[c0].bag.begin(), T[c0].bag.end()) || std::includes(T[c0].bag.begin(), T[c0].bag.end(), T[t].bag.begin(), T[t].bag.end()))
+  if (std::includes(T[t].bag.begin(), T[t].bag.end(), T[c0].bag.begin(),
+                    T[c0].bag.end()) ||
+      std::includes(T[c0].bag.begin(), T[c0].bag.end(), T[t].bag.begin(),
+                    T[t].bag.end()))
     return;
 
   typename boost::graph_traits<T_t>::vertex_descriptor d = boost::add_vertex(T);
 
   boost::add_edge(d, c0, T);
   boost::remove_edge(t, c0, T);
-  std::set_intersection(T[t].bag.begin(), T[t].bag.end(), T[c0].bag.begin(), T[c0].bag.end(), std::inserter(T[d].bag, T[d].bag.begin()));
+  std::set_intersection(T[t].bag.begin(), T[t].bag.end(), T[c0].bag.begin(),
+                        T[c0].bag.end(),
+                        std::inserter(T[d].bag, T[d].bag.begin()));
   boost::add_edge(t, d, T);
 }
 
-// // Ensure that all nodes' bags' sizes differ by at most one to their successors'.
+// // Ensure that all nodes' bags' sizes differ by at most one to their
+// successors'.
 template <class T_t>
-void nicify_diffs_more(T_t &T, typename boost::graph_traits<T_t>::vertex_descriptor t)
-{
-  typedef typename boost::graph_traits<T_t>::adjacency_iterator adjacency_iter_t;
+void nicify_diffs_more(T_t &T,
+                       typename boost::graph_traits<T_t>::vertex_descriptor t) {
+  typedef
+      typename boost::graph_traits<T_t>::adjacency_iterator adjacency_iter_t;
 
   adjacency_iter_t c, c_end;
   typename boost::graph_traits<T_t>::vertex_descriptor c0, c1;
 
   boost::tie(c, c_end) = adjacent_vertices(t, T);
 
-  switch (boost::out_degree(t, T))
-    {
-    case 0:
-      if (T[t].bag.size() > 1)
-        {
-          typename boost::graph_traits<T_t>::vertex_descriptor d = boost::add_vertex(T);
-          T[d].bag = T[t].bag;
-          T[d].bag.erase(T[d].bag.begin());
-          T[d].weight = 0;
-          boost::add_edge(t, d, T);
-          nicify_diffs_more(T, t);
-        }
-      else
-        T[t].weight = 0;
-      return;
-    case 1:
-      break;
-    case 2:
-      c0 = *c++;
-      c1 = *c;
-      nicify_diffs_more(T, c0);
-      nicify_diffs_more(T, c1);
-      T[t].weight = std::min(T[c0].weight, T[c1].weight) + 1;
-      return;
-    default:
-      std::cerr << "nicify_diffs_more error.\n";
-      return;
-    }
+  switch (boost::out_degree(t, T)) {
+  case 0:
+    if (T[t].bag.size() > 1) {
+      typename boost::graph_traits<T_t>::vertex_descriptor d =
+          boost::add_vertex(T);
+      T[d].bag = T[t].bag;
+      T[d].bag.erase(T[d].bag.begin());
+      T[d].weight = 0;
+      boost::add_edge(t, d, T);
+      nicify_diffs_more(T, t);
+    } else
+      T[t].weight = 0;
+    return;
+  case 1:
+    break;
+  case 2:
+    c0 = *c++;
+    c1 = *c;
+    nicify_diffs_more(T, c0);
+    nicify_diffs_more(T, c1);
+    T[t].weight = std::min(T[c0].weight, T[c1].weight) + 1;
+    return;
+  default:
+    std::cerr << "nicify_diffs_more error.\n";
+    return;
+  }
 
   c0 = *c;
 
@@ -430,19 +446,21 @@ void nicify_diffs_more(T_t &T, typename boost::graph_traits<T_t>::vertex_descrip
   t_size = T[t].bag.size();
   c0_size = T[c0].bag.size();
 
-  if (t_size <= c0_size + 1 && t_size + 1 >= c0_size)
-    {
-      nicify_diffs_more(T, c0);
-      T[t].weight = T[c0].weight;
-      return;
-    }
+  if (t_size <= c0_size + 1 && t_size + 1 >= c0_size) {
+    nicify_diffs_more(T, c0);
+    T[t].weight = T[c0].weight;
+    return;
+  }
 
   typename boost::graph_traits<T_t>::vertex_descriptor d = add_vertex(T);
   boost::add_edge(d, c0, T);
   boost::remove_edge(t, c0, T);
   T[d].bag = T[t_size > c0_size ? t : c0].bag;
   std::set<unsigned int>::iterator i;
-  for (i = T[d].bag.begin(); T[t_size < c0_size ? t : c0].bag.find(*i) != T[t_size < c0_size ? t : c0].bag.end(); ++i);
+  for (i = T[d].bag.begin(); T[t_size < c0_size ? t : c0].bag.find(*i) !=
+                             T[t_size < c0_size ? t : c0].bag.end();
+       ++i)
+    ;
   T[d].bag.erase(i);
   boost::add_edge(t, d, T);
 
@@ -452,30 +470,27 @@ void nicify_diffs_more(T_t &T, typename boost::graph_traits<T_t>::vertex_descrip
 // Find a root of an acyclic graph T
 // Complexity: Linear in the number of vertices of T.
 template <class T_t>
-typename boost::graph_traits<T_t>::vertex_descriptor find_root(T_t &T)
-{
+typename boost::graph_traits<T_t>::vertex_descriptor find_root(T_t &T) {
   typename boost::graph_traits<T_t>::vertex_descriptor t;
   typename boost::graph_traits<T_t>::in_edge_iterator e, e_end;
 
   t = *(boost::vertices(T).first);
 
-  for (boost::tie(e, e_end) = boost::in_edges(t, T); e != e_end; boost::tie(e, e_end) = boost::in_edges(t, T))
+  for (boost::tie(e, e_end) = boost::in_edges(t, T); e != e_end;
+       boost::tie(e, e_end) = boost::in_edges(t, T))
     t = boost::source(*e, T);
 
-  return(t);
+  return (t);
 }
 
 // Transform a tree decomposition into a nice tree decomposition.
-template <class T_t>
-void nicify(T_t &T)
-{
+template <class T_t> void nicify(T_t &T) {
   typename boost::graph_traits<T_t>::vertex_descriptor t;
 
   t = find_root(T);
 
   // Ensure we have an empty bag at the root.
-  if(T[t].bag.size())
-  {
+  if (T[t].bag.size()) {
     typename boost::graph_traits<T_t>::vertex_descriptor d = t;
     t = add_vertex(T);
     boost::add_edge(t, d, T);
@@ -485,4 +500,3 @@ void nicify(T_t &T)
   nicify_diffs(T, t);
   nicify_diffs_more(T, t);
 }
-

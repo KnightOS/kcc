@@ -28,30 +28,26 @@
 #ifndef SDCCLOOP_H
 #define SDCCLOOP_H 1
 
-typedef struct region
-  {
+typedef struct region {
 
-    unsigned int merged:1;
-    unsigned int visited:1;
-    eBBlock *entry;		/* entry Block */
-    int containsLoops;		/* contains other loops */
-    set *regBlocks;		/* set of all blocks */
-    set *exits;			/* set of exits */
-  }
-region;
+  unsigned int merged : 1;
+  unsigned int visited : 1;
+  eBBlock *entry;    /* entry Block */
+  int containsLoops; /* contains other loops */
+  set *regBlocks;    /* set of all blocks */
+  set *exits;        /* set of exits */
+} region;
 
-typedef struct induction
-  {
+typedef struct induction {
 
-    operand *sym;
-    operand *asym;
-    unsigned int op;
-    long cval;
-    iCode *ic;
-  }
-induction;
+  operand *sym;
+  operand *asym;
+  unsigned int op;
+  long cval;
+  iCode *ic;
+} induction;
 
-int loopOptimizations (hTab *, ebbIndex *);
-hTab *createLoopRegions (ebbIndex *);
+int loopOptimizations(hTab *, ebbIndex *);
+hTab *createLoopRegions(ebbIndex *);
 
 #endif

@@ -24,18 +24,16 @@
   borut.razem@siol.net
 */
 
-
 #ifndef __DBUF_H
 #define __DBUF_H
 
 #include <stddef.h>
 
 struct dbuf_s {
-  size_t alloc;   /* size of allocated buffer in bytes */
-  size_t len;     /* actual length of the buffer in bytes */
-  void *buf;      /* pointer to the buffer, allocated on heap */
+  size_t alloc; /* size of allocated buffer in bytes */
+  size_t len;   /* actual length of the buffer in bytes */
+  void *buf;    /* pointer to the buffer, allocated on heap */
 };
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -44,7 +42,7 @@ extern "C" {
 int _dbuf_expand(struct dbuf_s *dbuf, size_t size);
 struct dbuf_s *dbuf_new(size_t size);
 int dbuf_init(struct dbuf_s *dbuf, size_t size);
-int dbuf_is_initialized (struct dbuf_s *dbuf);
+int dbuf_is_initialized(struct dbuf_s *dbuf);
 int dbuf_set_length(struct dbuf_s *dbuf, size_t size);
 int dbuf_append(struct dbuf_s *dbuf, const void *buf, size_t len);
 const void *dbuf_get_buf(struct dbuf_s *dbuf);
@@ -61,4 +59,4 @@ void dbuf_free(const void *buf);
 }
 #endif
 
-#endif  /* __DBUF_H */
+#endif /* __DBUF_H */

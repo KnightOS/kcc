@@ -19,7 +19,7 @@
 #define EXEC_PREFIX "/usr/local"
 
 /* Define to 1 if you have the <boost/graph/adjacency_list.hpp> header file.
-   */
+ */
 #define HAVE_BOOST_GRAPH_ADJACENCY_LIST_HPP 1
 
 /* Define to 1 if you have the <endian.h> header file. */

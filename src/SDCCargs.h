@@ -44,22 +44,21 @@ enum cl_opt_arg_type {
       * An easy way to maintain help for the options.
       * Automatic support for setting flags on simple options.
 */
-typedef struct
-  {
-    /** The short option character e.g. 'h' for -h.  0 for none. */
-    char shortOpt;
-    /** Long option e.g. "--help".  Includes the -- prefix.  NULL for
-        none. */
-    const char *longOpt;
-    /** Pointer to an int that will be incremented every time the
-        option is encountered.  May be NULL.
-    */
-    void *pparameter;
-    /** Help text to go with this option.  May be NULL. */
-    const char *help;
-    /** Option argument type */
-    enum cl_opt_arg_type arg_type;
-  } OPTION;
+typedef struct {
+  /** The short option character e.g. 'h' for -h.  0 for none. */
+  char shortOpt;
+  /** Long option e.g. "--help".  Includes the -- prefix.  NULL for
+      none. */
+  const char *longOpt;
+  /** Pointer to an int that will be incremented every time the
+      option is encountered.  May be NULL.
+  */
+  void *pparameter;
+  /** Help text to go with this option.  May be NULL. */
+  const char *help;
+  /** Option argument type */
+  enum cl_opt_arg_type arg_type;
+} OPTION;
 
 char *getStringArg(const char *szStart, char **argv, int *pi, int argc);
 int getIntArg(const char *szStart, char **argv, int *pi, int argc);

@@ -25,48 +25,41 @@
 
 #include "SDCCicode.h"
 
-#define initGenLineElement()  memset (&genLine.lineElement, 0, sizeof (lineElem_t))
-#define labelKey2num(key)     ((key) + 100)
+#define initGenLineElement() memset(&genLine.lineElement, 0, sizeof(lineElem_t))
+#define labelKey2num(key) ((key) + 100)
 
 /* can be inherited by each port */
-typedef struct asmLineNodeBase
-{
+typedef struct asmLineNodeBase {
   int size;
   bitVect *regsRead;
   bitVect *regsWritten;
-}
-asmLineNodeBase;
+} asmLineNodeBase;
 
-typedef struct lineElem_s
-{
+typedef struct lineElem_s {
   char *line;
   iCode *ic;
-  unsigned int isInline:1;
-  unsigned int isComment:1;
-  unsigned int isDebug:1;
-  unsigned int isLabel:1;
-  unsigned int visited:1;
+  unsigned int isInline : 1;
+  unsigned int isComment : 1;
+  unsigned int isDebug : 1;
+  unsigned int isLabel : 1;
+  unsigned int visited : 1;
   asmLineNodeBase *aln;
-}
-lineElem_t;
+} lineElem_t;
 
-typedef struct lineNode_s
-{
+typedef struct lineNode_s {
   char *line;
   iCode *ic;
-  unsigned int isInline:1;
-  unsigned int isComment:1;
-  unsigned int isDebug:1;
-  unsigned int isLabel:1;
-  unsigned int visited:1;
+  unsigned int isInline : 1;
+  unsigned int isComment : 1;
+  unsigned int isDebug : 1;
+  unsigned int isLabel : 1;
+  unsigned int visited : 1;
   asmLineNodeBase *aln;
   struct lineNode_s *prev;
   struct lineNode_s *next;
-}
-lineNode;
+} lineNode;
 
-typedef struct genLine_s
-{
+typedef struct genLine_s {
   /* double linked list of lines */
   lineNode *lineHead;
   lineNode *lineCurr;
@@ -81,17 +74,17 @@ extern genLine_t genLine;
 extern "C" {
 #endif
 
-lineNode *newLineNode (const char *line);
-lineNode *connectLine (lineNode * pl1, lineNode * pl2);
-void destroy_line_list (void);
-const char *format_opcode (const char *inst, const char *fmt, va_list ap);
-void emit_raw (const char *line);
-void va_emitcode (const char *inst, const char *fmt, va_list ap);
-void emitcode (const char *inst, const char *fmt, ...);
-void emitLabel (symbol * tlbl);
-void genInline (iCode * ic);
-void printLine (lineNode *, struct dbuf_s *);
-iCode *ifxForOp (operand *op, const iCode *ic);
+lineNode *newLineNode(const char *line);
+lineNode *connectLine(lineNode *pl1, lineNode *pl2);
+void destroy_line_list(void);
+const char *format_opcode(const char *inst, const char *fmt, va_list ap);
+void emit_raw(const char *line);
+void va_emitcode(const char *inst, const char *fmt, va_list ap);
+void emitcode(const char *inst, const char *fmt, ...);
+void emitLabel(symbol *tlbl);
+void genInline(iCode *ic);
+void printLine(lineNode *, struct dbuf_s *);
+iCode *ifxForOp(operand *op, const iCode *ic);
 
 #ifdef __cplusplus
 }
