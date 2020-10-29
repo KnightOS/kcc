@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <setjmp.h>
 #include <stdio.h>
+#include <strings.h>
 
 #ifndef __cplusplus
 # ifndef _MSC_VER

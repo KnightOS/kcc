@@ -581,7 +581,7 @@ FBYNAME (labelRefCountChange)
                 {
                   fprintf (stderr, "*** internal error: label %s may not get"
                           " negative refCount in %s peephole.\n",
-                           label, __FUNCTION__);
+                           label, __func__);
                 }
             }
             else
@@ -594,7 +594,7 @@ FBYNAME (labelRefCountChange)
         {
           fprintf (stderr, "*** internal error: var %d not bound"
                    " in peephole %s rule.\n",
-                   varNumber, __FUNCTION__);
+                   varNumber, __func__);
         }
     }
   else

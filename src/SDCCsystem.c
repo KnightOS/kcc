@@ -28,12 +28,13 @@
 #include <windows.h>
 #undef TRUE
 #undef FALSE
-#include <stdio.h>
 #include <io.h>
 #include <fcntl.h>
 #else
 #include <unistd.h>
 #endif
+
+#include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 #include "SDCCglobl.h"

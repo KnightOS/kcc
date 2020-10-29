@@ -5,7 +5,7 @@ project(kcc C CXX)
 set(CMAKE_CXX_FLAGS_DEBUG "-g -Og")
 set(CMAKE_C_FLAGS_DEBUG "-g -Og")
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -pedantic -std=c99")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -pedantic -std=c99 -D_POSIX_C_SOURCE=200809")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -std=c++11")
 
 if (NOT DEFINED KCC_DEFAULT_PREPROCESSOR)
