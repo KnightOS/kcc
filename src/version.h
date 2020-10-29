@@ -5,7 +5,7 @@
 
 #define KCC_VERSION_HI 4
 #define KCC_VERSION_LO 0
-#define KCC_VERSION_P 2
-#define KCC_VERSION_STR "4.0.2"
+#define KCC_VERSION_P 4
+#define KCC_VERSION_STR "4.0.4"
 
 #endif
