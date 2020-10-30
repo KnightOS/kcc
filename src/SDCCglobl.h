@@ -317,6 +317,7 @@ struct options {
                        studio */
   int use_stdout;   /* send errors to stdout instead of stderr */
   int no_std_crt0;  /* for the z80/gbz80 do not link default crt0.o*/
+  int std_c95;      /* enable C95 keywords/constructs */
   int std_c99;      /* enable C99 keywords/constructs */
   int std_c11;      /* enable C11 keywords/constructs */
   int std_sdcc;     /* enable SDCC extensions to C */
