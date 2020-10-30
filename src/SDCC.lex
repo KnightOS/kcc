@@ -27,9 +27,24 @@ D       [0-9]
 L       [a-zA-Z_$]
 H       [a-fA-F0-9]
 E       [Ee][+-]?{D}+
+BE      [Pp][+-]?{D}+
 FS      (f|F|l|L)
 IS      (u|U|l|L)*
+CP      (L|u|U|u8)
 HASH    (#|%:)
+UCN     \\u{H}{4}|\\U{H}{8}
+
+UTF8PART1       \xc2[\xa8\xaa\xad\xaf\xb2-\xb5\xb7-\xba\xbc-\xbe]|\xc3[\x80-\x96\x98-\xb6\xb8-\xbf]|[\xc4-\xcb\xce-\xdf][\x80-\xbf]|\xcd[\xb0-\xbf]
+UTF8PART2       \xe0[\xa0-\xbf][\x80-\xbf]|\xe1([\x80-\x99\x9b-\x9f\xa1-\xb6\xb8-\xbf][\x80-\xbf]|\x9a[\x81-\xbf]|\xa0[\x80-\x8d\x8f-\xbf])
+UTF8PART3       \xe2(\x80[\x8b-\x8d\xaa-\xae\xbf]|\x81[\x80\x94\xa0-\xbf]|\x82[\x80-\xbf]|[\x83\x86][\x80-\x8f]|[\x84-\x85\x92-\x93\xb0-\xb7\xba-\xbf][\x80-\xbf]|\x91[\xa0-\xbf]|\x9d[\xb6-\xbf]|\x9e[\x80-\x93])
+UTF8PART4       \xe3(\x80[\x84-\x87\xa1-\xaf\xb1-\xbf]|[\x81-\xbf][\x80-\xbf])|[\xe4-\xec][\x80-\xbf][\x80-\xbf]|\xed[\x80-\x9f][\x80-\xbf]
+UTF8PART5       \xef([\xa4-\xb3\xb5-\xb6\xba-\xbe][\x80-\xbf]|\xb4[\x80-\xbd]|\xb7[\x80-\x8f]|[\xb7-\xb8][\xb0-\xbf]|\xb8[\x80-\x9f]|\xb9[\x80-\x84\x87-\xbf]|\xbf[\x80-\xbd])
+UTF8PART6       \xf0([\x90-\x9e\xa0-\xae\xb0-\xbe][\x80-\xbf][\x80-\xbf]|[\x9f\xaf\xbf]([\x80-\xbe][\x80-\xbf]|\xbf[\x80-\xbd]))
+UTF8PART7       [\xf1-\xf2]([\x80-\x8e\x90-\x9e\xa0-\xae\xb0-\xbe][\x80-\xbf][\x80-\xbf]|[\x8f\x9f\xaf\xbf]([\x80-\xbe][\x80-\xbf]|\xbf[\x80-\xbd]))
+UTF8PART8       \xf3([\x80-\x8e\x90-\x9e\xa0-\xae][\x80-\xbf][\x80-\xbf]|[\x8f\x9f\xaf]([\x80-\xbe][\x80-\xbf]|\xbf[\x80-\xbd]))
+
+UTF8IDF1ST      {UTF8PART1}|{UTF8PART2}|{UTF8PART3}|{UTF8PART4}|{UTF8PART5}|{UTF8PART6}|{UTF8PART7}|{UTF8PART8}
+UTF8IDF         {UTF8IDF1ST}|\xcc[\x80-\xbf]|\xcd[\x80-\xaf]|\xe2\x83[\x90-\xbf]|\xef\xb8[\xa0-\xaf]|\xe1\xb7[\x80-\xbf]
 
 %{
 #include <stdio.h>
@@ -38,6 +53,15 @@ HASH    (#|%:)
 #include "common.h"
 #include "newalloc.h"
 #include "dbuf_string.h"
+/* Some systems, noteably Mac OS, do not have uchar.h. */
+/* If it is missing, use our own type definitions. */
+#ifdef HAVE_UCHAR_H
+#include <uchar.h>
+#else
+#include <stdint.h>
+#define char16_t uint_least16_t
+#define char32_t uint_least32_t
+#endif
 /* Needed by flex 2.5.4 on NetBSD 5.0.1 sparc64 */
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -63,7 +87,7 @@ static struct dbuf_s asmbuff; /* reusable _asm buffer */
 
 /* forward declarations */
 int yyerror (char *s);
-static const char *stringLiteral (void);
+static const char *stringLiteral (char);
 static void count (void);
 static void count_char (int);
 static int process_pragma (const char *);
@@ -169,10 +193,21 @@ static void checkCurrFile (const char *s);
 "__addressmod"          { count (); return ADDRESSMOD; }
 "_Static_assert"        { count (); return STATIC_ASSERT; }
 "_Alignas"              { count (); return ALIGNAS; }
-{L}({L}|{D})*           {
+({L}|{UCN}|{UTF8IDF1ST})({L}|{D}|{UCN}|{UTF8IDF})*  {
   if (!options.dollars_in_ident && strchr (yytext, '$'))
     {
       yyerror ("stray '$' in program");
+    }
+  if (!options.std_c95)
+    {
+      bool ucn_check = strchr (yytext, '\\');
+      for (char *ptr = yytext; *ptr && !ucn_check; ptr++)
+        {
+          if ((unsigned char) *ptr >= 0x80)
+            ucn_check = true;
+        }
+      if (ucn_check)
+        werror (W_UNIVERSAL_C95);
     }
   count ();
   return check_type();
@@ -186,14 +221,18 @@ static void checkCurrFile (const char *s);
   yylval.val = constVal (yytext);
   return CONSTANT;
 }
-0[xX]{H}+{IS}?          { count (); yylval.val = constVal (yytext); return CONSTANT; }
-0[0-7]*{IS}?            { count (); yylval.val = constVal (yytext); return CONSTANT; }
-[1-9]{D}*{IS}?          { count (); yylval.val = constVal (yytext); return CONSTANT; }
-'(\\.|[^\\'])+'         { count (); yylval.val = charVal (yytext); return CONSTANT; /* ' make syntax highliter happy */ }
-{D}+{E}{FS}?            { count (); yylval.val = constFloatVal (yytext); return CONSTANT; }
-{D}*"."{D}+({E})?{FS}?  { count (); yylval.val = constFloatVal (yytext); return CONSTANT; }
-{D}+"."{D}*({E})?{FS}?  { count (); yylval.val = constFloatVal (yytext); return CONSTANT; }
-\"                      { count (); yylval.yystr = stringLiteral (); return STRING_LITERAL; }
+0[xX]{H}+{IS}?               { count (); yylval.val = constVal (yytext); return CONSTANT; }
+0[0-7]*{IS}?                 { count (); yylval.val = constVal (yytext); return CONSTANT; }
+[1-9]{D}*{IS}?               { count (); yylval.val = constVal (yytext); return CONSTANT; }
+{CP}?'(\\.|[^\\'])+'         { count (); yylval.val = charVal (yytext); return CONSTANT; /* ' make syntax highlighter happy */ }
+{D}+{E}{FS}?                 { count (); yylval.val = constFloatVal (yytext); return CONSTANT; }
+{D}*"."{D}+({E})?{FS}?       { count (); yylval.val = constFloatVal (yytext); return CONSTANT; }
+{D}+"."{D}*({E})?{FS}?       { count (); yylval.val = constFloatVal (yytext); return CONSTANT; }
+\"                           { count (); yylval.yystr = stringLiteral (0); return STRING_LITERAL; }
+"L\""                        { count (); if (!options.std_c95) werror(E_WCHAR_STRING_C95); yylval.yystr = stringLiteral ('L'); return STRING_LITERAL; }
+"u8\""                       { count (); if (!options.std_c11) werror(E_WCHAR_STRING_C11); yylval.yystr = stringLiteral (0); return STRING_LITERAL; }
+"u\""                        { count (); if (!options.std_c11) werror(E_WCHAR_STRING_C11); yylval.yystr = stringLiteral ('u'); return STRING_LITERAL; }
+"U\""                        { count (); if (!options.std_c11) werror(E_WCHAR_STRING_C11); yylval.yystr = stringLiteral ('U'); return STRING_LITERAL; }
 ">>="                   { count (); yylval.yyint = RIGHT_ASSIGN; return RIGHT_ASSIGN; }
 "<<="                   { count (); yylval.yyint = LEFT_ASSIGN; return LEFT_ASSIGN; }
 "+="                    { count (); yylval.yyint = ADD_ASSIGN; return ADD_ASSIGN; }
@@ -358,19 +397,126 @@ count (void)
     count_char(*p);
 }
 
+static bool
+is_UCN_valid_in_idf (char32_t c, bool is_first)
+{
+  bool result = false;
+
+  // D.1 Ranges of characters allowed
+  if ((c == 0x00A8) || (c == 0x00AA) || (c == 0x00AD) || (c == 0x00AF)
+      || (c >= 0x00B2 && c <= 0x00B5) || (c >= 0x00B7 && c <= 0x00BA)
+      || (c >= 0x00BC && c <= 0x00BE) || (c >= 0x00C0 && c <= 0x00D6)
+      || (c >= 0x00D8 && c <= 0x00F6) || (c >= 0x00F8 && c <= 0x00FF)
+      || (c >= 0x0100 && c <= 0x167F) || (c >= 0x1681 && c <= 0x180D)
+      || (c >= 0x180F && c <= 0x1FFF) || (c >= 0x200B && c <= 0x200D)
+      || (c >= 0x202A && c <= 0x202E) || (c >= 0x203F && c <= 0x2040)
+      || (c == 0x2054) || (c >= 0x2060 && c <= 0x206F)
+      || (c >= 0x2070 && c <= 0x218F) || (c >= 0x2460 && c <= 0x24FF)
+      || (c >= 0x2776 && c <= 0x2793) || (c >= 0x2C00 && c <= 0x2DFF)
+      || (c >= 0x2E80 && c <= 0x2FFF) || (c >= 0x3004 && c <= 0x3007)
+      || (c >= 0x3021 && c <= 0x302F) || (c >= 0x3031 && c <= 0x303F)
+      || (c >= 0x3040 && c <= 0xD7FF) || (c >= 0xF900 && c <= 0xFD3D)
+      || (c >= 0xFD40 && c <= 0xFDCF) || (c >= 0xFDF0 && c <= 0xFE44)
+      || (c >= 0xFE47 && c <= 0xFFFD) || (c >= 0x10000 && c <= 0x1FFFD)
+      || (c >= 0x20000 && c <= 0x2FFFD) || (c >= 0x30000 && c <= 0x3FFFD)
+      || (c >= 0x40000 && c <= 0x4FFFD) || (c >= 0x50000 && c <= 0x5FFFD)
+      || (c >= 0x60000 && c <= 0x6FFFD) || (c >= 0x70000 && c <= 0x7FFFD)
+      || (c >= 0x80000 && c <= 0x8FFFD) || (c >= 0x90000 && c <= 0x9FFFD)
+      || (c >= 0xA0000 && c <= 0xAFFFD) || (c >= 0xB0000 && c <= 0xBFFFD)
+      || (c >= 0xC0000 && c <= 0xCFFFD) || (c >= 0xD0000 && c <= 0xDFFFD)
+      || (c >= 0xE0000 && c <= 0xEFFFD))
+    {
+      result = true;
+      // D.2 Ranges of characters disallowed initially
+      if (is_first && ((c >= 0x0300 && c <= 0x036F) || (c >= 0x1DC0 && c <= 0x1DFF)
+          || (c >= 0x20D0 && c <= 0x20FF) || (c >= 0xFE20 && c <= 0xFE2F)))
+        {
+          result = false;
+        }
+    }
+
+  return result;
+}
+
+static void
+decode_UCNs_to_utf8 (char *dest, const char *src, size_t n)
+{
+  bool is_first = true;
+  const char *s = src;
+  size_t chars_left = n - 1;
+
+  while (*src)
+    {
+      if (*src == '\\')
+        {
+          ++src;
+          char32_t c = 0;
+          if (*src == 'u')
+            {
+              c = universalEscape(&src, 4);
+            }
+          else  // U - the lexer only accepts \u and \U escapes in identifiers
+            {
+              c = universalEscape(&src, 8);
+            }
+          if (!is_UCN_valid_in_idf(c, is_first))
+            {
+              werror(E_INVALID_UNIVERSAL, s);
+            }
+
+          if (c >= 0x10000)
+            {
+              if (chars_left < 4)
+                break;
+              *(dest++) = 0xf0 | (c >> 18);
+              *(dest++) = 0x80 | ((c >> 12) & 0x3f);
+              *(dest++) = 0x80 | ((c >> 6) & 0x3f);
+              *(dest++) = 0x80 | (c & 0x3f);
+              chars_left -= 4;
+            }
+          else if (c >= 0x800)
+            {
+              if (chars_left < 3)
+                break;
+              *(dest++) = 0xe0 | (c >> 12);
+              *(dest++) = 0x80 | ((c >> 6) & 0x3f);
+              *(dest++) = 0x80 | (c & 0x3f);
+              chars_left -= 3;
+            }
+          else  // ASCII characters already eliminated by validity check => no further check here
+            {
+              if (chars_left < 2)
+                break;
+              *(dest++) = 0xc0 | (c >> 6);
+              *(dest++) = 0x80 | (c & 0x3f);
+              chars_left -= 2;
+            }
+        }
+      else
+        {
+          if (chars_left < 1)
+            break;
+          *(dest++) = *(src++);
+          chars_left--;
+        }
+      is_first = false;
+    }
+  *dest = '\0';
+}
+
 static int
 check_type (void)
 {
-  symbol *sym = findSym(SymbolTab, NULL, yytext);
+  decode_UCNs_to_utf8(yylval.yychar, yytext, SDCC_NAME_MAX);
 
-  strncpyz(yylval.yychar, yytext, SDCC_NAME_MAX);
+  symbol *sym = findSym(SymbolTab, NULL, yylval.yychar);
 
   /* check if it is in the table as a typedef */
   if (!ignoreTypedefType && sym && IS_SPEC (sym->etype)
-      && SPEC_TYPEDEF (sym->etype) && findSym(TypedefTab, NULL, yytext))
+      && SPEC_TYPEDEF (sym->etype) && findSym(TypedefTab, NULL, yylval.yychar))
     return (TYPE_NAME);
   /* check if it is a named address space */
-  else if (findSym (AddrspaceTab, NULL, yytext))
+  else if (findSym (AddrspaceTab, NULL, yylval.yychar))
     return (ADDRSPACE_NAME);
   else
     return(IDENTIFIER);
@@ -382,7 +528,7 @@ check_type (void)
  */
 
 static const char *
-stringLiteral (void)
+stringLiteral (char enc)
 {
 #define STR_BUF_CHUNCK_LEN  1024
   int ch;
@@ -393,7 +539,19 @@ stringLiteral (void)
   else
     dbuf_set_length(&dbuf, 0);
 
-  dbuf_append_char(&dbuf, '"');
+  switch (enc)
+    {
+    case 'u': // UTF-16
+      dbuf_append_str(&dbuf, "u\"");
+      break;
+    case 'L':
+    case 'U': // UTF-32
+      enc = 'U';
+      dbuf_append_str(&dbuf, "U\"");
+      break;
+    default: // UTF-8 or whatever else the source character set is encoded in
+      dbuf_append_char(&dbuf, '"');
+    }
 
   /* put into the buffer till we hit the first \" */
 
@@ -503,6 +661,51 @@ stringLiteral (void)
           if (ch == EOF)
             goto out;
 
+          if (ch == 'u' || ch == 'U' || ch == 'L') /* Could be an utf-16 or utf-32 wide string literal prefix */
+            {
+              int ch2;
+
+              if (!(options.std_c11 || options.std_c95 && ch == 'L'))
+                {
+                  werror (ch == 'L' ? E_WCHAR_STRING_C95 : E_WCHAR_STRING_C11);
+                  unput(ch);
+                  goto out;
+                }
+
+              ch2 = input();
+              if (ch2 != '"')
+                unput (ch2);
+              else /* It is an utf-16 or utf-32 wide string literal prefix */
+                {
+                  if (!enc)
+                    {
+                      dbuf_prepend_char(&dbuf, ch == 'L' ? 'U' : ch);
+                      enc = ch;
+                    }
+                  count_char(ch);
+                  count_char(ch2);
+                  break;
+                }
+            }
+
+          if (ch == 'u') /* Could be an utf-8 wide string literal prefix */
+            {
+              ch = input();
+              if (ch != '8')
+                {
+                  unput(ch);
+                  unput('u');
+                  goto out;
+                }
+              ch = input();
+              if (ch != '"')
+                {
+                  unput(ch);
+                  unput('8');
+                  unput('u');
+                  goto out;
+                }
+            }
           if (ch != '"')
             {
               unput(ch);
