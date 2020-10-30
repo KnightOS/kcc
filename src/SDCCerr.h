@@ -248,8 +248,9 @@ enum {
   W_DEPRECATED_OPTION = 201, /* deprecated compiler option '%s' */
   E_BAD_DESIGNATOR = 202,    /* Bad designated initializer */
   W_DUPLICATE_INIT = 203,    /* duplicate initializer */
-  E_INVALID_UNIVERSAL = 204, /* incomplete universal character name %s. */
-  W_UNIVERSAL_C99 = 205,  /* universal character names are only valid in C99 */
+  E_INVALID_UNIVERSAL = 204, /* invalid universal character name %s. */
+  W_UNIVERSAL_C95 =
+      205, /* universal character names are only valid in C95 or later */
   E_SHORTLONG = 206,      /* Invalid combination of short / long */
   E_INTEGERSUFFIX = 207,  /* Invalid integer suffix */
   E_AUTO_ADDRSPACE = 208, /* named address space for auto var */
@@ -266,6 +267,10 @@ enum {
                              should not have happened, but can be handled */
   W_UNRECOGNIZED_ASM =
       218, /* unrecognized asm instruction in peephole optimizer */
+  E_WCHAR_CONST_C95 =
+      231, /* character constant of type wchar_t requires ISO C 95 or later */
+  E_WCHAR_STRING_C95 =
+      233, /* wide character string literal requires ISO C 95 or later */
 
   /* don't touch this! */
   NUMBER_OF_ERROR_MESSAGES /* Number of error messages */

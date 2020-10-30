@@ -426,9 +426,9 @@ struct {
     {W_DUPLICATE_INIT, ERROR_LEVEL_WARNING,
      "Duplicate initializer at position %d; ignoring previous.", 0},
     {E_INVALID_UNIVERSAL, ERROR_LEVEL_ERROR,
-     "incomplete universal character name \\%s.", 0},
-    {W_UNIVERSAL_C99, ERROR_LEVEL_WARNING,
-     "universal character names are only valid in C99", 0},
+     "invalid universal character name \\%s.", 0},
+    {W_UNIVERSAL_C95, ERROR_LEVEL_WARNING,
+     "universal character names are only valid in C95 or later", 0},
     {E_SHORTLONG, ERROR_LEVEL_ERROR, "invalid combination of short / long", 0},
     {E_INTEGERSUFFIX, ERROR_LEVEL_ERROR,
      "Invalid integer suffix '%s' in integer constant", 0},
@@ -451,6 +451,10 @@ struct {
      0},
     {W_UNRECOGNIZED_ASM, ERROR_LEVEL_INFO,
      "%s() failed to parse line node, assuming %d bytes\n'%s'\n", 0},
+    {E_WCHAR_CONST_C95, ERROR_LEVEL_ERROR,
+     "character constant of type wchar_t requires C95 or later", 0},
+    {E_WCHAR_STRING_C95, ERROR_LEVEL_ERROR,
+     "wide character string of type L requires C95 or later", 0},
 };
 
 /* -------------------------------------------------------------------------------
