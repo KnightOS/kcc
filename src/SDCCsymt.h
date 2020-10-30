@@ -178,8 +178,8 @@ typedef struct specifier {
     TYPE_TARGET_ULONG v_ulong; /* 4 bytes: unsigned long constant value   */
     TYPE_TARGET_LONGLONG v_longlong; /* 8 bytes: long long constant value */
     TYPE_TARGET_ULONGLONG
-        v_ulonglong; /* 8 bytes: unsigned long long const value */
-    double v_float;  /*          floating point constant value  */
+    v_ulonglong;    /* 8 bytes: unsigned long long const value */
+    double v_float; /*          floating point constant value  */
     TYPE_TARGET_ULONG v_fixed16x16; /* 4 bytes: fixed point constant value */
     struct symbol *v_enum; /* ptr to enum_list if enum==1             */
   } const_val;

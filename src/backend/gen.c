@@ -27,7 +27,7 @@ philipp@informatik.uni-frankfurt.de)
 #include <stdlib.h>
 #include <string.h>
 
-#include "dbuf_string.h"
+#include "../util/dbuf_string.h"
 #include "gen.h"
 #include "z80.h"
 

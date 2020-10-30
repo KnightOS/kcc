@@ -26,6 +26,9 @@
 #ifndef SDCCBBLOCK_H
 #define SDCCBBLOCK_H 1
 
+#include "SDCCicode.h"
+#include "SDCCsymt.h"
+
 /* definition of a basic block */
 typedef struct eBBlock {
   int dfnum;                 /* depth first number */

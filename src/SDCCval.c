@@ -1065,13 +1065,12 @@ value *constVal(const char *s) {
         SPEC_LONGLONG(val->type) = 1;
         werror(W_LONGLONG_LITERAL, p);
       }
-    } else {             /* >=0 */
-      if (dval > 0xff || /* check if we have to promote to int */
-          SPEC_USIGN(
-              val->type)) { /* If it's unsigned, we can't use unsigned char.
-                               After an integral promotion it will be a signed
-                               int; this certainly isn't what the programer
-                               wants */
+    } else {                       /* >=0 */
+      if (dval > 0xff ||           /* check if we have to promote to int */
+          SPEC_USIGN(val->type)) { /* If it's unsigned, we can't use unsigned
+                                      char. After an integral promotion it will
+                                      be a signed int; this certainly isn't what
+                                      the programer wants */
         SPEC_NOUN(val->type) = V_INT;
       } else { /* store char's always as unsigned; this helps other
                   optimizations */

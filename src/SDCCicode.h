@@ -21,11 +21,13 @@
    You are forbidden to forbid anyone else to use, share and improve
    what you give them.   Help stamp out software-hoarding!
 -------------------------------------------------------------------------*/
-#include "SDCCbitv.h"
-#include "SDCCset.h"
 
 #ifndef SDCCICODE_H
 #define SDCCICODE_H 1
+
+#include "SDCCast.h"
+#include "SDCCbitv.h"
+#include "SDCCset.h"
 
 extern symbol *returnLabel;
 extern symbol *entryLabel;

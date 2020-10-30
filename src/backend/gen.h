@@ -21,6 +21,10 @@
 #ifndef Z80GEN_H
 #define Z80GEN_H
 
+#include "../SDCCicode.h"
+#include "../SDCCval.h"
+#include "ralloc.h"
+
 typedef enum {
   AOP_INVALID,
   /* Is a literal */

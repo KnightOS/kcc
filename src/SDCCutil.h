@@ -27,8 +27,10 @@
 
 #include "SDCChasht.h"
 #include "SDCCset.h"
+#include "sdccconf.h"
 #include "util/dbuf.h"
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 
 /** Given an array of name, value string pairs creates a new hash
