@@ -18,9 +18,9 @@
   Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 -------------------------------------------------------------------------*/
 
-#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <string.h>
 
 #ifndef COMMON_H
@@ -38,28 +38,28 @@
 extern "C" {
 #endif
 
-#include "SDCCBBlock.h"
-#include "SDCCasm.h"
-#include "SDCCast.h"
-#include "SDCCbitv.h"
-#include "SDCCcflow.h"
-#include "SDCCcse.h"
-#include "SDCCdflow.h"
 #include "SDCCglobl.h"
-#include "SDCCglue.h"
+#include "SDCCmem.h"
+#include "SDCCast.h"
+#include "SDCCy.h"
 #include "SDCChasht.h"
+#include "SDCCbitv.h"
+#include "SDCCset.h"
 #include "SDCCicode.h"
 #include "SDCClabel.h"
+#include "SDCCBBlock.h"
 #include "SDCCloop.h"
+#include "SDCCcse.h"
+#include "SDCCcflow.h"
+#include "SDCCdflow.h"
 #include "SDCClrange.h"
-#include "SDCCmem.h"
-#include "SDCCopt.h"
-#include "SDCCpeeph.h"
 #include "SDCCptropt.h"
-#include "SDCCset.h"
-#include "SDCCsystem.h"
+#include "SDCCopt.h"
+#include "SDCCglue.h"
+#include "SDCCpeeph.h"
 #include "SDCCutil.h"
-#include "SDCCy.h"
+#include "SDCCasm.h"
+#include "SDCCsystem.h"
 
 #include "port.h"
 

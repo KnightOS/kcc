@@ -382,7 +382,6 @@ static DEFSETFUNC(hasNonPtrUse) {
 static int loopInvariants(region *theLoop, ebbIndex *ebbi) {
   eBBlock **ebbs = ebbi->dfOrder;
   int count = ebbi->count;
-  eBBlock *lBlock;
   set *lInvars = NULL;
 
   int change = 0;
@@ -395,11 +394,10 @@ static int loopInvariants(region *theLoop, ebbIndex *ebbi) {
 
   /* we will do the elimination for those blocks       */
   /* in the loop that dominate all exits from the loop */
-  for (lBlock = setFirstItem(theLoop->regBlocks); lBlock;
+  for (eBBlock *lBlock = setFirstItem(theLoop->regBlocks); lBlock;
        lBlock = setNextItem(theLoop->regBlocks)) {
     iCode *ic;
     int domsAllExits;
-    int i;
 
     /* mark the dominates all exits flag */
     domsAllExits = (applyToSet(theLoop->exits, dominatedBy, lBlock) ==
@@ -460,6 +458,9 @@ static int loopInvariants(region *theLoop, ebbIndex *ebbi) {
           (IC_RIGHT(ic) && isOperandVolatile(IC_RIGHT(ic), TRUE)))
         continue;
 
+      if (POINTER_GET(ic) && IS_VOLATILE(operandType(IC_LEFT(ic))->next))
+        continue;
+
       lin = rin = 0;
 
       /* special case */
@@ -508,7 +509,7 @@ static int loopInvariants(region *theLoop, ebbIndex *ebbi) {
           /* for successors for all exits */
           for (sBlock = setFirstItem(theLoop->exits); sBlock;
                sBlock = setNextItem(theLoop->exits)) {
-            for (i = 0; i < count; ebbs[i++]->visited = 0)
+            for (int i = 0; i < count; ebbs[i++]->visited = 0)
               ;
             lBlock->visited = 1;
             if (applyToSet(sBlock->succList, isDefAlive, ic))
@@ -601,10 +602,9 @@ static int loopInvariants(region *theLoop, ebbIndex *ebbi) {
   if (lInvars) {
     eBBlock *preHdr = theLoop->entry->preHeader;
     iCode *icFirst = NULL, *icLast = NULL;
-    cseDef *cdp;
 
     /* create an iCode chain from it */
-    for (cdp = setFirstItem(lInvars); cdp; cdp = setNextItem(lInvars)) {
+    for (cseDef *cdp = setFirstItem(lInvars); cdp; cdp = setNextItem(lInvars)) {
       /* maintain data flow .. add it to the */
       /* ldefs defSet & outExprs of the preheader  */
       preHdr->defSet = bitVectSetBit(preHdr->defSet, cdp->diCode->key);
@@ -830,6 +830,11 @@ static void addPostLoopBlock(region *loopReg, ebbIndex *ebbi, iCode *ic) {
           /* insert goto to old predecessor of eblock */
           newic = newiCodeLabelGoto(GOTO, eblock->entryLabel);
           addiCodeToeBBlock(ebpi, newic, NULL);
+          /* Make sure the GOTO has a target */
+          if (eblock->sch->op != LABEL) {
+            newic = newiCodeLabelGoto(LABEL, eblock->entryLabel);
+            addiCodeToeBBlock(eblock, newic, eblock->sch);
+          }
           break; /* got it, only one is possible */
         }
       }
@@ -929,7 +934,7 @@ static set *basicInduction(region *loopReg, ebbIndex *ebbi) {
       /* Only consider variables with integral type. */
       /* (2004/12/06 - EEP - ds390 fails regression tests unless */
       /* pointers are also considered for induction (due to some */
-      /* register alloctaion bugs). Remove !IS_PTR clause when */
+      /* register allocation bugs). Remove !IS_PTR clause when */
       /* that gets fixed) */
       optype = operandType(IC_RIGHT(ic));
       if (!IS_INTEGRAL(optype) && !IS_PTR(optype))
@@ -1016,6 +1021,7 @@ static set *basicInduction(region *loopReg, ebbIndex *ebbi) {
            but it's a nice to see a clean dumploop now. */
         remiCodeFromeBBlock(lBlock, ic);
         /* clear the definition */
+        bitVectUnSetBit(OP_DEFS(IC_RESULT(ic)), ic->key);
         bitVectUnSetBit(lBlock->defSet, ic->key);
         ic = saveic;
       } else
@@ -1098,10 +1104,8 @@ static int loopInduction(region *loopReg, ebbIndex *ebbi) {
 
       /* ask port for size not worth if native instruction
          exist for multiply & divide */
-      if (getSize(operandType(IC_LEFT(ic))) <=
-              (unsigned long)port->support.muldiv ||
-          getSize(operandType(IC_RIGHT(ic))) <=
-              (unsigned long)port->support.muldiv)
+      if (port->hasNativeMulFor(ic, operandType(IC_LEFT(ic)),
+                                operandType(IC_RIGHT(ic))))
         continue;
 
       /* if this is a division then the remainder should be zero
@@ -1132,6 +1136,7 @@ static int loopInduction(region *loopReg, ebbIndex *ebbi) {
       ic->op = '=';
       IC_LEFT(ic) = NULL;
       IC_RIGHT(ic) = IC_RESULT(ic);
+      bitVectUnSetBit(OP_USES(aSym), ic->key);
 
       /* Insert an update of the induction variable just before */
       /* the update of the basic induction variable. */

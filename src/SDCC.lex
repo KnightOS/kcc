@@ -71,10 +71,12 @@ UTF8IDF         {UTF8IDF1ST}|\xcc[\x80-\xbf]|\xcd[\x80-\xaf]|\xe2\x83[\x90-\xbf]
 # include <io.h>
 #endif
 
-#define TKEYWORD(token) return (isTargetKeyword(yytext) ? token :\
+#define TKEYWORD(token) return (isTargetKeyword(yytext) ? (token) :\
                                 check_type())
 
-#define TKEYWORD99(token) return (options.std_c99 ? token : check_type())
+#define TKEYWORD99(token) return (options.std_c99 ? (token) : check_type())
+
+#define TKEYWORD2X(token) return (options.std_c2x ? (token) : check_type())
 
 int column = 0;         /* current column */
 
@@ -92,7 +94,6 @@ static void count (void);
 static void count_char (int);
 static int process_pragma (const char *);
 static int check_type (void);
-static int isTargetKeyword (const char *s);
 static void checkCurrFile (const char *s);
 %}
 
@@ -124,6 +125,7 @@ static void checkCurrFile (const char *s);
 "__at"                  { count (); TKEYWORD (AT); }
 "auto"                  { count (); return AUTO; }
 "__bit"                 { count (); TKEYWORD (BIT); }
+"bool"                  { count (); TKEYWORD2X (SD_BOOL); }
 "_Bool"                 { count (); TKEYWORD99 (SD_BOOL); }
 "break"                 { count (); return BREAK; }
 "case"                  { count (); return CASE; }
@@ -152,10 +154,10 @@ static void checkCurrFile (const char *s);
 "__interrupt"           { count (); TKEYWORD (INTERRUPT); }
 "__nonbanked"           { count (); TKEYWORD (NONBANKED); }
 "__banked"              { count (); TKEYWORD (BANKED); }
+"__trap"                { count (); TKEYWORD (TRAP); }
 "long"                  { count (); return SD_LONG; }
 "__near"                { count (); TKEYWORD (DATA); }
 "__pdata"               { count (); TKEYWORD (PDATA); }
-"__reentrant"           { count (); TKEYWORD (REENTRANT); }
 "__shadowregs"          { count (); TKEYWORD (SHADOWREGS); }
 "__wparam"              { count (); TKEYWORD (SD_WPARAM); }
 "register"              { count (); return REGISTER; }
@@ -167,12 +169,14 @@ static void checkCurrFile (const char *s);
 "short"                 { count (); return SD_SHORT; }
 "signed"                { count (); return SIGNED; }
 "sizeof"                { count (); return SIZEOF; }
+"alignof"               { count (); TKEYWORD2X (ALIGNOF); }
 "_Alignof"              { count (); return ALIGNOF; }
 "__builtin_offsetof"    { count (); return OFFSETOF; }
 "__sram"                { count (); TKEYWORD (XDATA); }
 "static"                { count (); return STATIC; }
 "struct"                { count (); return STRUCT; }
 "switch"                { count (); return SWITCH; }
+"_Thread_local"         { count (); return THREAD_LOCAL; }
 "typedef"               { count (); return TYPEDEF; }
 "union"                 { count (); return UNION; }
 "unsigned"              { count (); return UNSIGNED; }
@@ -189,10 +193,18 @@ static void checkCurrFile (const char *s);
 "inline"                { count (); TKEYWORD99 (INLINE); }
 "_Noreturn"             { count (); return NORETURN;}
 "restrict"              { count (); TKEYWORD99 (RESTRICT); }
-"__smallc"              { count (); return SMALLC; }
+"__smallc"              { count (); TKEYWORD (SMALLC); }
+"__preserves_regs"      { count (); return PRESERVES_REGS; }
+"__z88dk_fastcall"      { count (); TKEYWORD (Z88DK_FASTCALL); }
+"__z88dk_callee"        { count (); TKEYWORD (Z88DK_CALLEE); }
+"__z88dk_shortcall"     { count (); return Z88DK_SHORTCALL; }
+"__z88dk_params_offset" { count (); return Z88DK_PARAMS_OFFSET; }
 "__addressmod"          { count (); return ADDRESSMOD; }
+"static_assert"         { count (); TKEYWORD2X (STATIC_ASSERT); }
 "_Static_assert"        { count (); return STATIC_ASSERT; }
+"alignas"               { count (); TKEYWORD2X (ALIGNAS); }
 "_Alignas"              { count (); return ALIGNAS; }
+"_Generic"              { count (); return GENERIC; }
 ({L}|{UCN}|{UTF8IDF1ST})({L}|{D}|{UCN}|{UTF8IDF})*  {
   if (!options.dollars_in_ident && strchr (yytext, '$'))
     {
@@ -213,21 +225,22 @@ static void checkCurrFile (const char *s);
   return check_type();
 }
 0[bB]{B}+{IS}?          {
-  if (!options.std_sdcc)
-    {
-      yyerror ("binary (0b) constants are not allowed in ISO C");
-    }
+  if (!options.std_sdcc && !options.std_c2x)
+    werror (W_BINARY_INTEGER_CONSTANT_C23);
   count ();
-  yylval.val = constVal (yytext);
+  yylval.val = constIntVal (yytext);
   return CONSTANT;
 }
-0[xX]{H}+{IS}?               { count (); yylval.val = constVal (yytext); return CONSTANT; }
-0[0-7]*{IS}?                 { count (); yylval.val = constVal (yytext); return CONSTANT; }
-[1-9]{D}*{IS}?               { count (); yylval.val = constVal (yytext); return CONSTANT; }
+0[xX]{H}+{IS}?               { count (); yylval.val = constIntVal (yytext); return CONSTANT; }
+0[0-7]*{IS}?                 { count (); yylval.val = constIntVal (yytext); return CONSTANT; }
+[1-9]{D}*{IS}?               { count (); yylval.val = constIntVal (yytext); return CONSTANT; }
 {CP}?'(\\.|[^\\'])+'         { count (); yylval.val = charVal (yytext); return CONSTANT; /* ' make syntax highlighter happy */ }
 {D}+{E}{FS}?                 { count (); yylval.val = constFloatVal (yytext); return CONSTANT; }
 {D}*"."{D}+({E})?{FS}?       { count (); yylval.val = constFloatVal (yytext); return CONSTANT; }
 {D}+"."{D}*({E})?{FS}?       { count (); yylval.val = constFloatVal (yytext); return CONSTANT; }
+0[xX]{H}+{BE}{FS}?           { count (); if (!options.std_c99) werror(E_HEXFLOAT_C99); yylval.val = constFloatVal (yytext); return CONSTANT; }
+0[xX]{H}*"."{H}+({BE})?{FS}? { count (); if (!options.std_c99) werror(E_HEXFLOAT_C99); yylval.val = constFloatVal (yytext); return CONSTANT; }
+0[xX]{H}+"."{H}*({BE})?{FS}? { count (); if (!options.std_c99) werror(E_HEXFLOAT_C99); yylval.val = constFloatVal (yytext); return CONSTANT; }
 \"                           { count (); yylval.yystr = stringLiteral (0); return STRING_LITERAL; }
 "L\""                        { count (); if (!options.std_c95) werror(E_WCHAR_STRING_C95); yylval.yystr = stringLiteral ('L'); return STRING_LITERAL; }
 "u8\""                       { count (); if (!options.std_c11) werror(E_WCHAR_STRING_C11); yylval.yystr = stringLiteral (0); return STRING_LITERAL; }
@@ -278,6 +291,7 @@ static void checkCurrFile (const char *s);
 "^"                     { count (); return '^'; }
 "|"                     { count (); return '|'; }
 "?"                     { count (); return '?'; }
+"::"                    { count (); return ATTRIBCOLON; }
 ^{HASH}pragma.*         { count (); process_pragma (yytext); }
 ^{HASH}.*               { count (); checkCurrFile (yytext); }
 
@@ -731,7 +745,6 @@ enum {
    P_NOINDUCTION,
    P_NOINVARIANT,
    P_STACKAUTO,
-   P_NOJTBOUND,
    P_OVERLAY_,     /* I had a strange conflict with P_OVERLAY while */
                    /* cross-compiling for MINGW32 with gcc 3.2 */
    P_NOOVERLAY,
@@ -748,6 +761,7 @@ enum {
    P_STD_C89,
    P_STD_C99,
    P_STD_C11,
+   P_STD_C2X,
    P_STD_SDCC89,
    P_STD_SDCC99,
    P_CODESEG,
@@ -932,17 +946,6 @@ doPragma (int id, const char *name, const char *cp)
       options.stackAuto = 1;
       break;
 
-    case P_NOJTBOUND:
-      cp = get_pragma_token(cp, &token);
-      if (TOKEN_EOL != token.type)
-        {
-          err = 1;
-          break;
-        }
-
-      optimize.noJTabBoundary = 1;
-      break;
-
     case P_NOGCSE:
       cp = get_pragma_token(cp, &token);
       if (TOKEN_EOL != token.type)
@@ -1093,6 +1096,7 @@ doPragma (int id, const char *name, const char *cp)
 
       options.std_c99 = 0;
       options.std_c11 = 0;
+      options.std_c2x = 0;
       options.std_sdcc = 0;
       break;
 
@@ -1105,6 +1109,8 @@ doPragma (int id, const char *name, const char *cp)
         }
 
       options.std_c99 = 1;
+      options.std_c11 = 0;
+      options.std_c2x = 0;
       options.std_sdcc = 0;
       break;
 
@@ -1118,6 +1124,21 @@ doPragma (int id, const char *name, const char *cp)
 
       options.std_c99 = 1;
       options.std_c11 = 1;
+      options.std_c2x = 0;
+      options.std_sdcc = 0;
+      break;
+
+    case P_STD_C2X:
+      cp = get_pragma_token(cp, &token);
+      if (TOKEN_EOL != token.type)
+        {
+          err = 1;
+          break;
+        }
+
+      options.std_c99 = 1;
+      options.std_c11 = 1;
+      options.std_c2x = 1;
       options.std_sdcc = 0;
       break;
 
@@ -1131,6 +1152,7 @@ doPragma (int id, const char *name, const char *cp)
 
       options.std_c99 = 0;
       options.std_c11 = 0;
+      options.std_c2x = 0;
       options.std_sdcc = 1;
       break;
 
@@ -1144,6 +1166,7 @@ doPragma (int id, const char *name, const char *cp)
 
       options.std_c99 = 1;
       options.std_c11 = 0;
+      options.std_c2x = 0;
       options.std_sdcc = 1;
       break;
 
@@ -1199,7 +1222,6 @@ static struct pragma_s pragma_tbl[] = {
   { "noinvariant",       P_NOINVARIANT,     0, doPragma },
   { "noloopreverse",     P_LOOPREV,         0, doPragma },
   { "stackauto",         P_STACKAUTO,       0, doPragma },
-  { "nojtbound",         P_NOJTBOUND,       0, doPragma },
   { "nogcse",            P_NOGCSE,          0, doPragma },
   { "overlay",           P_OVERLAY_,        0, doPragma },
   { "nooverlay",         P_NOOVERLAY,       0, doPragma },
@@ -1214,6 +1236,7 @@ static struct pragma_s pragma_tbl[] = {
   { "std_c89",           P_STD_C89,         0, doPragma },
   { "std_c99",           P_STD_C99,         0, doPragma },
   { "std_c11",           P_STD_C11,         0, doPragma },
+  { "std_c2x",           P_STD_C2X,         0, doPragma },
   { "std_sdcc89",        P_STD_SDCC89,      0, doPragma },
   { "std_sdcc99",        P_STD_SDCC99,      0, doPragma },
   { "codeseg",           P_CODESEG,         0, doPragma },
@@ -1287,41 +1310,6 @@ process_pragma (const char *s)
       werror(W_UNKNOWN_PRAGMA, s);
       return 0;
     }
-}
-
-/* will return 1 if the string is a part
-   of a target specific keyword */
-static int
-isTargetKeyword (const char *s)
-{
-  int i;
-
-  if (port->keywords == NULL)
-    return 0;
-
-  if (s[0] == '_' && s[1] == '_')
-    {
-      /* Keywords in the port's array have either 0 or 1 underscore, */
-      /* so skip over the appropriate number of chars when comparing */
-      for (i = 0 ; port->keywords[i] ; i++ )
-        {
-          if (port->keywords[i][0] == '_' &&
-              strcmp(port->keywords[i],s+1) == 0)
-            return 1;
-          else if (strcmp(port->keywords[i],s+2) == 0)
-            return 1;
-        }
-    }
-  else
-    {
-      for (i = 0 ; port->keywords[i] ; i++ )
-        {
-          if (strcmp(port->keywords[i],s) == 0)
-            return 1;
-        }
-    }
-
-  return 0;
 }
 
 int

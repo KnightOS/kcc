@@ -71,7 +71,7 @@ void create_cfg_naddr(cfg_t &cfg, iCode *start_ic, ebbIndex *ebbi) {
 
 int switchAddressSpacesOptimally(iCode *ic, ebbIndex *ebbi) {
   cfg_t control_flow_graph;
-  tree_dec_naddr_t tree_decomposition;
+  tree_dec_t tree_decomposition;
   std::map<naddrspace_t, const symbol *> addrspaces;
 
   create_cfg_naddr(control_flow_graph, ic, ebbi);
@@ -80,8 +80,10 @@ int switchAddressSpacesOptimally(iCode *ic, ebbIndex *ebbi) {
   if (options.dump_graphs)
     dump_cfg_naddr(control_flow_graph);
 
-  thorup_tree_decomposition(tree_decomposition, control_flow_graph);
-  nicify(tree_decomposition);
+  get_nice_tree_decomposition(tree_decomposition, control_flow_graph);
+
+  if (options.dump_graphs)
+    dump_tree_decomposition_naddr(tree_decomposition);
 
   return (tree_dec_address_switch(tree_decomposition, control_flow_graph,
                                   addrspaces));

@@ -50,7 +50,7 @@ static iCode *findPointerGetSet(iCode *sic, operand *op) {
   return NULL;
 }
 
-static int pattern1(iCode *sic) {
+static int pattern1(iCode *sic, eBBlock *ebb) {
   /* this is what we do. look for sequences like
 
      iTempX := _SOME_POINTER_;
@@ -97,12 +97,14 @@ static int pattern1(iCode *sic) {
   /* and put them after the pointer get/set icode */
   if ((st->next = pgs->next))
     st->next->prev = st;
+  if (!st->next)
+    ebb->ech = st;
   pgs->next = sh;
   sh->prev = pgs;
   return 1;
 }
 
-static int pattern2(iCode *sic) {
+static int pattern2(iCode *sic, eBBlock *ebb) {
   /* this is what we do. look for sequences like
 
      iTempX := _SOME_POINTER_;
@@ -161,6 +163,8 @@ static int pattern2(iCode *sic) {
   /* and put them after the pointer get/set icode */
   if ((st->next = pgs->next))
     st->next->prev = st;
+  if (!st->next)
+    ebb->ech = st;
   pgs->next = sh;
   sh->prev = pgs;
   return 1;
@@ -170,10 +174,10 @@ static int pattern2(iCode *sic) {
 /* ptrPostIncDecOpts - will do some pointer post increment optimizations */
 /*                     this will help register allocation amongst others */
 /*-----------------------------------------------------------------------*/
-void ptrPostIncDecOpt(iCode *sic) {
-  if (pattern1(sic))
+void ptrPostIncDecOpt(iCode *sic, eBBlock *ebb) {
+  if (pattern1(sic, ebb))
     return;
-  pattern2(sic);
+  pattern2(sic, ebb);
 }
 
 /*-----------------------------------------------------------------------*/

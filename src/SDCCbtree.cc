@@ -16,16 +16,13 @@
 // along with this program; if not, write to the Free Software
 // Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
+#include <iostream>
 #include <map>
 #include <set>
 
 #include <boost/graph/adjacency_list.hpp>
 
 #include "common.h"
-
-#ifdef HAVE_STX_BTREE_MAP_H
-#include <stx/btree_map.h>
-#endif
 
 extern "C" {
 #include "SDCCbtree.h"
@@ -36,13 +33,9 @@ extern "C" {
 typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS,
                               std::pair<std::set<symbol *>, int>>
     btree_t;
-#ifdef HAVE_STX_BTREE_MAP_H
-typedef stx::btree_map<int, btree_t::vertex_descriptor> bmap_t;
-typedef stx::btree_map<btree_t::vertex_descriptor, int> bmaprev_t;
-#else
+
 typedef std::map<int, btree_t::vertex_descriptor> bmap_t;
 typedef std::map<btree_t::vertex_descriptor, int> bmaprev_t;
-#endif
 
 static btree_t btree;
 static bmap_t bmap;
@@ -163,6 +156,9 @@ void btree_alloc(void) {
   btree_alloc_subtree(0, 0, 0, &ssize);
 
   if (currFunc) {
+#ifdef BTREE_DEBUG
+    std::cout << "btree stack allocation used total of " << ssize << " bytes\n";
+#endif
     currFunc->stack += ssize;
     SPEC_STAK(currFunc->etype) += ssize;
   }

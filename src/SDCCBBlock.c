@@ -29,21 +29,15 @@
 int eBBNum = 0;
 set *graphEdges = NULL; /* list of edges in this flow graph */
 
-struct _dumpFiles dumpFiles[] = {{DUMP_RAW0, ".dumpraw0", NULL},
-                                 {DUMP_RAW1, ".dumpraw1", NULL},
-                                 {DUMP_CSE, ".dumpcse", NULL},
-                                 {DUMP_DFLOW, ".dumpdflow", NULL},
-                                 {DUMP_GCSE, ".dumpgcse", NULL},
-                                 {DUMP_DEADCODE, ".dumpdeadcode", NULL},
-                                 {DUMP_LOOP, ".dumploop", NULL},
-                                 {DUMP_LOOPG, ".dumploopg", NULL},
-                                 {DUMP_LOOPD, ".dumploopd", NULL},
-                                 {DUMP_RANGE, ".dumprange", NULL},
-                                 {DUMP_PACK, ".dumppack", NULL},
-                                 {DUMP_RASSGN, ".dumprassgn", NULL},
-                                 {DUMP_LRANGE, ".dumplrange", NULL},
-                                 {DUMP_LOSPRE, ".dumplospre", NULL},
-                                 {0, NULL, NULL}};
+struct _dumpFiles dumpFiles[] = {
+    {DUMP_RAW0, ".dumpraw0", NULL},     {DUMP_RAW1, ".dumpraw1", NULL},
+    {DUMP_CSE, ".dumpcse", NULL},       {DUMP_DFLOW, ".dumpdflow", NULL},
+    {DUMP_GCSE, ".dumpgcse", NULL},     {DUMP_DEADCODE, ".dumpdeadcode", NULL},
+    {DUMP_LOOP, ".dumploop", NULL},     {DUMP_LOOPG, ".dumploopg", NULL},
+    {DUMP_LOOPD, ".dumploopd", NULL},   {DUMP_RANGE, ".dumprange", NULL},
+    {DUMP_PACK, ".dumppack", NULL},     {DUMP_RASSGN, ".dumprassgn", NULL},
+    {DUMP_LRANGE, ".dumplrange", NULL}, {DUMP_LOSPRE, ".dumplospre", NULL},
+    {DUMP_CUSTOM, ".dumpcustom", NULL}, {0, NULL, NULL}};
 
 /*-----------------------------------------------------------------*/
 /* printEntryLabel - prints entry label of a ebblock               */
@@ -111,7 +105,8 @@ FILE *createDumpFile(int id) {
 #endif
     dbuf_append_str(&dumpFileName, dumpFilesPtr->ext);
     if (!(dumpFilesPtr->filePtr = fopen(dbuf_c_str(&dumpFileName), "w"))) {
-      werror(E_FILE_OPEN_ERR, dbuf_c_str(&dumpFileName));
+      werror(E_OUTPUT_FILE_OPEN_ERR, dbuf_c_str(&dumpFileName),
+             strerror(errno));
       dbuf_destroy(&dumpFileName);
       exit(1);
     }
@@ -195,9 +190,11 @@ void dumpEbbsToFileExt(int id, ebbIndex *ebbi) {
     fprintf(
         of,
         "\n----------------------------------------------------------------\n");
-    fprintf(of, "Basic Block %s (df:%d bb:%d lvl:%d): loopDepth=%d%s%s%s\n",
+    fprintf(of,
+            "Basic Block %s (df:%d bb:%d lvl:%ld:%ld): loopDepth=%d%s%s%s\n",
             ebbs[i]->entryLabel->name, ebbs[i]->dfnum, ebbs[i]->bbnum,
-            ebbs[i]->entryLabel->level, ebbs[i]->depth,
+            ebbs[i]->entryLabel->level / LEVEL_UNIT,
+            ebbs[i]->entryLabel->level % LEVEL_UNIT, ebbs[i]->depth,
             ebbs[i]->noPath ? " noPath" : "",
             ebbs[i]->partOfLoop ? " partOfLoop" : "",
             ebbs[i]->isLastInLoop ? " isLastInLoop" : "");
@@ -356,7 +353,7 @@ eBBlock *iCode2eBBlock(iCode *ic) {
 /*-----------------------------------------------------------------*/
 /* eBBWithEntryLabel - finds the basic block with the entry label  */
 /*-----------------------------------------------------------------*/
-eBBlock *eBBWithEntryLabel(ebbIndex *ebbi, symbol *eLabel) {
+eBBlock *eBBWithEntryLabel(ebbIndex *ebbi, const symbol *eLabel) {
   eBBlock **ebbs = ebbi->bbOrder;
   int count = ebbi->count;
   int i;
@@ -682,6 +679,9 @@ void replaceLabel(eBBlock *ebp, symbol *fromLbl, symbol *toLbl) {
       else if (isSymbolEqual(IC_FALSE(ic), fromLbl))
         IC_FALSE(ic) = toLbl;
       break;
+
+    case JUMPTABLE:
+      replaceSetItem(IC_JTLABELS(ic), fromLbl, toLbl);
     }
   }
 
@@ -700,8 +700,9 @@ iCode *iCodeFromeBBlock(eBBlock **ebbs, int count) {
     if (ebbs[i]->sch == NULL)
       continue;
 
-    if (ebbs[i]->noPath && (ebbs[i]->entryLabel != entryLabel &&
-                            ebbs[i]->entryLabel != returnLabel)) {
+    if (ebbs[i]->noPath && optimize.label4 &&
+        (ebbs[i]->entryLabel != entryLabel &&
+         ebbs[i]->entryLabel != returnLabel)) {
       iCode *ic = NULL;
       bool foundNonlabel = 0;
       ic = ebbs[i]->sch;
@@ -767,4 +768,23 @@ int otherPathsPresent(eBBlock **ebbs, eBBlock *this) {
     return 0;
   else
     return 1;
+}
+
+/*-----------------------------------------------------------------*/
+/* freeBBlockData - Deallocate data structures associated with     */
+/*      the current blocks. They will all be recomputed if the     */
+/*      iCode chain is divided into blocks again later.            */
+/*-----------------------------------------------------------------*/
+void freeeBBlockData(ebbIndex *ebbi) {
+  int i;
+  eBBlock **ebbs = ebbi->bbOrder;
+
+  for (i = 0; i < ebbi->count; i++) {
+    deleteSet(&ebbs[i]->succList);
+    deleteSet(&ebbs[i]->predList);
+    freeBitVect(ebbs[i]->succVect);
+    freeBitVect(ebbs[i]->domVect);
+
+    freeCSEdata(ebbs[i]);
+  }
 }

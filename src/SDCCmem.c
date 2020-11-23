@@ -85,7 +85,7 @@ memmap *allocMap(char rspace,      /* sfr space                   */
     exit(1);
   }
 
-  memset(map, ZERO, sizeof(memmap));
+  memset(map, 0, sizeof(memmap));
   map->regsp = rspace;
   map->fmap = farmap;
   map->paged = paged;
@@ -353,7 +353,7 @@ void initMem() {
   eeprom = allocMap(0, 1, 0, 0, 0, 0, 0, REG_NAME, 'K', EEPPOINTER);
 
   /* the unknown map */
-  generic = allocMap(1, 0, 0, 1, 1, 0, 0, REG_NAME, ' ', GPOINTER);
+  generic = allocMap(0, 0, 0, 0, 0, 0, 0, DATA_NAME, ' ', GPOINTER);
 }
 
 /*-----------------------------------------------------------------*/
@@ -362,23 +362,23 @@ void initMem() {
 void allocIntoSeg(symbol *sym) {
   memmap *segment;
 
-  if (SPEC_ADDRSPACE(sym->etype)) {
+  const symbol *symbolspace = getAddrspace(sym->type);
+
+  if (symbolspace) {
     namedspacemap *nm;
     for (nm = namedspacemaps; nm; nm = nm->next)
-      if (!strcmp(nm->name, SPEC_ADDRSPACE(sym->etype)->name))
+      if (!strcmp(nm->name, symbolspace->name))
         break;
 
     if (!nm) {
       nm = Safe_alloc(sizeof(namedspacemap));
-      nm->name = Safe_alloc(strlen(SPEC_ADDRSPACE(sym->etype)->name) + 1);
-      strcpy(nm->name, SPEC_ADDRSPACE(sym->etype)->name);
-      nm->is_const = (SPEC_ADDRSPACE(sym->etype)->type &&
-                      SPEC_CONST(SPEC_ADDRSPACE(sym->etype)->type));
-      nm->map = nm->is_const
-                    ? allocMap(0, 1, 0, 0, 0, 1, options.code_loc,
-                               SPEC_ADDRSPACE(sym->etype)->name, 'C', CPOINTER)
-                    : allocMap(0, 0, 0, 1, 0, 0, options.data_loc,
-                               SPEC_ADDRSPACE(sym->etype)->name, 'E', POINTER);
+      nm->name = Safe_alloc(strlen(symbolspace->name) + 1);
+      strcpy(nm->name, symbolspace->name);
+      nm->is_const = (symbolspace->type && SPEC_CONST(symbolspace->type));
+      nm->map = nm->is_const ? allocMap(0, 1, 0, 0, 0, 1, options.code_loc,
+                                        symbolspace->name, 'C', CPOINTER)
+                             : allocMap(0, 0, 0, 1, 0, 0, options.data_loc,
+                                        symbolspace->name, 'E', POINTER);
       nm->next = namedspacemaps;
       namedspacemaps = nm;
     }
@@ -387,7 +387,12 @@ void allocIntoSeg(symbol *sym) {
 
     return;
   }
-  segment = SPEC_OCLS(sym->etype);
+  if (!(segment = SPEC_OCLS(sym->etype))) {
+    fprintf(stderr, "Symbol %s:\n", sym->name);
+    wassertl(0, "Failed to allocate symbol to memory segment due to missing "
+                "output storage class");
+    return;
+  }
   addSet(&segment->syms, sym);
   if (segment == pdata)
     sym->iaccess = 1;
@@ -520,7 +525,8 @@ void allocGlobal(symbol *sym) {
         interrupts[FUNC_INTNO(sym->type)] = sym;
 
       /* automagically extend the maximum interrupts */
-      if (FUNC_INTNO(sym->type) >= maxInterrupts)
+      if (FUNC_INTNO(sym->type) >= maxInterrupts &&
+          FUNC_INTNO(sym->type) != INTNO_TRAP)
         maxInterrupts = FUNC_INTNO(sym->type) + 1;
     }
     /* if it is not compiler defined */
@@ -537,10 +543,9 @@ void allocGlobal(symbol *sym) {
     return;
   }
 
-  if (sym->level)
-    /* register storage class ignored changed to FIXED */
-    if (SPEC_SCLS(sym->etype) == S_REGISTER)
-      SPEC_SCLS(sym->etype) = S_FIXED;
+  /* register storage class ignored changed to FIXED */
+  if (SPEC_SCLS(sym->etype) == S_REGISTER)
+    SPEC_SCLS(sym->etype) = S_FIXED;
 
   /* if it is fixed, then allocate depending on the */
   /* current memory model, same for automatics      */
@@ -570,11 +575,28 @@ void allocGlobal(symbol *sym) {
 /*-----------------------------------------------------------------*/
 /* allocParms - parameters are always passed on stack              */
 /*-----------------------------------------------------------------*/
-void allocParms(value *val) {
+void allocParms(value *val, bool smallc) {
   value *lval;
   int pNum = 1;
+  int stackParamSizeAdjust = 0;
+
+  if (smallc) {
+    for (lval = val; lval; lval = lval->next) {
+      if (IS_REGPARM(lval->etype))
+        continue;
+      stackParamSizeAdjust += getSize(lval->type) + (getSize(lval->type) == 1);
+    }
+  }
+  stackPtr += stackParamSizeAdjust;
 
   for (lval = val; lval; lval = lval->next, pNum++) {
+    if (!lval->sym) // Can only happen if there was a syntax error in the
+                    // declaration.
+    {
+      fatalError++;
+      return;
+    }
+
     /* check the declaration */
     checkDecl(lval->sym, 0);
 
@@ -590,27 +612,35 @@ void allocParms(value *val) {
 
     /* if automatic variables r 2b stacked */
     if (options.stackAuto || IFFUNC_ISREENT(currFunc->type)) {
+      int paramsize =
+          getSize(lval->type) + (getSize(lval->type) == 1 && (smallc));
+
       if (lval->sym)
         lval->sym->onStack = 1;
 
       /* choose which stack 2 use   */
-      /*  use xternal stack */
-      if (options.useXstack) {
+      if (options.useXstack) /* use external stack */
+      {
         /* PENDING: stack direction support */
+        wassertl(
+            !smallc,
+            "SmallC calling convention not yet supported for xstack callee");
         SPEC_OCLS(lval->etype) = SPEC_OCLS(lval->sym->etype) = xstack;
         SPEC_STAK(lval->etype) = SPEC_STAK(lval->sym->etype) =
-            lval->sym->stack = xstackPtr - getSize(lval->type);
-        xstackPtr -= getSize(lval->type);
-      } else { /* use internal stack   */
+            lval->sym->stack = xstackPtr - paramsize;
+        xstackPtr -= paramsize;
+      } else /* use internal stack   */
+      {
+
         SPEC_OCLS(lval->etype) = SPEC_OCLS(lval->sym->etype) = istack;
-        if (port->stack.direction > 0) {
+        if ((port->stack.direction > 0) != smallc) {
           SPEC_STAK(lval->etype) = SPEC_STAK(
               lval->sym->etype) = lval->sym->stack =
               stackPtr -
               (FUNC_REGBANK(currFunc->type) ? port->stack.bank_overhead : 0) -
-              getSize(lval->type) -
+              paramsize -
               (FUNC_ISISR(currFunc->type) ? port->stack.isr_overhead : 0);
-          stackPtr -= getSize(lval->type);
+          stackPtr -= paramsize;
         } else {
           /* This looks like the wrong order but it turns out OK... */
           /* PENDING: isr, bank overhead, ... */
@@ -619,11 +649,18 @@ void allocParms(value *val) {
                   stackPtr +
                   (FUNC_ISISR(currFunc->type) ? port->stack.isr_overhead : 0) +
                   0;
-          stackPtr += getSize(lval->type);
+          stackPtr += paramsize;
         }
       }
       allocIntoSeg(lval->sym);
-    } else { /* allocate them in the automatic space */
+    } else {
+      /* Do not allocate for inline functions to avoid multiple definitions -
+       * see bug report #2591. */
+      if (IFFUNC_ISINLINE(currFunc->type) && !IS_STATIC(currFunc->etype) &&
+          !IS_EXTERN(currFunc->etype))
+        continue;
+
+      /* allocate them in the automatic space */
       /* generate a unique name  */
       SNPRINTF(lval->sym->rname, sizeof(lval->sym->rname), "%s%s_PARM_%d",
                port->fun_prefix, currFunc->name, pNum);
@@ -638,10 +675,24 @@ void allocParms(value *val) {
       /* otherwise depending on the memory model */
       SPEC_OCLS(lval->etype) = SPEC_OCLS(lval->sym->etype) =
           port->mem.default_local_map;
-      SPEC_SCLS(lval->etype) = S_XDATA;
+      if (options.model == MODEL_SMALL) {
+        /* note here that we put it into the overlay segment
+           first, we will remove it from the overlay segment
+           after the overlay determination has been done */
+        if (!options.noOverlay) {
+          SPEC_OCLS(lval->etype) = SPEC_OCLS(lval->sym->etype) = overlay;
+        }
+      } else if (options.model == MODEL_MEDIUM) {
+        SPEC_SCLS(lval->etype) = S_PDATA;
+      } else {
+        SPEC_SCLS(lval->etype) = S_XDATA;
+      }
       allocIntoSeg(lval->sym);
     }
   }
+
+  stackPtr -= stackParamSizeAdjust;
+
   return;
 }
 
@@ -652,6 +703,9 @@ void deallocParms(value *val) {
   value *lval;
 
   for (lval = val; lval; lval = lval->next) {
+    if (!lval->sym) /* Syntax error in declaration */
+      continue;
+
     /* unmark is myparm */
     lval->sym->ismyparm = 0;
 
@@ -711,7 +765,7 @@ void allocLocal(symbol *sym) {
   }
 
   /* if volatile then */
-  if (IS_VOLATILE(sym->etype))
+  if (IS_VOLATILE(sym->type))
     sym->allocreq = 1;
 
   /* this is automatic           */
@@ -741,7 +795,7 @@ void allocLocal(symbol *sym) {
   /* else depending on the storage class specified */
 
   /* if this is a function then assign code space    */
-  if (IS_FUNC(sym->type)) {
+  if (IS_FUNC(sym->type) && !sym->isitmp) {
     SPEC_OCLS(sym->etype) = code;
     return;
   }
@@ -768,7 +822,12 @@ void allocLocal(symbol *sym) {
   /* again note that we have put it into the overlay segment
      will remove and put into the 'data' segment if required after
      overlay  analysis has been done */
-  SPEC_OCLS(sym->etype) = port->mem.default_local_map;
+  if (options.model == MODEL_SMALL) {
+    SPEC_OCLS(sym->etype) =
+        (options.noOverlay ? port->mem.default_local_map : overlay);
+  } else {
+    SPEC_OCLS(sym->etype) = port->mem.default_local_map;
+  }
   allocIntoSeg(sym);
 }
 
@@ -839,7 +898,7 @@ int allocVariables(symbol *symChain) {
   symbol *sym;
   symbol *csym;
   int stack = 0;
-  int saveLevel = 0;
+  long saveLevel = 0;
 
   /* go thru the symbol chain   */
   for (sym = symChain; sym; sym = sym->next) {
@@ -848,7 +907,11 @@ int allocVariables(symbol *symChain) {
     if (IS_TYPEDEF(sym->etype)) {
       /* check if the typedef already exists    */
       csym = findSym(TypedefTab, NULL, sym->name);
-      if (csym && csym->level == sym->level)
+      if (csym && csym->level == sym->level &&
+          !(options.std_c11 &&
+            compareTypeExact(
+                sym->type, csym->type,
+                -1))) /* typedef to same type not allowed before ISO C11 */
         werror(E_DUPLICATE_TYPEDEF, sym->name);
 
       SPEC_EXTR(sym->etype) = 0;
@@ -895,6 +958,27 @@ int allocVariables(symbol *symChain) {
   }
 
   return stack;
+}
+
+void clearStackOffsets(void) {
+  const symbol *sym;
+
+  for (sym = setFirstItem(istack->syms); sym; sym = setNextItem(istack->syms)) {
+    const int size = getSize(sym->type);
+
+    /* nothing to do with parameters so continue */
+    if ((sym->_isparm && !IS_REGPARM(sym->etype)))
+      continue;
+
+    currFunc->stack -= size;
+    SPEC_STAK(currFunc->etype) -= size;
+  }
+
+  if (currFunc) {
+    // wassert(!(currFunc->stack)); // Sometimes some local variable was
+    // included in istack->sams.
+    currFunc->stack = 0;
+  }
 }
 
 #define BTREE_STACK 1
@@ -1033,6 +1117,12 @@ static int printAllocInfoSeg(memmap *map, symbol *func, struct dbuf_s *oBuf) {
         else
           stack_offset = func->stack;
       }
+
+      stack_offset += port->stack.offset; /* in case sp/bp points to the next
+                                             location instead of last */
+
+      if (port->stack.direction < 0)
+        stack_offset = -stack_offset;
 
       dbuf_printf(oBuf, "to stack - %s %+d\n", SYM_BP(sym),
                   sym->stack - stack_offset);

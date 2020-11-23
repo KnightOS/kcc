@@ -66,12 +66,13 @@ typedef struct operand {
   unsigned int
       aggr2ptr : 2; /* 1: must change aggregate to pointer to aggregate */
   /* 2: aggregate has been changed to pointer to aggregate */
-  unsigned int isvolatile : 1; /* is a volatile operand */
-  unsigned int isGlobal : 1;   /* is a global operand */
-  unsigned int isPtr : 1;      /* is assigned a pointer */
-  unsigned int isGptr : 1;     /* is a generic pointer  */
-  unsigned int isParm : 1;     /* is a parameter        */
-  unsigned int isLiteral : 1;  /* operand is literal    */
+  unsigned int isvolatile : 1;       /* is a volatile operand */
+  unsigned int isGlobal : 1;         /* is a global operand */
+  unsigned int isPtr : 1;            /* is assigned a pointer */
+  unsigned int isGptr : 1;           /* is a generic pointer  */
+  unsigned int isParm : 1;           /* is a parameter        */
+  unsigned int isLiteral : 1;        /* operand is literal    */
+  unsigned int isConstElimnated : 1; /* if original const casted to non-const */
 
   int key;
   union {
@@ -99,6 +100,9 @@ extern const operand *validateOpTypeConst(const operand *op, const char *macro,
       ->svt.symOperand
 #define OP_VALUE(op)                                                           \
   validateOpType(op, "OP_VALUE", #op, VALUE, __FILE__, __LINE__)->svt.valOperand
+#define OP_VALUE_CONST(op)                                                     \
+  validateOpTypeConst(op, "OP_VALUE", #op, VALUE, __FILE__, __LINE__)          \
+      ->svt.valOperand
 #define OP_SYM_TYPE(op)                                                        \
   validateOpType(op, "OP_SYM_TYPE", #op, SYMBOL, __FILE__, __LINE__)           \
       ->svt.symOperand->type
@@ -137,20 +141,24 @@ extern const operand *validateOpTypeConst(const operand *op, const char *macro,
 #define IC_ARRAYILIST(x) (x)->arrayInitList
 
 typedef struct iCode {
-  unsigned int op;          /* operation defined */
-  int key;                  /* running key for this iCode */
-  int seq;                  /* sequence number within routine */
-  int seqPoint;             /* sequence point */
-  short depth;              /* loop depth of this iCode */
-  short level;              /* scope level */
-  short block;              /* sequential block number */
-  unsigned nosupdate : 1;   /* don't update spillocation with this */
-  unsigned generated : 1;   /* code generated for this one */
-  unsigned parmPush : 1;    /* parameter push Vs spill push */
-  unsigned supportRtn : 1;  /* will cause a call to a support routine */
-  unsigned regsSaved : 1;   /* registers have been saved */
-  unsigned bankSaved : 1;   /* register bank has been saved */
-  unsigned builtinSEND : 1; /* SEND for parameter of builtin function */
+  unsigned int op;           /* operation defined */
+  int key;                   /* running key for this iCode */
+  int seq;                   /* sequence number within routine */
+  int seqPoint;              /* sequence point */
+  short depth;               /* loop depth of this iCode */
+  long level;                /* scope level */
+  short block;               /* sequential block number */
+  unsigned nosupdate : 1;    /* don't update spillocation with this */
+  unsigned generated : 1;    /* code generated for this one */
+  unsigned parmPush : 1;     /* parameter push Vs spill push */
+  unsigned supportRtn : 1;   /* will cause a call to a support routine */
+  unsigned regsSaved : 1;    /* registers have been saved */
+  unsigned bankSaved : 1;    /* register bank has been saved */
+  unsigned builtinSEND : 1;  /* SEND for parameter of builtin function */
+  bool localEscapeAlive : 1; /* At this iCode, a local variable, a pointer to
+                                which has escaped (e.g. by having been stored in
+                                a global variable, cast to integer, passed to
+                                function) might be alive. */
 
   struct iCode *next; /* next in chain */
   struct iCode *prev; /* previous in chain */
@@ -191,11 +199,14 @@ typedef struct iCode {
   int lineno; /* file & lineno for debug information */
   char *filename;
 
-  int parmBytes;    /* if call/pcall, count of parameter bytes
-                       on stack */
-  int argreg;       /* argument regno for SEND/RECEIVE */
-  int eBBlockNum;   /* belongs to which eBBlock */
-  char riu;         /* after ralloc, the registers in use */
+  int parmBytes;  /* if call/pcall, count of parameter bytes
+                     on stack */
+  int argreg;     /* argument regno for SEND/RECEIVE */
+  int eBBlockNum; /* belongs to which eBBlock */
+  char riu;       /* after ralloc, the registers in use */
+  float count;    /* An execution count or probability */
+  float pcount;   /* For propagation of count */
+
   struct ast *tree; /* ast node for this iCode (if not NULL) */
 } iCode;
 
@@ -306,7 +317,8 @@ int isOperandEqual(const operand *, const operand *);
 iCodeTable *getTableEntry(int);
 int isOperandLiteral(const operand *const);
 operand *operandOperation(operand *, operand *, int, sym_link *);
-double operandLitValue(operand *);
+double operandLitValue(const operand *);
+unsigned long long operandLitValueUll(const operand *);
 operand *operandFromLit(double);
 operand *operandFromOperand(operand *);
 int isParameterToCall(value *, operand *);
@@ -339,6 +351,9 @@ operand *newiTempOperand(sym_link *, char);
 operand *newiTempFromOp(operand *);
 iCode *getBuiltinParms(iCode *, int *, operand **);
 int isiCodeInFunctionCall(iCode *);
+operand *detachiCodeOperand(operand **, iCode *);
+void attachiCodeOperand(operand *, operand **, iCode *);
+
 /*-----------------------------------------------------------------*/
 /* declaration of exported variables                               */
 /*-----------------------------------------------------------------*/

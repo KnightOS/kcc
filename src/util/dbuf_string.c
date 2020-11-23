@@ -144,9 +144,10 @@ static int calc_result_length(const char *format, va_list args) {
            make the buffer wide enough to cover the gross case. */
         total_width += 307;
         break;
-      case 's':
-        total_width += strlen(va_arg(ap, char *));
-        break;
+      case 's': {
+        const char *p = va_arg(ap, char *);
+        total_width += strlen(p ? p : "(null)");
+      } break;
       case 'p':
       case 'n':
         (void)va_arg(ap, char *);
