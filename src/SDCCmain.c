@@ -126,6 +126,7 @@ char buffer[PATH_MAX * 2];
 #define OPTION_OPT_CODE_SPEED "--opt-code-speed"
 #define OPTION_OPT_CODE_SIZE "--opt-code-size"
 #define OPTION_STD_C89 "--std-c89"
+#define OPTION_STD_C95 "--std-c95"
 #define OPTION_STD_C99 "--std-c99"
 #define OPTION_STD_C11 "--std-c11"
 #define OPTION_STD_SDCC89 "--std-sdcc89"
@@ -188,6 +189,8 @@ static const OPTION optionsTable[] = {
     {0, OPTION_STD_C89, NULL, "Use C89 standard (slightly incomplete)"},
     {0, OPTION_STD_SDCC89, NULL,
      "Use C89 standard with SDCC extensions (default)"},
+    {0, OPTION_STD_C95, NULL,
+     "Use ISO C95 (aka ISO C94) standard (slightly incomplete)"},
     {0, OPTION_STD_C99, NULL, "Use C99 standard (incomplete)"},
     {0, OPTION_STD_SDCC99, NULL, "Use C99 standard with SDCC extensions"},
     {0, OPTION_STD_C11, NULL, "Use C11 standard (very incomplete)"},
@@ -413,8 +416,9 @@ static void setDefaultOptions(void) {
   options.verbose = 0;
   options.shortis8bits = 0;
   options.std_sdcc = 0; /* enable SDCC language extensions */
-  options.std_c99 = 0;  /* default to C89 until more C99 support */
-  options.std_c11 = 0;  /* default to C89 until more C11 support */
+  options.std_c95 = 1;
+  options.std_c99 = 0;  /* default to C95 until more C99 support */
+  options.std_c11 = 0;  /* default to C95 until more C11 support */
   options.code_seg = CODE_NAME ? Safe_strdup(CODE_NAME)
                                : NULL; /* default to CSEG for generated code */
   options.const_seg = CONST_NAME
@@ -843,6 +847,7 @@ static int parseCmdLine(int argc, char **argv) {
 
       if (strcmp(argv[i], OPTION_STD_C89) == 0 ||
           !strcmp(argv[i], "--std=c89")) {
+        options.std_c95 = 0;
         options.std_c99 = 0;
         options.std_sdcc = 0;
         continue;
@@ -865,6 +870,7 @@ static int parseCmdLine(int argc, char **argv) {
 
       if (strcmp(argv[i], OPTION_STD_SDCC89) == 0 ||
           !strcmp(argv[i], "--std=sdcc89")) {
+        options.std_c95 = 0;
         options.std_c99 = 0;
         options.std_sdcc = 1;
         continue;
@@ -872,6 +878,7 @@ static int parseCmdLine(int argc, char **argv) {
 
       if (strcmp(argv[i], OPTION_STD_SDCC99) == 0 ||
           !strcmp(argv[i], "--std=sdcc99")) {
+        options.std_c95 = 1;
         options.std_c99 = 1;
         options.std_sdcc = 1;
         continue;
@@ -1605,7 +1612,10 @@ static void initValues(void) {
   if (!options.std_sdcc)
     setMainValue("cppstd", options.std_c11
                                ? "-std=c11 "
-                               : (options.std_c99 ? "-std=c99 " : "-std=c89 "));
+                               : (options.std_c99
+                                    ? "-std=c99 "
+                                    : (options.std_c95 ? "-std=iso9899:199409 "
+                                                       : "-std=c89 ")));
 }
 
 static void doPrintSearchDirs(void) {

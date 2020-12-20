@@ -705,8 +705,8 @@ unsigned char universalEscape(const char **str, unsigned int n) {
   unsigned value = 0;
   const char *s = *str;
 
-  if (!options.std_c99) {
-    werror(W_UNIVERSAL_C99);
+  if (!options.std_c95) {
+    werror(W_UNIVERSAL_C95);
   }
 
   ++*str; /* Skip over the 'u'  or 'U' */
