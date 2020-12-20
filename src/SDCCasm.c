@@ -31,6 +31,7 @@ assemblers.
 
 #include <errno.h>
 
+#include "SDCCsymt.h"
 #include "common.h"
 #include "dbuf_string.h"
 
@@ -53,7 +54,7 @@ const char *FileBaseName(const char *fileFullName) {
 void dbuf_tvprintf(struct dbuf_s *dbuf, const char *format, va_list ap) {
   /*
      Under Linux PPC va_list is a structure instead of a primitive type,
-     and doesnt like being passed around.  This version turns everything
+     and doesn't like being passed around.  This version turns everything
      into one function.
 
      Supports:
@@ -223,6 +224,8 @@ void asm_addTree(const ASM_MAPPINGS *pMappings) {
 const char *printILine(iCode *ic) {
   struct dbuf_s tmpBuf;
   iCodeTable *icTab = getTableEntry(ic->op);
+
+  wassert(icTab);
 
   dbuf_init(&tmpBuf, 1024);
 

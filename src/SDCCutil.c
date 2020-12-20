@@ -34,9 +34,9 @@
 #include "SDCCglobl.h"
 #include "SDCCmacro.h"
 #include "SDCCutil.h"
-#include "dbuf.h"
-#include "dbuf_string.h"
-#include "newalloc.h"
+#include "util/dbuf.h"
+#include "util/dbuf_string.h"
+#include "util/newalloc.h"
 #include <sys/stat.h>
 
 #include "version.h"
@@ -593,19 +593,13 @@ const char *getBuildEnvironment(void) {
 #endif
 }
 
-#if defined(HAVE_VSNPRINTF) || defined(HAVE_VSPRINTF)
 size_t SDCCsnprintf(char *dst, size_t n, const char *fmt, ...) {
   va_list args;
   int len;
 
   va_start(args, fmt);
 
-#if defined(HAVE_VSNPRINTF)
   len = vsnprintf(dst, n, fmt, args);
-#else
-  vsprintf(dst, fmt, args);
-  len = strlen(dst) + 1;
-#endif
 
   va_end(args);
 
@@ -619,7 +613,6 @@ size_t SDCCsnprintf(char *dst, size_t n, const char *fmt, ...) {
 
   return len;
 }
-#endif
 
 /** Pragma tokenizer
  */
@@ -673,7 +666,7 @@ void free_pragma_token(struct pragma_token_s *token) {
     /param src Pointer to 'x' from start of hex character value
 */
 
-unsigned char hexEscape(const char **src) {
+unsigned long int hexEscape(const char **src) {
   char *s;
   unsigned long value;
 
@@ -684,47 +677,45 @@ unsigned char hexEscape(const char **src) {
   if (s == *src) {
     /* no valid hex found */
     werror(E_INVALID_HEX);
-  } else {
-    if (value > 255) {
-      werror(W_ESC_SEQ_OOR_FOR_CHAR);
-    }
   }
+
   *src = s;
 
-  return (unsigned char)value;
+  return value;
 }
 
 /*------------------------------------------------------------------*/
 /* universalEscape - process an hex constant of exactly four digits */
-/* return the hex value, throw a warning for illegal octal          */
+/* return the hex value, throw an error warning for invalid hex     */
 /* adjust src to point at the last proccesed char                   */
 /*------------------------------------------------------------------*/
 
-unsigned char universalEscape(const char **str, unsigned int n) {
+unsigned long int universalEscape(const char **str, unsigned int n) {
   unsigned int digits;
-  unsigned value = 0;
+  unsigned long value = 0;
   const char *s = *str;
 
-  if (!options.std_c99) {
-    werror(W_UNIVERSAL_C99);
+  if (!options.std_c95) {
+    werror(W_UNIVERSAL_C95);
   }
 
   ++*str; /* Skip over the 'u'  or 'U' */
 
   for (digits = 0; digits < n; ++digits) {
-    if (**str >= '0' && **str <= '7') {
+    if (**str >= '0' && **str <= '9') {
       value = (value << 4) + (**str - '0');
       ++*str;
-    } else if ((**str | 0x20) >= 'a' && (**str | 0x20) <= 'f') {
-      value = (value << 4) + (**str - ('a' + 10));
+    } else if (tolower((unsigned char)(**str)) >= 'a' &&
+               (tolower((unsigned char)(**str)) <= 'f')) {
+      value = (value << 4) + (tolower((unsigned char)(**str)) - 'a' + 10);
       ++*str;
     } else
       break;
   }
-  if (digits != n) {
+  if (digits != n ||
+      value < 0x00a0 && value != 0x0024 && value != 0x0040 && value != 0x0060 ||
+      value >= 0xd800 && 0xdfff >= value) {
     werror(E_INVALID_UNIVERSAL, s);
-  } else if (value > 255) {
-    werror(W_ESC_SEQ_OOR_FOR_CHAR);
   }
 
   return value;
@@ -736,7 +727,7 @@ unsigned char universalEscape(const char **str, unsigned int n) {
 /* adjust src to point at the last proccesed char                   */
 /*------------------------------------------------------------------*/
 
-unsigned char octalEscape(const char **str) {
+unsigned long int octalEscape(const char **str) {
   int digits;
   unsigned value = 0;
 
@@ -748,11 +739,7 @@ unsigned char octalEscape(const char **str) {
       break;
     }
   }
-  if (digits) {
-    if (value > 255 /* || (**str>='0' && **str<='7') */) {
-      werror(W_ESC_SEQ_OOR_FOR_CHAR);
-    }
-  }
+
   return value;
 }
 
@@ -782,7 +769,8 @@ const char *copyStr(const char *src, size_t *size) {
       }
       ++src;
     } else if (*src == '\\') {
-      int c;
+      unsigned long int c;
+      bool universal = FALSE;
 
       if (begin) {
         /* copy what we have until now */
@@ -838,11 +826,13 @@ const char *copyStr(const char *src, size_t *size) {
 
       case 'u':
         c = universalEscape(&src, 4);
+        universal = TRUE;
         --src;
         break;
 
       case 'U':
         c = universalEscape(&src, 8);
+        universal = TRUE;
         --src;
         break;
 
@@ -854,7 +844,29 @@ const char *copyStr(const char *src, size_t *size) {
         c = *src;
         break;
       }
-      dbuf_append_char(&dbuf, c);
+      if (universal) // Encode one utf-32 character to utf-8
+      {
+        char s[5] = "\0\0\0\0";
+        if (c < 0x80)
+          s[0] = (char)c;
+        else if (c < 0x800) {
+          s[0] = (c >> 6) & 0x1f | 0xc0;
+          s[1] = (c >> 0) & 0x3f | 0x80;
+        } else if (c < 0x10000) {
+          s[0] = (c >> 12) & 0x0f | 0xe0;
+          s[1] = (c >> 6) & 0x3f | 0x80;
+          s[2] = (c >> 0) & 0x3f | 0x80;
+        } else if (c < 0x110000) {
+          s[0] = (c >> 18) & 0x07 | 0xf0;
+          s[1] = (c >> 12) & 0x3f | 0x80;
+          s[2] = (c >> 6) & 0x3f | 0x80;
+          s[3] = (c >> 0) & 0x3f | 0x80;
+        } else
+          wassert(0);
+        dbuf_append_str(&dbuf, s);
+      } else
+        dbuf_append_char(&dbuf, (char)c);
+
       ++src;
     } else {
       if (!begin)
@@ -876,4 +888,97 @@ const char *copyStr(const char *src, size_t *size) {
   }
 
   return dbuf_detach_c_str(&dbuf);
+}
+
+static char prefix[256] = "";
+static char suffix[256] = "";
+static char cmd[4096] = "";
+
+void getPrefixSuffix(const char *arg) {
+  const char *p;
+  const char sdcc[] = "sdcc";
+
+  if (!arg)
+    return;
+
+  p = arg + strlen(arg);
+  while (p != arg && *(p - 1) != '\\' && *(p - 1) != '/')
+    p--;
+  arg = p;
+
+  /* found no "sdcc" in command line argv[0] */
+  if ((p = strstr(arg, sdcc)) == NULL)
+    return;
+
+  /* found more than one "sdcc" in command line argv[0] */
+  if (strstr(p + strlen(sdcc), sdcc) != NULL)
+    return;
+
+  /* copy prefix and suffix */
+  strncpy(prefix, arg, p - arg);
+  strcpy(suffix, p + strlen(sdcc));
+}
+
+char *setPrefixSuffix(const char *arg) {
+  const char *p;
+
+  if (!arg)
+    return NULL;
+  else
+    memset(cmd, 0x00, sizeof(cmd));
+
+  /* find the core name of command line */
+  for (p = arg; (*p) && isblank(*p); p++)
+    ;
+  arg = p;
+  assert(strstr(arg, ".exe") == NULL);
+  for (p = arg; (*p) && !isblank(*p); p++)
+    ;
+
+  /* compose new command line with prefix and suffix */
+  strcpy(cmd, prefix);
+  strncat(cmd, arg, p - arg);
+  strcat(cmd, suffix);
+  strcat(cmd, p);
+
+  return cmd;
+}
+
+char *formatInlineAsm(char *asmStr) {
+  char *p, *q;
+
+  if (!asmStr)
+    return NULL;
+  else
+    q = asmStr;
+
+  for (;;) {
+    // omit leading space or tab
+    while (*q == '\t' || *q == ' ')
+      q++;
+    // then record the head of current line
+    p = q;
+    // search for CL or reach the end
+    while (*q != '\n' && *q != '\r' && *q != 0)
+      q++;
+    // omit more CL characters
+    while (*q == '\n' || *q == '\r')
+      q++;
+    // replace the first with tab
+    while (p != q)
+      if (*p == '\t') // '\t' appears first then no need to do
+      {
+        break;
+      } else if (*p == ' ') // find the first space then replace it with tab
+      {
+        *p = '\t';
+        break;
+      } else // go on to search
+      {
+        p++;
+      }
+    // check if end
+    if (*q == 0)
+      return asmStr;
+  }
 }

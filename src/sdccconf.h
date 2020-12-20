@@ -149,6 +149,6 @@
 #define TYPE_WORD short
 
 /* Define to 1 if c supports tags in unnamed struct. */
-#define UNNAMED_STRUCT_TAG 1
+#define UNNAMED_STRUCT_TAG 0
 
 #endif /* SDCCCONF_HEADER */

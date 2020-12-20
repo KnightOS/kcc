@@ -47,6 +47,10 @@ typedef struct lineElem_s {
 } lineElem_t;
 
 typedef struct lineNode_s {
+#if UNNAMED_STRUCT_TAG
+  struct lineElem_s;
+#else
+  /* exactly the same members as of struct lineElem_s */
   char *line;
   iCode *ic;
   unsigned int isInline : 1;
@@ -55,6 +59,7 @@ typedef struct lineNode_s {
   unsigned int isLabel : 1;
   unsigned int visited : 1;
   asmLineNodeBase *aln;
+#endif
   struct lineNode_s *prev;
   struct lineNode_s *next;
 } lineNode;
@@ -81,10 +86,10 @@ const char *format_opcode(const char *inst, const char *fmt, va_list ap);
 void emit_raw(const char *line);
 void va_emitcode(const char *inst, const char *fmt, va_list ap);
 void emitcode(const char *inst, const char *fmt, ...);
-void emitLabel(symbol *tlbl);
+void emitLabel(const symbol *tlbl);
 void genInline(iCode *ic);
 void printLine(lineNode *, struct dbuf_s *);
-iCode *ifxForOp(operand *op, const iCode *ic);
+iCode *ifxForOp(const operand *op, const iCode *ic);
 
 #ifdef __cplusplus
 }

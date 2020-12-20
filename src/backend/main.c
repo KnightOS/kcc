@@ -22,10 +22,10 @@
    what you give them.   Help stamp out software-hoarding!
 -------------------------------------------------------------------------*/
 
-#include "SDCCargs.h"
-#include "SDCCsystem.h"
-#include "SDCCutil.h"
-#include "dbuf_string.h"
+#include "../SDCCargs.h"
+#include "../SDCCsystem.h"
+#include "../SDCCutil.h"
+#include "../util/dbuf_string.h"
 #include "z80.h"
 #include <sys/stat.h>
 
@@ -33,6 +33,7 @@
 #define OPTION_BA "-ba"
 #define OPTION_CODE_SEG "--codeseg"
 #define OPTION_CONST_SEG "--constseg"
+#define OPTION_DATA_SEG "--dataseg"
 #define OPTION_CALLEE_SAVES_BC "--callee-saves-bc"
 #define OPTION_PORTMODE "--portmode="
 #define OPTION_ASM "--asm="
@@ -40,6 +41,9 @@
 #define OPTION_RESERVE_IY "--reserve-regs-iy"
 #define OPTION_OLDRALLOC "--oldralloc"
 #define OPTION_FRAMEPOINTER "--fno-omit-frame-pointer"
+#define OPTION_EMIT_EXTERNS "--emit-externs"
+#define OPTION_LEGACY_BANKING "--legacy-banking"
+#define OPTION_NMOS_Z80 "--nmos-z80"
 
 static char _z80_defaultRules[] = {
 #include "peeph-z80.rul"
@@ -55,6 +59,8 @@ static OPTION _z80_options[] = {
      "<name> use this name for the code segment", CLAT_STRING},
     {0, OPTION_CONST_SEG, &options.const_seg,
      "<name> use this name for the const segment", CLAT_STRING},
+    {0, OPTION_DATA_SEG, &options.data_seg,
+     "<name> use this name for the data segment", CLAT_STRING},
     {0, OPTION_NO_STD_CRT0, &options.no_std_crt0,
      "For the z80 do not link default crt0.rel"},
     {0, OPTION_RESERVE_IY, &z80_opts.reserveIY,
@@ -62,6 +68,11 @@ static OPTION _z80_options[] = {
     {0, OPTION_OLDRALLOC, &options.oldralloc, "Use old register allocator"},
     {0, OPTION_FRAMEPOINTER, &z80_opts.noOmitFramePtr,
      "Do not omit frame pointer"},
+    {0, OPTION_EMIT_EXTERNS, NULL, "Emit externs list in generated asm"},
+    {0, OPTION_LEGACY_BANKING, &z80_opts.legacyBanking,
+     "Use legacy method to call banked functions"},
+    {0, OPTION_NMOS_Z80, &z80_opts.nmosZ80,
+     "Generate workaround for NMOS Z80 when saving IFF2"},
     {0, NULL}};
 
 typedef enum {
@@ -76,26 +87,26 @@ static struct {
   ASM_TYPE asmType;
   /* determine if we can register a parameter */
   int regParams;
+  bool z88dk_fastcall;
 } _G;
 
 static char *_keywords[] = {
-    "sfr",      "nonbanked", "banked",
-    "at",     //.p.t.20030714 adding support for 'sfr at ADDR' construct
-    "_naked", //.p.t.20030714 adding support for '_naked' functions
-    "critical", "interrupt", NULL};
+    "sfr",       "nonbanked",       "banked",
+    "at",        "_naked",          "critical",
+    "interrupt", "z88dk_fastcall",  "z88dk_callee",
+    "smallc",    "z88dk_shortcall", "z88dk_params_offset",
+    NULL};
 
 extern PORT z80_port;
-extern PORT r2k_port;
-extern PORT gbz80_port;
 
 #include "mappings.i"
 
 static builtins _z80_builtins[] = {
-    {"__builtin_memcpy", "vg*", 3, {"vg*", "Cvg*", "ui"}},
+    {"__builtin_memcpy", "vg*", 3, {"vg*", "Cvg*", "Ui"}},
     {"__builtin_strcpy", "cg*", 2, {"cg*", "Ccg*"}},
-    {"__builtin_strncpy", "cg*", 3, {"cg*", "Ccg*", "ui"}},
+    {"__builtin_strncpy", "cg*", 3, {"cg*", "Ccg*", "Ui"}},
     {"__builtin_strchr", "cg*", 2, {"Ccg*", "i"}},
-    {"__builtin_memset", "vg*", 3, {"vg*", "i", "ui"}},
+    {"__builtin_memset", "vg*", 3, {"vg*", "i", "Ui"}},
     {NULL, NULL, 0, {NULL}}};
 
 static void _z80_init(void) {
@@ -103,22 +114,23 @@ static void _z80_init(void) {
   asm_addTree(&_asxxxx_z80);
 }
 
-static void _reset_regparm(void) { _G.regParams = 0; }
+static void _reset_regparm(struct sym_link *funcType) {
+  _G.regParams = 0;
+  _G.z88dk_fastcall = IFFUNC_ISZ88DK_FASTCALL(funcType);
+  if (_G.z88dk_fastcall && IFFUNC_HASVARARGS(funcType))
+    werror(E_Z88DK_FASTCALL_PARAMETERS);
+}
 
 static int _reg_parm(sym_link *l, bool reentrant) {
-  if (options.noRegParams) {
-    return FALSE;
-  } else {
-    if (!IS_REGISTER(l) || getSize(l) > 2) {
-      return FALSE;
-    }
-    if (_G.regParams == 2) {
-      return FALSE;
-    } else {
-      _G.regParams++;
-      return TRUE;
-    }
+  if (_G.z88dk_fastcall) {
+    if (_G.regParams)
+      werror(E_Z88DK_FASTCALL_PARAMETERS);
+    if (getSize(l) > 4)
+      werror(E_Z88DK_FASTCALL_PARAMETER);
+    _G.regParams++;
+    return TRUE;
   }
+  return FALSE;
 }
 
 enum {
@@ -155,7 +167,7 @@ static int do_pragma(int id, const char *name, const char *cp) {
         break;
 
       case ASM_TYPE_RGBDS:
-        dbuf_printf(&buffer, "CODE,BANK[%d]", token.val.int_val);
+        dbuf_printf(&buffer, "ROMX,BANK[%d]", token.val.int_val);
         break;
 
       case ASM_TYPE_ISAS:
@@ -182,6 +194,7 @@ static int do_pragma(int id, const char *name, const char *cp) {
     }
 
     dbuf_c_str(&buffer);
+    options.code_seg = (char *)dbuf_detach(&buffer);
   } break;
 
   case P_PORTMODE: { /*.p.t.20030716 - adding pragma to manipulate z80 i/o port
@@ -378,14 +391,35 @@ static const char *_getRegName(const struct reg_info *reg) {
   return "err";
 }
 
+static int _getRegByName(const char *name) {
+  if (!strcmp(name, "a"))
+    return 0;
+  if (!strcmp(name, "c"))
+    return 1;
+  if (!strcmp(name, "b"))
+    return 2;
+  if (!strcmp(name, "e"))
+    return 3;
+  if (!strcmp(name, "d"))
+    return 4;
+  if (!strcmp(name, "l"))
+    return 5;
+  if (!strcmp(name, "h"))
+    return 6;
+  if (!strcmp(name, "iyl"))
+    return 7;
+  if (!strcmp(name, "iyh"))
+    return 8;
+  return -1;
+}
+
 static bool _hasNativeMulFor(iCode *ic, sym_link *left, sym_link *right) {
   sym_link *test = NULL;
   int result_size =
       IS_SYMOP(IC_RESULT(ic)) ? getSize(OP_SYM_TYPE(IC_RESULT(ic))) : 4;
 
-  if (ic->op != '*') {
-    return FALSE;
-  }
+  if (ic->op != '*')
+    return (false);
 
   if (IS_LITERAL(left))
     test = left;
@@ -394,21 +428,18 @@ static bool _hasNativeMulFor(iCode *ic, sym_link *left, sym_link *right) {
   /* 8x8 unsigned multiplication code is shorter than
      call overhead for the multiplication routine. */
   else if (IS_CHAR(right) && IS_UNSIGNED(right) && IS_CHAR(left) &&
-           IS_UNSIGNED(left)) {
-    return TRUE;
-  }
+           IS_UNSIGNED(left))
+    return (true);
   /* Same for any multiplication with 8 bit result. */
-  else if (result_size == 1) {
-    return TRUE;
-  } else {
-    return FALSE;
-  }
+  else if (result_size == 1)
+    return (true);
+  else
+    return (false);
 
-  if (getSize(test) <= 2) {
-    return TRUE;
-  }
+  if (getSize(test) <= 2)
+    return (true);
 
-  return FALSE;
+  return (false);
 }
 
 /* Indicate which extended bit operations this port supports */
@@ -452,8 +483,7 @@ PORT z80_port = {
     "Zilog Z80", /* Target name */
     NULL,        /* Processor name */
     {
-        glue,
-        FALSE,
+        glue, FALSE, NO_MODEL, NO_MODEL, NULL, /* model == target */
     },
     {                        /* Assembler */
      _z80AsmCmd, NULL, "-o", /* Options with debug */
@@ -476,10 +506,13 @@ PORT z80_port = {
         z80notUsed,
         z80canAssign,
         z80notUsedFrom,
+        z80symmParmStack,
+        z80canJoinRegs,
+        z80canSplitReg,
     },
-    {/* Sizes: char, short, int, long, long long, ptr, fptr, gptr, bit, float,
-        max */
-     1, 2, 2, 4, 8, 2, 2, 2, 1, 4, 4},
+    /* Sizes: char, short, int, long, long long, near ptr, far ptr, gptr, func
+       ptr, banked func ptr, bit, float */
+    {1, 2, 2, 4, 8, 2, 2, 2, 2, 2, 1, 4},
     /* tags for generic pointers */
     {0x00, 0x40, 0x60, 0x80}, /* far, near, xstack, code */
     {
@@ -495,7 +528,7 @@ PORT z80_port = {
         "GSINIT", /* static initialization */
         NULL,     /* overlay */
         "GSFINAL",
-        "CODE",
+        "HOME",
         NULL,          /* xidata */
         NULL,          /* xinit */
         NULL,          /* const_name */
@@ -511,19 +544,18 @@ PORT z80_port = {
         1  /* No fancy alignments supported. */
     },
     {NULL, NULL},
-    {-1, 0, 0, 4, 0, 2},
-    /* Z80 has no native mul/div commands */
-    {0, -1},
+    {-1, 0, 0, 4, 0, 3, 0},
+    {-1, FALSE},
     {z80_emitDebuggerSymbol},
     {
-        255, /* maxCount */
+        256, /* maxCount */
         3,   /* sizeofElement */
-        /* The rest of these costs are bogus. They approximate */
-        /* the behavior of src/SDCCicode.c 1.207 and earlier.  */
-        {4, 4, 4}, /* sizeofMatchJump[] */
-        {0, 0, 0}, /* sizeofRangeCompare[] */
-        0,         /* sizeofSubtract */
-        3,         /* sizeofDispatch */
+        {6, 7,
+         8}, /* sizeofMatchJump[] - Assumes operand allocated to registers */
+        {6, 9,
+         15}, /* sizeofRangeCompare[] - Assumes operand allocated to registers*/
+        1,    /* sizeofSubtract - Assumes use of a singel inc or dec */
+        9,    /* sizeofDispatch - Assumes operand allocated to register e or c*/
     },
     "_",
     _z80_init,
@@ -535,8 +567,9 @@ PORT z80_port = {
     z80_assignRegisters,
     _getRegName,
     NULL,
+    NULL,
     _keywords,
-    0,    /* no assembler preamble */
+    NULL,    /* no assembler preamble */
     NULL, /* no genAssemblerEnd */
     0,    /* no local IVT generation code */
     0,    /* no genXINIT code */

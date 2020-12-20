@@ -62,11 +62,11 @@ DEFSETFUNC(ifKilledInBlock) {
   /* this one off then check if there are other definitions    */
   bitVectUnSetBit(outs = bitVectCopy(src->outDefs), cdp->diCode->key);
   if (bitVectBitsInCommon(outs, OP_DEFS(cdp->sym))) {
-    setToNull((void *)&outs);
+    freeBitVect(outs);
     return 1;
   }
 
-  setToNull((void *)&outs);
+  freeBitVect(outs);
 
   /* if the operands of this one was changed in the block */
   /* then delete it */
@@ -105,8 +105,8 @@ DEFSETFUNC(mergeInExprs) {
       dest->ndompset = bitVectCopy(ebp->ndompset);
     } else {
       dest->inExprs = intersectSets(dest->inExprs, ebp->outExprs, THROW_DEST);
-      dest->inPtrsSet = bitVectUnion(dest->inPtrsSet, ebp->ptrsSet);
-      dest->ndompset = bitVectUnion(dest->ndompset, ebp->ndompset);
+      dest->inPtrsSet = bitVectInplaceUnion(dest->inPtrsSet, ebp->ptrsSet);
+      dest->ndompset = bitVectInplaceUnion(dest->ndompset, ebp->ndompset);
     }
   } else {
     // if (dest != ebp)
@@ -116,7 +116,7 @@ DEFSETFUNC(mergeInExprs) {
     /* delete only if killed in this block*/
     deleteItemIf(&dest->inExprs, ifKilledInBlock, ebp);
     /* union the ndompset with pointers set in this block */
-    dest->ndompset = bitVectUnion(dest->ndompset, ebp->ptrsSet);
+    dest->ndompset = bitVectInplaceUnion(dest->ndompset, ebp->ptrsSet);
   }
   *firstTime = 0;
 
@@ -136,7 +136,7 @@ DEFSETFUNC(mergeInDefs) {
   if (!dest->inDefs && *firstTime)
     dest->inDefs = bitVectCopy(ebp->outDefs);
   else
-    dest->inDefs = bitVectUnion(dest->inDefs, ebp->outDefs);
+    dest->inDefs = bitVectInplaceUnion(dest->inDefs, ebp->outDefs);
 
   *firstTime = 0;
 
@@ -153,7 +153,7 @@ void computeDataFlow(ebbIndex *ebbi) {
   int change;
 
   for (i = 0; i < count; i++)
-    ebbs[i]->killedExprs = NULL;
+    deleteSet(&ebbs[i]->killedExprs);
 
   do {
     change = 0;
@@ -182,7 +182,8 @@ void computeDataFlow(ebbIndex *ebbi) {
         oldKilledExprs = setFromSet(ebbs[i]->killedExprs);
       }
       oldOutDefs = bitVectCopy(ebbs[i]->outDefs);
-      setToNull((void *)&ebbs[i]->inDefs);
+      freeBitVect(ebbs[i]->inDefs);
+      ebbs[i]->inDefs = NULL;
 
       /* indefitions are easy just merge them by union */
       /* these are the definitions that can possibly   */
@@ -207,7 +208,8 @@ void computeDataFlow(ebbIndex *ebbi) {
 
       /* figure out the incoming expressions */
       /* this is a little more complex       */
-      setToNull((void *)&ebbs[i]->inExprs);
+      // setToNull ((void *) &ebbs[i]->inExprs);
+      deleteSet(&ebbs[i]->inExprs);
       if (optimize.global_cse) {
         firstTime = 1;
         applyToSet(pred, mergeInExprs, ebbs[i], &firstTime);
@@ -226,6 +228,9 @@ void computeDataFlow(ebbIndex *ebbi) {
                                    isCseDefEqual);
       }
       change += !bitVectEqual(ebbs[i]->outDefs, oldOutDefs);
+      freeBitVect(oldOutDefs);
+      deleteSet(&oldOutExprs);
+      deleteSet(&oldKilledExprs);
     }
   } while (change); /* iterate till no change */
 

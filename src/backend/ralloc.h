@@ -29,8 +29,11 @@
 
 #define DEBUG_FAKE_EXTRA_REGS 0
 
+#define USE_OLDSALLOC 0 // Change to 1 to use old stack allocator
+
 enum {
-  C_IDX = 0,
+  A_IDX = 0,
+  C_IDX,
   B_IDX,
   E_IDX,
   D_IDX,
@@ -48,10 +51,14 @@ enum {
   S_IDX,
   T_IDX,
 #endif
-  CND_IDX
-};
+  CND_IDX,
 
-#define A_IDX (IS_GB ? 4 : (IY_RESERVED ? 6 : 8))
+  // These pairs are for internal use in code generation only.
+  IY_IDX,
+  BC_IDX,
+  DE_IDX,
+  HL_IDX
+};
 
 enum { REG_PTR = 1, REG_GPR = 2, REG_CND = 4, REG_PAIR = 8 };
 
@@ -72,7 +79,8 @@ reg_info *regWithIdx(int);
 void z80_assignRegisters(ebbIndex *);
 bitVect *z80_rUmaskForOp(const operand *op);
 
-void spillThis(symbol *);
+void z80SpillThis(symbol *);
 iCode *z80_ralloc2_cc(ebbIndex *ebbi);
 
+void Z80RegFix(eBBlock **ebbs, int count);
 #endif

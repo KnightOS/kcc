@@ -42,9 +42,13 @@
 #ifdef _WIN32
 #include <process.h>
 #else
+#include <sys/resource.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #endif
+
+/* REMOVE ME!!! */
+extern int yyparse(void);
 
 FILE *srcFile;               /* source file */
 const char *fullSrcFileName; /* full name for the source file; */
@@ -90,10 +94,6 @@ char buffer[PATH_MAX * 2];
 #define OPTION_HELP "--help"
 #define OPTION_OUT_FMT_IHX "--out-fmt-ihx"
 #define OPTION_OUT_FMT_S19 "--out-fmt-s19"
-#define OPTION_HUGE_MODEL "--model-huge"
-#define OPTION_LARGE_MODEL "--model-large"
-#define OPTION_MEDIUM_MODEL "--model-medium"
-#define OPTION_SMALL_MODEL "--model-small"
 #define OPTION_PEEP_FILE "--peep-file"
 #define OPTION_LIB_PATH "--lib-path"
 #define OPTION_CALLEE_SAVES "--callee-saves"
@@ -115,7 +115,6 @@ char buffer[PATH_MAX * 2];
 #define OPTION_WERROR "--Werror"
 #define OPTION_DEBUG "--debug"
 #define OPTION_NO_GCSE "--nogcse"
-#define OPTION_SHORT_IS_8BITS "--short-is-8bits"
 #define OPTION_NO_XINIT_OPT "--no-xinit-opt"
 #define OPTION_ICODE_IN_ASM "--i-code-in-asm"
 #define OPTION_PRINT_SEARCH_DIRS "--print-search-dirs"
@@ -126,26 +125,36 @@ char buffer[PATH_MAX * 2];
 #define OPTION_OPT_CODE_SPEED "--opt-code-speed"
 #define OPTION_OPT_CODE_SIZE "--opt-code-size"
 #define OPTION_STD_C89 "--std-c89"
+#define OPTION_STD_C95 "--std-c95"
 #define OPTION_STD_C99 "--std-c99"
 #define OPTION_STD_C11 "--std-c11"
+#define OPTION_STD_C2X "--std-c2x"
 #define OPTION_STD_SDCC89 "--std-sdcc89"
 #define OPTION_STD_SDCC99 "--std-sdcc99"
+#define OPTION_STD_SDCC11 "--std-sdcc11"
+#define OPTION_STD_SDCC2X "--std-sdcc2x"
 #define OPTION_CODE_SEG "--codeseg"
 #define OPTION_CONST_SEG "--constseg"
+#define OPTION_DATA_SEG "--dataseg"
 #define OPTION_DOLLARS_IN_IDENT "--fdollars-in-identifiers"
-#define OPTION_UNSIGNED_CHAR "--funsigned-char"
+#define OPTION_SIGNED_CHAR "--fsigned-char"
 #define OPTION_USE_NON_FREE "--use-non-free"
 #define OPTION_PEEP_RETURN "--peep-return"
 #define OPTION_NO_PEEP_RETURN "--no-peep-return"
 #define OPTION_NO_OPTSDCC_IN_ASM "--no-optsdcc-in-asm"
 #define OPTION_MAX_ALLOCS_PER_NODE "--max-allocs-per-node"
 #define OPTION_NO_LOSPRE "--nolospre"
-#define OPTION_LOSPRE_UNSAFE_READ "--lospre-unsafe-read"
+#define OPTION_ALLOW_UNSAFE_READ "--allow-unsafe-read"
 #define OPTION_DUMP_AST "--dump-ast"
 #define OPTION_DUMP_I_CODE "--dump-i-code"
 #define OPTION_DUMP_GRAPHS "--dump-graphs"
 #define OPTION_CPP "--cpp"
 #define OPTION_NO_CLEANUP "--no-cleanup"
+
+#define OPTION_SMALL_MODEL "--model-small"
+#define OPTION_MEDIUM_MODEL "--model-medium"
+#define OPTION_LARGE_MODEL "--model-large"
+#define OPTION_HUGE_MODEL "--model-huge"
 
 static const OPTION optionsTable[] = {
     {0, NULL, NULL, "General options"},
@@ -155,11 +164,12 @@ static const OPTION optionsTable[] = {
      "Trace calls to the preprocessor, assembler, and linker"},
     {'V', NULL, &options.verboseExec,
      "Execute verbosely. Show sub commands as they are run"},
-    {'d', NULL, NULL, NULL},
+    {'d', NULL, NULL,
+     "Output list of macro definitions in effect. Use with -E"},
     {'D', NULL, NULL, "Define macro as in -Dmacro"},
     {'I', NULL, NULL, "Add to the include (*.h) path, as in -Ipath"},
     {'A', NULL, NULL, NULL},
-    {'U', NULL, NULL, NULL},
+    {'U', NULL, NULL, "Undefine macro as in -Umacro"},
     {'M', NULL, NULL, "Preprocessor option"},
     {'W', NULL, NULL,
      "Pass through options to the pre-processor (p), assembler (a) or linker "
@@ -177,6 +187,10 @@ static const OPTION optionsTable[] = {
     {0, OPTION_MSVC_ERROR_STYLE, &options.vc_err_style,
      "messages are compatible with Micro$oft visual studio"},
     {0, OPTION_USE_STDOUT, NULL, "send errors to stdout instead of stderr"},
+    {0, "--nostdlib", &options.nostdlib,
+     "Do not include the standard library directory in the search path"},
+    {0, "--nostdinc", &options.nostdinc,
+     "Do not include the standard include directory in the search path"},
     {0, OPTION_LESS_PEDANTIC, NULL,
      "Disable some of the more pedantic warnings"},
     {0, OPTION_DISABLE_WARNING, NULL, "<nnnn> Disable specific warning"},
@@ -185,16 +199,23 @@ static const OPTION optionsTable[] = {
     {0, "--cyclomatic", &options.cyclomatic,
      "Display complexity of compiled functions"},
     {0, "--std", NULL, "Use the specified C standard"},
-    {0, OPTION_STD_C89, NULL, "Use C89 standard (slightly incomplete)"},
+    {0, OPTION_STD_C89, NULL,
+     "Use ISO C90 (aka ANSI C89) standard (slightly incomplete)"},
     {0, OPTION_STD_SDCC89, NULL,
-     "Use C89 standard with SDCC extensions (default)"},
-    {0, OPTION_STD_C99, NULL, "Use C99 standard (incomplete)"},
-    {0, OPTION_STD_SDCC99, NULL, "Use C99 standard with SDCC extensions"},
-    {0, OPTION_STD_C11, NULL, "Use C11 standard (very incomplete)"},
+     "Use ISO C90 (aka ANSI C89) standard with SDCC extensions"},
+    {0, OPTION_STD_C95, NULL,
+     "Use ISO C95 (aka ISO C94) standard (slightly incomplete)"},
+    {0, OPTION_STD_C99, NULL, "Use ISO C99 standard (incomplete)"},
+    {0, OPTION_STD_SDCC99, NULL, "Use ISO C99 standard with SDCC extensions"},
+    {0, OPTION_STD_C11, NULL, "Use ISO C11 standard (incomplete)"},
+    {0, OPTION_STD_SDCC11, NULL,
+     "Use ISO C11 standard with SDCC extensions (default)"},
+    {0, OPTION_STD_C2X, NULL, "Use ISO C2X standard (incomplete)"},
+    {0, OPTION_STD_SDCC2X, NULL, "Use ISO C2X standard with SDCC extensions"},
     {0, OPTION_DOLLARS_IN_IDENT, &options.dollars_in_ident,
      "Permit '$' as an identifier character"},
-    {0, OPTION_UNSIGNED_CHAR, &options.unsigned_char,
-     "Make \"char\" unsigned by default"},
+    {0, OPTION_SIGNED_CHAR, &options.signed_char,
+     "Make \"char\" signed by default"},
 
     {0, NULL, NULL, "Code generation options"},
     {0, "--stack-auto", &options.stackAuto, "Stack automatic variables"},
@@ -221,9 +242,9 @@ static const OPTION optionsTable[] = {
      "don't memcpy initialized xram from code"},
     {0, OPTION_NO_PEEP_COMMENTS, &options.noPeepComments,
      "don't include peephole optimizer comments"},
-    {0, OPTION_SHORT_IS_8BITS, NULL, "Make short 8 bits (for old times sake)"},
     {0, OPTION_CODE_SEG, NULL, "<name> use this name for the code segment"},
     {0, OPTION_CONST_SEG, NULL, "<name> use this name for the const segment"},
+    {0, OPTION_DATA_SEG, NULL, "<name> use this name for the data segment"},
 
     {0, NULL, NULL, "Optimization options"},
     {0, "--nooverlay", &options.noOverlay,
@@ -232,8 +253,6 @@ static const OPTION optionsTable[] = {
     {0, OPTION_NO_LABEL_OPT, NULL, "Disable label optimisation"},
     {0, OPTION_NO_LOOP_INV, NULL, "Disable optimisation of invariants"},
     {0, OPTION_NO_LOOP_IND, NULL, "Disable loop variable induction"},
-    {0, "--nojtbound", &optimize.noJTabBoundary,
-     "Don't generate boundary check for jump tables"},
     {0, "--noloopreverse", &optimize.noLoopReverse,
      "Disable the loop reverse optimisation"},
     {0, "--no-peep", &options.nopeep,
@@ -256,7 +275,10 @@ static const OPTION optionsTable[] = {
      "tree decomposition",
      CLAT_INTEGER},
     {0, OPTION_NO_LOSPRE, NULL, "Disable lospre"},
-    {0, OPTION_LOSPRE_UNSAFE_READ, NULL, "Allow unsafe reads in lospre"},
+    {0, OPTION_ALLOW_UNSAFE_READ, NULL,
+     "Allow optimizations to read any memory location anytime"},
+    {0, "--nostdlibcall", &optimize.noStdLibCall,
+     "Disable optimization of calls to standard library"},
 
     {0, NULL, NULL, "Internal debugging options"},
     {0, OPTION_DUMP_AST, &options.dump_ast,
@@ -395,6 +417,16 @@ void setParseWithComma(set **dest, const char *src) {
   }
 }
 
+/*-------------------------------------------------------------*/
+/* setStackSize - set the stack size of a running sdcc process */
+/*-------------------------------------------------------------*/
+static void setStackSize(void) {
+#if defined(HAVE_SETRLIMIT) && defined(RLIMIT_STACK)
+  struct rlimit rl = {4 * 1024 * 1024, 4 * 1024 * 1024};
+  setrlimit(RLIMIT_STACK, &rl);
+#endif
+}
+
 /*-----------------------------------------------------------------*/
 /* setDefaultOptions - sets the default options                    */
 /*-----------------------------------------------------------------*/
@@ -408,22 +440,30 @@ static void setDefaultOptions(void) {
       1; /* MB: Do not use address 0 by default as it equals NULL */
   options.idata_loc = 0; /* MB: No need to limit idata to 0x80-0xFF */
   options.nopeep = 0;
+  options.model = port->general.default_model;
   options.nostdlib = 0;
   options.nostdinc = 0;
   options.verbose = 0;
-  options.shortis8bits = 0;
   options.std_sdcc = 0; /* enable SDCC language extensions */
-  options.std_c99 = 0;  /* default to C89 until more C99 support */
-  options.std_c11 = 0;  /* default to C89 until more C11 support */
+  options.std_c95 = 1;
+  options.std_c99 = 1;
+  options.std_c11 =
+      1; /* default to C11 (we want inline by default, so we need at least C99,
+            and support for C11 is more complete than C99) */
+  options.std_c2x = 0;
   options.code_seg = CODE_NAME ? Safe_strdup(CODE_NAME)
                                : NULL; /* default to CSEG for generated code */
   options.const_seg = CONST_NAME
                           ? Safe_strdup(CONST_NAME)
                           : NULL; /* default to CONST for generated code */
+  options.data_seg = DATA_NAME
+                         ? Safe_strdup(DATA_NAME)
+                         : NULL; /* default to DATA for non-initialized data */
   options.stack10bit = 0;
   options.out_fmt = 0;
   options.dump_graphs = 0;
   options.preprocessor = NULL;
+  options.dependencyFileOpt = 0;
 
   /* now for the optimizations */
   /* turn on the everything */
@@ -436,7 +476,7 @@ static void setDefaultOptions(void) {
   optimize.loopInduction = 1;
   options.max_allocs_per_node = 3000;
   optimize.lospre = 1;
-  optimize.lospre_unsafe_read = 0;
+  optimize.allow_unsafe_read = 0;
 
   /* now for the ports */
   port->setDefaultOptions();
@@ -455,9 +495,9 @@ static void processFile(char *s) {
 
   /* get the file extension.
      If no '.' then we don't know what the file type is
-     so give a warning and return */
+     so give an error and return */
   if (!dbuf_splitFile(s, &path, &ext)) {
-    werror(W_UNKNOWN_FEXT, s);
+    werror(E_UNKNOWN_FEXT, s);
 
     dbuf_destroy(&ext);
     dbuf_destroy(&path);
@@ -467,7 +507,7 @@ static void processFile(char *s) {
 
   /* otherwise depending on the file type */
   extp = dbuf_c_str(&ext);
-  if (STRCASECMP(extp, ".c") == 0) {
+  if (STRCASECMP(extp, ".c") == 0 || STRCASECMP(extp, ".h") == 0) {
     char *p, *m;
 
     dbuf_destroy(&ext);
@@ -485,7 +525,7 @@ static void processFile(char *s) {
     /* the only source file */
     fullSrcFileName = s;
     if (!(srcFile = fopen(fullSrcFileName, "r"))) {
-      werror(E_FILE_OPEN_ERR, s);
+      werror(E_INPUT_FILE_OPEN_ERR, fullSrcFileName, strerror(errno));
 
       dbuf_destroy(&path);
 
@@ -531,7 +571,14 @@ static void processFile(char *s) {
   dbuf_destroy(&ext);
   dbuf_destroy(&path);
 
-  werror(W_UNKNOWN_FEXT, s);
+  werror(E_UNKNOWN_FEXT, s);
+}
+
+static void _setModel(int model, const char *sz) {
+  if (port->general.supported_models & model)
+    options.model = model;
+  else
+    werror(W_UNSUPPORTED_MODEL, sz, port->target);
 }
 
 /** Gets the string argument to this option.  If the option is '--opt'
@@ -555,7 +602,7 @@ char *getStringArg(const char *szStart, char **argv, int *pi, int argc) {
 /** Gets the integer argument to this option using the same rules as
     getStringArg.
 */
-int getIntArg(const char *szStart, char **argv, int *pi, int argc) {
+long getIntArg(const char *szStart, char **argv, int *pi, int argc) {
   char *p;
   int val;
   char *str = getStringArg(szStart, argv, pi, argc);
@@ -716,6 +763,8 @@ static int parseCmdLine(int argc, char **argv) {
 
   /* go thru all whole command line */
   for (i = 1; i < argc; i++) {
+    if (i >= argc)
+      break;
 
     /* check port specific options before general ones */
     if (port->parseOption(&argc, argv, &i) == TRUE) {
@@ -811,8 +860,8 @@ static int parseCmdLine(int argc, char **argv) {
         continue;
       }
 
-      if (strcmp(argv[i], OPTION_LOSPRE_UNSAFE_READ) == 0) {
-        optimize.lospre_unsafe_read = 1;
+      if (strcmp(argv[i], OPTION_ALLOW_UNSAFE_READ) == 0) {
+        optimize.allow_unsafe_read = 1;
         continue;
       }
 
@@ -834,45 +883,92 @@ static int parseCmdLine(int argc, char **argv) {
         continue;
       }
 
-      if (strcmp(argv[i], OPTION_SHORT_IS_8BITS) == 0) {
-        printf("Option %s is deprecated and will be removed in the future.\n",
-               OPTION_SHORT_IS_8BITS);
-        options.shortis8bits = 1;
+      if (strcmp(argv[i], OPTION_STD_C89) == 0 ||
+          strcmp(argv[i], "--std=c89") == 0) {
+        options.std_c95 = 0;
+        options.std_c99 = 0;
+        options.std_c11 = 0;
+        options.std_c2x = 0;
+        options.std_sdcc = 0;
         continue;
       }
 
-      if (strcmp(argv[i], OPTION_STD_C89) == 0 ||
-          !strcmp(argv[i], "--std=c89")) {
+      if (strcmp(argv[i], OPTION_STD_C95) == 0 ||
+          strcmp(argv[i], "--std=c95") == 0) {
+        options.std_c95 = 1;
         options.std_c99 = 0;
+        options.std_c11 = 0;
+        options.std_c2x = 0;
+        options.std_sdcc = 0;
+        continue;
+      }
+
+      if (strcmp(argv[i], OPTION_STD_C99) == 0 ||
+          strcmp(argv[i], "--std=c99") == 0) {
+        options.std_c95 = 1;
+        options.std_c99 = 1;
+        options.std_c11 = 0;
+        options.std_c2x = 0;
         options.std_sdcc = 0;
         continue;
       }
 
       if (strcmp(argv[i], OPTION_STD_C99) == 0 ||
           !strcmp(argv[i], "--std=c99")) {
+        options.std_c95 = 1;
         options.std_c99 = 1;
+        options.std_c11 = 1;
+        options.std_c2x = 0;
         options.std_sdcc = 0;
         continue;
       }
 
-      if (strcmp(argv[i], OPTION_STD_C11) == 0 ||
-          !strcmp(argv[i], "--std=c11")) {
+      if (strcmp(argv[i], OPTION_STD_C2X) == 0 ||
+          strcmp(argv[i], "--std=c2x") == 0) {
+        options.std_c95 = 1;
         options.std_c99 = 1;
         options.std_c11 = 1;
+        options.std_c2x = 1;
         options.std_sdcc = 0;
         continue;
       }
 
       if (strcmp(argv[i], OPTION_STD_SDCC89) == 0 ||
           !strcmp(argv[i], "--std=sdcc89")) {
+        options.std_c95 = 0;
         options.std_c99 = 0;
+        options.std_c11 = 0;
+        options.std_c2x = 0;
         options.std_sdcc = 1;
         continue;
       }
 
       if (strcmp(argv[i], OPTION_STD_SDCC99) == 0 ||
-          !strcmp(argv[i], "--std=sdcc99")) {
+          strcmp(argv[i], "--std=sdcc99")) {
+        options.std_c95 = 1;
         options.std_c99 = 1;
+        options.std_c11 = 0;
+        options.std_c2x = 0;
+        options.std_sdcc = 1;
+        continue;
+      }
+
+      if (strcmp(argv[i], OPTION_STD_SDCC11) == 0 ||
+          strcmp(argv[i], "--std=sdcc11")) {
+        options.std_c95 = 1;
+        options.std_c99 = 1;
+        options.std_c11 = 1;
+        options.std_c2x = 0;
+        options.std_sdcc = 1;
+        continue;
+      }
+
+      if (strcmp(argv[i], OPTION_STD_SDCC2X) == 0 ||
+          !strcmp(argv[i], "--std=sdcc2x")) {
+        options.std_c95 = 1;
+        options.std_c99 = 1;
+        options.std_c11 = 1;
+        options.std_c2x = 1;
         options.std_sdcc = 1;
         continue;
       }
@@ -909,6 +1005,18 @@ static int parseCmdLine(int argc, char **argv) {
         if (options.const_seg)
           Safe_free(options.const_seg);
         options.const_seg = dbuf_detach(&segname);
+        continue;
+      }
+
+      if (strcmp(argv[i], OPTION_DATA_SEG) == 0) {
+        struct dbuf_s segname;
+
+        dbuf_init(&segname, 16);
+        dbuf_printf(&segname, "%-8s(DATA)",
+                    getStringArg(OPTION_DATA_SEG, argv, &i, argc));
+        if (options.data_seg)
+          Safe_free(options.data_seg);
+        options.data_seg = dbuf_detach(&segname);
         continue;
       }
 
@@ -1024,11 +1132,21 @@ static int parseCmdLine(int argc, char **argv) {
 
         /* preprocessor options */
       case 'M': {
-        preProcOnly = 1;
-        if (argv[i][2] == 'M')
-          addSet(&preArgvSet, Safe_strdup("-MM"));
-        else
-          addSet(&preArgvSet, Safe_strdup("-M"));
+        if (argv[i][2] == 'M') {
+          if (argv[i][3] == 'D') {
+            options.dependencyFileOpt = USER_DEPENDENCY_FILE_OPT;
+          } else {
+            addSet(&preArgvSet, Safe_strdup("-MM"));
+            preProcOnly = 1;
+          }
+        } else {
+          if (argv[i][2] == 'D') {
+            options.dependencyFileOpt = SYSTEM_DEPENDENCY_FILE_OPT;
+          } else {
+            addSet(&preArgvSet, Safe_strdup("-M"));
+            preProcOnly = 1;
+          }
+        }
         break;
       }
 
@@ -1305,6 +1423,29 @@ static int preProcess(char **envp) {
     set *inclList = NULL;
     char *buf;
 
+    if (options.dependencyFileOpt) {
+      struct dbuf_s dbuf;
+
+      dbuf_init(&dbuf, PATH_MAX);
+      if (options.dependencyFileOpt == SYSTEM_DEPENDENCY_FILE_OPT)
+        dbuf_append_str(&dbuf, "-MD ");
+      else
+        dbuf_append_str(&dbuf, "-MMD ");
+      if (fullDstFileName)
+        dbuf_splitFile(fullDstFileName, &dbuf, NULL);
+      else
+        dbuf_append_str(&dbuf, dstFileName);
+      dbuf_append_str(&dbuf, ".d");
+      addSet(&preArgvSet, dbuf_detach_c_str(&dbuf));
+
+      dbuf_init(&dbuf, PATH_MAX);
+      if (fullDstFileName)
+        dbuf_printf(&dbuf, "-MT %s", fullDstFileName);
+      else
+        dbuf_printf(&dbuf, "-MT %s%s", dstFileName, port->linker.rel_ext);
+      addSet(&preArgvSet, dbuf_detach_c_str(&dbuf));
+    }
+
     /* if using dollar signs in identifiers */
     if (options.dollars_in_ident)
       addSet(&preArgvSet, Safe_strdup("-fdollars-in-identifiers"));
@@ -1312,26 +1453,26 @@ static int preProcess(char **envp) {
     /* set the macro for no overlay  */
     if (options.noOverlay)
       addSet(&preArgvSet, Safe_strdup("-D__SDCC_NOOVERLAY"));
-    if (options.std_sdcc && options.noOverlay)
-      addSet(&preArgvSet, Safe_strdup("-DSDCC_NOOVERLAY"));
 
     /* set the macro for unsigned char  */
-    if (options.unsigned_char)
+    if (options.signed_char)
+      addSet(&preArgvSet, Safe_strdup("-D__SDCC_CHAR_SIGNED"));
+    else
       addSet(&preArgvSet, Safe_strdup("-D__SDCC_CHAR_UNSIGNED"));
-    if (options.std_sdcc && options.unsigned_char)
-      addSet(&preArgvSet, Safe_strdup("-DSDCC_CHAR_UNSIGNED"));
+
+    /* set macro for optimization level */
+    if (optimize.codeSpeed)
+      addSet(&preArgvSet, Safe_strdup("-D__SDCC_OPTIMIZE_SPEED"));
+    if (optimize.codeSize)
+      addSet(&preArgvSet, Safe_strdup("-D__SDCC_OPTIMIZE_SIZE"));
 
     /* set macro corresponding to compiler option */
     if (options.intlong_rent)
       addSet(&preArgvSet, Safe_strdup("-D__SDCC_INT_LONG_REENT"));
-    if (options.std_sdcc && options.intlong_rent)
-      addSet(&preArgvSet, Safe_strdup("-DSDCC_INT_LONG_REENT"));
 
     /* set macro corresponding to compiler option */
     if (options.float_rent)
       addSet(&preArgvSet, Safe_strdup("-D__SDCC_FLOAT_REENT"));
-    if (options.std_sdcc && options.float_rent)
-      addSet(&preArgvSet, Safe_strdup("-DSDCC_FLOAT_REENT"));
 
     if (options.all_callee_saves)
       addSet(&preArgvSet, Safe_strdup("-D__SDCC_ALL_CALLEE_SAVES"));
@@ -1349,23 +1490,32 @@ static int preProcess(char **envp) {
       struct dbuf_s dbuf;
 
       dbuf_init(&dbuf, 20);
-      dbuf_printf(&dbuf, "-DKCC=%d%d%d", KCC_VERSION_HI, KCC_VERSION_LO,
-                  KCC_VERSION_P);
       addSet(&preArgvSet, dbuf_detach_c_str(&dbuf));
     }
 
     /* add port (processor information to processor */
     addSet(&preArgvSet, Safe_strdup("-D__SDCC_{port}"));
-    if (options.std_sdcc) {
-      addSet(&preArgvSet, Safe_strdup("-DSDCC_{port}"));
-      addSet(&preArgvSet, Safe_strdup("-D__{port}"));
-    }
 
-    /* Optinal C features not (yet) supported by sdcc */
-    addSet(&preArgvSet, Safe_strdup("-D__STDC_NO_COMPLEX__"));
-    addSet(&preArgvSet, Safe_strdup("-D__STDC_NO_THREADS__"));
-    addSet(&preArgvSet, Safe_strdup("-D__STDC_NO_ATOMICS__"));
-    addSet(&preArgvSet, Safe_strdup("-D__STDC_NO_VLA__"));
+    /* Optional C features not (yet) supported by SDCC */
+    addSet(&preArgvSet, Safe_strdup("-D__STDC_NO_COMPLEX__=1"));
+    addSet(&preArgvSet, Safe_strdup("-D__STDC_NO_THREADS__=1"));
+    addSet(&preArgvSet, Safe_strdup("-D__STDC_NO_ATOMICS__=1"));
+    addSet(&preArgvSet, Safe_strdup("-D__STDC_NO_VLA__=1"));
+
+    /* Character encoding  - these need to be set in device/lib/Makefile.in for
+     * $CPP, too */
+    addSet(&preArgvSet,
+           Safe_strdup("-D__STDC_ISO_10646__=201409L")); // wchar_t is UTF-32
+    addSet(&preArgvSet,
+           Safe_strdup("-D__STDC_UTF_16__=1")); // char16_t is UTF-16
+    addSet(&preArgvSet,
+           Safe_strdup("-D__STDC_UTF_32__=1")); // char32_t is UTF-32
+
+    /* standard include path */
+    if (!options.nostdinc) {
+      inclList = processStrSet(includeDirsSet, "-isystem ", NULL, shell_escape);
+      mergeSets(&preArgvSet, inclList);
+    }
 
     setMainValue("cppextraopts", (s = joinStrSet(preArgvSet)));
     Safe_free((void *)s);
@@ -1393,6 +1543,7 @@ static int preProcess(char **envp) {
     if (options.verbose)
       printf("kcc: Calling preprocessor...\n");
     buf = buildMacros(_preCmd);
+    buf = setPrefixSuffix(buf);
 
     if (preProcOnly) {
       if (sdcc_system(buf)) {
@@ -1602,10 +1753,12 @@ static void initValues(void) {
    * Make sure the preprocessor is called with the "-std" option
    * corresponding to the --std used to start sdcc
    */
-  if (!options.std_sdcc)
-    setMainValue("cppstd", options.std_c11
-                               ? "-std=c11 "
-                               : (options.std_c99 ? "-std=c99 " : "-std=c89 "));
+  setMainValue("cppstd", options.std_c11
+                             ? "-std=c11 "
+                             : (options.std_c99
+                                    ? "-std=c99 "
+                                    : (options.std_c95 ? "-std=iso9899:199409 "
+                                                       : "-std=c89 ")));
 }
 
 static void doPrintSearchDirs(void) {
@@ -1662,6 +1815,12 @@ static void sig_handler(int signal) {
  */
 
 int main(int argc, char **argv, char **envp) {
+  /* get the prefix and the suffix of the sdcc command */
+  getPrefixSuffix(argv[0]);
+
+  /* set a larger stack size of a running sdcc process to 4MB */
+  setStackSize();
+
   /* turn all optimizations off by default */
   memset(&optimize, 0, sizeof(struct optimize));
 

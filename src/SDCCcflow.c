@@ -156,7 +156,16 @@ static void eBBSuccessors(ebbIndex *ebbi) {
         switch (ic->op) {
         case GOTO: /* goto has edge to label */
           succ = eBBWithEntryLabel(ebbi, ic->label);
-          break;
+
+          /* Sometimes a block has a GOTO added after the original */
+          /* final IFX (due to loop optimizations). If IFX found,  */
+          /* fall through to handle the IFX too. */
+          if (ic->prev && ic->prev->op == IFX) {
+            if (succ)
+              addSuccessor(ebbs[i], succ); /* add the GOTO target */
+            ic = ic->prev;                 /* get ready to handle IFX too. */
+          } else
+            break;
 
         case IFX: /* conditional jump */
           /* if true label is present */
@@ -221,7 +230,7 @@ static void computeDominance(ebbIndex *ebbi) {
       for (pred = setFirstItem(ebbs[i]->predList),
           cDomVect = (pred ? bitVectCopy(pred->domVect) : NULL);
            pred; pred = setNextItem(ebbs[i]->predList)) {
-        cDomVect = bitVectIntersect(cDomVect, pred->domVect);
+        cDomVect = bitVectInplaceIntersect(cDomVect, pred->domVect);
       }
       if (!cDomVect)
         cDomVect = newBitVect(count);
@@ -229,6 +238,7 @@ static void computeDominance(ebbIndex *ebbi) {
       cDomVect = bitVectSetBit(cDomVect, ebbs[i]->bbnum);
 
       if (!bitVectEqual(cDomVect, ebbs[i]->domVect)) {
+        freeBitVect(ebbs[i]->domVect);
         ebbs[i]->domVect = cDomVect;
         change = 1;
       }
@@ -344,10 +354,12 @@ void computeControlFlow(ebbIndex *ebbi) {
   /* initialise some things */
 
   for (i = 0; i < ebbi->count; i++) {
-    setToNull((void *)&ebbs[i]->predList);
-    setToNull((void *)&ebbs[i]->domVect);
-    setToNull((void *)&ebbs[i]->succList);
-    setToNull((void *)&ebbs[i]->succVect);
+    deleteSet(&ebbs[i]->predList);
+    freeBitVect(ebbs[i]->domVect);
+    ebbs[i]->domVect = NULL;
+    deleteSet(&ebbs[i]->succList);
+    freeBitVect(ebbs[i]->succVect);
+    ebbs[i]->succVect = NULL;
     ebbs[i]->visited = 0;
     ebbs[i]->dfnum = 0;
   }
