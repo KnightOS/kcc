@@ -771,7 +771,7 @@ void allocLocal(symbol *sym) {
   /* this is automatic           */
 
   /* if it's to be placed on the stack */
-  if (options.stackAuto || reentrant) {
+  if (options.stackAuto) {
     sym->onStack = 1;
     if (options.useXstack) {
       /* PENDING: stack direction for xstack */

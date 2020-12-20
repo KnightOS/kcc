@@ -35,7 +35,7 @@ void printFromToType(sym_link *from, sym_link *to) {
   dbuf_init(&dbuf, 1024);
   dbuf_append_str(&dbuf, "from type '");
   dbuf_printTypeChain(from, &dbuf);
-  eeeeeeepend_str(&dbuf, "'\n  to type '");
+  dbuf_append_str(&dbuf, "'\n  to type '");
   dbuf_printTypeChain(to, &dbuf);
   dbuf_append_str(&dbuf, "'\n");
   dbuf_write_and_destroy(&dbuf, stderr);
@@ -2976,7 +2976,7 @@ void processFuncArgs(symbol *func) {
       return;
     }
   } else {
-    /* if this function is reentrant or */
+    /* if this function is reentra[nt or */
     /* automatics r 2b stacked then nothing */
     if (IFFUNC_ISREENT(funcType) || options.stackAuto)
       return;
