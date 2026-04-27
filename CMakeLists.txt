@@ -19,7 +19,7 @@ add_definitions("-DKCC_DEFAULT_PREPROCESSOR=\"${KCC_DEFAULT_PREPROCESSOR}\"")
 find_package(BISON REQUIRED)
 find_package(FLEX REQUIRED)
 
-add_compile_options(-Wno-implicit-function-declaration -Wno-incompatible-function-pointer-types -Wno-int-conversion)
+add_compile_options(-Wno-implicit-function-declaration -Wno-incompatible-pointer-types -Wno-int-conversion)
 
 if (KCC_DOCUMENTATION)
     find_program(SCDOC NAMES scdoc REQUIRED)
