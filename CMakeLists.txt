@@ -1,12 +1,10 @@
-cmake_minimum_required(VERSION 2.8.5)
+cmake_minimum_required(VERSION 3.5)
 
-project(kcc C CXX)
+project(kcc C)
 
-set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_C_FLAGS_DEBUG "-g")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -pedantic -std=c99 -D_POSIX_C_SOURCE=200809")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -std=c++11")
 
 if (NOT DEFINED KCC_DEFAULT_PREPROCESSOR)
 	set(KCC_DEFAULT_PREPROCESSOR "cpp" CACHE PATH "The preprocessor KCC should use if none is explicitly specified")
@@ -20,7 +18,8 @@ add_definitions("-DKCC_DEFAULT_PREPROCESSOR=\"${KCC_DEFAULT_PREPROCESSOR}\"")
 
 find_package(BISON REQUIRED)
 find_package(FLEX REQUIRED)
-find_package(Boost REQUIRED)
+
+add_compile_options(-Wno-implicit-function-declaration -Wno-incompatible-pointer-types -Wno-int-conversion)
 
 if (KCC_DOCUMENTATION)
     find_program(SCDOC NAMES scdoc REQUIRED)
@@ -40,8 +39,8 @@ BISON_TARGET(SDCCy ${PROJECT_SOURCE_DIR}/src/SDCC.y ${PROJECT_BINARY_DIR}/gen/SD
 FLEX_TARGET(SDCClex ${PROJECT_SOURCE_DIR}/src/SDCC.lex ${PROJECT_BINARY_DIR}/gen/SDCClex.c)
 
 FILE(GLOB SOURCES
-	${PROJECT_SOURCE_DIR}/src/*.c ${PROJECT_SOURCE_DIR}/src/*.cc
-	${PROJECT_SOURCE_DIR}/src/backend/*.c ${PROJECT_SOURCE_DIR}/src/backend/*.cc
+	${PROJECT_SOURCE_DIR}/src/*.c
+	${PROJECT_SOURCE_DIR}/src/backend/*.c
 	${PROJECT_SOURCE_DIR}/src/util/*.c
 	${PROJECT_SOURCE_DIR}/src/backend/*.rul
 )
@@ -77,6 +76,6 @@ if (KCC_DOCUMENTATION)
 	install(FILES ${PROJECT_BINARY_DIR}/kcc.1 DESTINATION share/man/man1)
 endif()
 
-target_link_libraries(kcc m ${BOOST_LIBRARIES} ${LIBS})
+target_link_libraries(kcc m ${LIBS})
 
 install(TARGETS kcc DESTINATION bin)
