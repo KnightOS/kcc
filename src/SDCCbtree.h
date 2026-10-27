@@ -28,6 +28,8 @@ void btree_add_child(short parent, short child);
 // Gives the lowest common ancestor for blocks a and b.
 short btree_lowest_common_ancestor(short a, short b);
 
+struct symbol;
+
 // Add symbol to block tree for allocation.
 void btree_add_symbol(struct symbol *s);
 
