@@ -75,6 +75,8 @@ static const ASM_MAPPING _asxxxx_z80_mapping[] = {
       		"push\thl\n"
 		"push\tiy"
     },
+    { "tlabeldef", ".temp_%05d:" },
+    { "tlabel", ".temp_%05d" },
     { "popa",
 		"pop iy\n"
 		"pop\thl\n"
